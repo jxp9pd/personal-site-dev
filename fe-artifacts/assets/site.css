@@ -3,8 +3,8 @@
    Header logo top-left, nav top-right; side pages use a news-style entry list. */
 
 :root {
-  --paper: #f4f1ea;
-  --paper-2: #efeae0;
+  --paper: #fdfcf3;
+  --paper-2: #f7f5ea;
   --ink: #14130f;
   --muted: #6b675e;
   --line: rgba(20, 19, 15, 0.14);
