@@ -121,11 +121,14 @@ const hoodLayer=L.geoJSON(GEO,{
     l.on('mouseout',()=>{ if(mode!=='learn'&&!l._locked) l.setStyle(base); });
   }
 }).addTo(map);
-function hoodReset(){hoodLayer.eachLayer(l=>{l._locked=false;l.setStyle(base);});}
+function hoodReset(){hoodLayer.eachLayer(l=>{l._locked=false;l._revealed=false;l.unbindTooltip();l.setStyle(base);});}
+
+// once a hood has been clicked, hovering shows its name
+function revealName(l,name){l._revealed=true;l.bindTooltip(name,{className:'answer-tip',direction:'top'});}
 
 // ---- state ----
 let mode='find', queue=[], current=null,
-    correct=0, attempts=0, wrongThis=0, choiceWrap=null;
+    correct=0, answered=0, choiceWrap=null;
 const el=id=>document.getElementById(id);
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
 function clearChoices(){if(choiceWrap){choiceWrap.remove();choiceWrap=null;}}
@@ -138,7 +141,7 @@ function setMode(m){
 
 function start(){
   hoodReset();
-  correct=0;attempts=0;wrongThis=0;current=null;
+  correct=0;answered=0;current=null;
   el('done').style.display='none';
   el('pFb').textContent='';el('pFb').className='fb';
   clearChoices();
@@ -155,7 +158,6 @@ function start(){
 }
 
 function next(){
-  wrongThis=0;
   el('pFb').textContent='';el('pFb').className='fb';
   clearChoices();
   if(queue.length===0){return finish();}
@@ -176,30 +178,24 @@ function next(){
 
 function updateStat(){
   const total=HOOD_NAMES.length;
-  el('stat').innerHTML=`<b>${correct}</b>/${total} correct · ${queue.length} left · accuracy <b>${attempts?Math.round(correct/attempts*100):100}%</b>`;
+  el('stat').innerHTML=`<b>${correct}</b>/${total} correct · ${queue.length} left · accuracy <b>${answered?Math.round(correct/answered*100):100}%</b>`;
 }
 
-// FIND: click the right feature
+// FIND: one click per prompt, then move on
 function onClick(name,l){
   if(mode!=='find'||!current) return;
-  attempts++;
+  answered++;
+  l._locked=true; revealName(l,name);
   if(name===current){
-    correct++; l._locked=true; styleOk(l);
+    correct++; styleOk(l);
     el('pFb').textContent='Correct';el('pFb').className='fb good';
-    setTimeout(next,520);
   }else{
-    wrongThis++;
-    el('pFb').textContent='That was '+name+' — try again';
-    el('pFb').className='fb bad';
     styleWrong(l);
-    setTimeout(()=>{if(!l._locked)styleIdle(l);},650);
-    if(wrongThis>=3){
-      const t=hoodByName[current]; styleShow(t); t._locked=true;
-      el('pFb').textContent='Here it is: '+current;
-      setTimeout(next,1100);
-    }
+    el('pFb').textContent='That was '+name+' — answer was '+current;
+    el('pFb').className='fb bad';
   }
   updateStat();
+  setTimeout(next,700);
 }
 
 // NAME: multiple choice
@@ -218,18 +214,20 @@ function buildChoices(){
   el('prompt').appendChild(choiceWrap);
 }
 function chooseName(o,b){
-  attempts++;
+  answered++;
   if(o===current){
     correct++;
     b.style.background=C.goodFill;b.style.borderColor=C.good;
-    el('pTarget').textContent=current;
     el('pFb').textContent='Correct';el('pFb').className='fb good';
-    setTimeout(()=>{clearChoices();next();},620);
   }else{
-    b.style.background=C.badFill;b.style.borderColor=C.bad;b.disabled=true;
-    el('pFb').textContent='Nope';el('pFb').className='fb bad';
+    b.style.background=C.badFill;b.style.borderColor=C.bad;
+    el('pFb').textContent='Nope — '+current;el('pFb').className='fb bad';
+    [...choiceWrap.children].forEach(c=>{if(c.textContent===current){c.style.background=C.goodFill;c.style.borderColor=C.good;}});
   }
+  el('pTarget').textContent=current;
+  [...choiceWrap.children].forEach(c=>c.disabled=true);
   updateStat();
+  setTimeout(()=>{clearChoices();next();},700);
 }
 
 // LEARN: hover reveals name
@@ -241,9 +239,9 @@ function revealHover(name,l){
 
 function finish(){
   el('done').style.display='flex';
-  const pct=attempts?Math.round(correct/attempts*100):0;
+  const pct=answered?Math.round(correct/answered*100):0;
   el('doneTitle').textContent = pct>=90?'Local legend':pct>=70?'Solid':pct>=50?'Getting there':'Keep at it';
-  el('doneScore').textContent=`${correct}/${HOOD_NAMES.length} on first instinct · ${pct}% accuracy across ${attempts} clicks`;
+  el('doneScore').textContent=`${correct}/${HOOD_NAMES.length} correct · ${pct}% accuracy`;
 }
 
 document.querySelectorAll('#modeTabs button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
