@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Prediction market tools</title>
+<style>
+  :root {
+    --bg: #faf9f5;
+    --surface: #ffffff;
+    --surface-2: #f1efe8;
+    --border: rgba(0, 0, 0, 0.12);
+    --text: #1a1a1a;
+    --text-muted: #5f5e5a;
+    --text-faint: #888780;
+    --success: #0f6e56;
+    --danger: #a32d2d;
+    --danger-bg: #fcebeb;
+    --danger-text: #791f1f;
+    --accent: #185fa5;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a;
+      --surface: #262624;
+      --surface-2: #30302e;
+      --border: rgba(255, 255, 255, 0.14);
+      --text: #f1efe8;
+      --text-muted: #b4b2a9;
+      --text-faint: #888780;
+      --success: #5dcaa5;
+      --danger: #f09595;
+      --danger-bg: #501313;
+      --danger-text: #f7c1c1;
+      --accent: #85b7eb;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 500;
+    margin: 0 0 1.25rem;
+  }
+  .nav {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+    margin-bottom: 1.5rem;
+  }
+  .nav button {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 400;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s, font-weight 0.15s;
+  }
+  .nav button.active {
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 500;
+  }
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 1.25rem;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  input[type="number"], select {
+    width: 100%;
+    height: 36px;
+    padding: 0 10px;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input[type="number"]:hover, select:hover {
+    border-color: rgba(0, 0, 0, 0.25);
+  }
+  input[type="number"]:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(24, 95, 165, 0.18);
+  }
+  .toggle {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+    margin-bottom: 8px;
+  }
+  .toggle button {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 400;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s, font-weight 0.15s;
+  }
+  .toggle button.active {
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 500;
+  }
+  .section-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-faint);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin: 1rem 0 8px;
+  }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .metric {
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+  }
+  .metric-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .metric-label[data-tooltip] {
+    cursor: help;
+    border-bottom: 1px dashed var(--text-faint);
+    display: inline-block;
+  }
+  .metric-label[data-tooltip] {
+    position: relative;
+  }
+  .metric-label[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text);
+    color: var(--bg);
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 6px 10px;
+    border-radius: 6px;
+    white-space: pre-line;
+    width: max-content;
+    max-width: 220px;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .metric-value {
+    font-size: 20px;
+    font-weight: 500;
+  }
+  .metric-value .pct {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+  .error {
+    display: none;
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: var(--danger-bg);
+    color: var(--danger-text);
+    font-size: 13px;
+    border-radius: var(--radius-md);
+  }
+  .view { display: none; }
+  .view.active { display: block; }
+</style>
+</head>
+<body>
+<main class="page">
+  <h1>Prediction market tools</h1>
+
+  <nav class="nav" role="tablist" aria-label="Tool">
+    <button id="nav-roi" class="active" role="tab" aria-selected="true" aria-controls="view-roi">ROI calculator</button>
+    <button id="nav-novig" role="tab" aria-selected="false" aria-controls="view-novig">No-vig odds</button>
+  </nav>
+
+  <!-- ============ ROI CALCULATOR ============ -->
+  <section id="view-roi" class="view active" role="tabpanel" aria-labelledby="nav-roi">
+    <div class="card">
+
+      <div class="grid-2">
+        <div>
+          <label for="purchase">Purchase price (¢)</label>
+          <input id="purchase" type="number" min="0" max="100" step="0.1" value="50" />
+        </div>
+        <div>
+          <label for="truth">Estimated price (¢)</label>
+          <input id="truth" type="number" min="0" max="100" step="0.1" value="60" />
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <label for="fee-type">Fee type</label>
+          <select id="fee-type">
+            <option value="taker" selected>Taker</option>
+            <option value="maker">Maker</option>
+          </select>
+        </div>
+        <div>
+          <label for="amount-num" id="amount-label">Contracts</label>
+          <input id="amount-num" type="number" min="0" step="1" value="100" />
+        </div>
+      </div>
+
+      <div class="toggle" role="tablist" aria-label="Input mode">
+        <button id="mode-shares" class="active" role="tab" aria-selected="true">Contracts</button>
+        <button id="mode-dollars" role="tab" aria-selected="false">Dollars</button>
+      </div>
+
+      <div class="section-label">Your position</div>
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-label" data-tooltip="Difference between estimated and purchase price, with pre-fee ROI %.&#10;Edge = estimated − purchase&#10;ROI = edge / purchase">Edge</div>
+          <div id="edge-raw" class="metric-value">25.0¢</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label" id="converse-label">Cost</div>
+          <div id="converse-value" class="metric-value">$35.00</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label" data-tooltip="Lowest estimated price where you profit after fees.&#10;Breakeven = total cost / contracts">Breakeven price</div>
+          <div id="breakeven" class="metric-value">36.6¢</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label" data-tooltip="Highest purchase price that still breaks even at this estimated price and fee rate.&#10;Solved via fee-adjusted quadratic.">Max entry</div>
+          <div id="highest-acceptable" class="metric-value">—</div>
+        </div>
+      </div>
+
+      <div class="section-label">Analysis</div>
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-label" data-tooltip="Expected profit after fees with ROI %.&#10;ROI = expected profit / total cost">ROI</div>
+          <div id="roi-post" class="metric-value">+$23.41 (62.9%)</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label" data-tooltip="Transaction fee paid on entry, with fee as % of cost.&#10;Fee = rate × contracts × P × (1−P)">Fee</div>
+          <div id="fee-paid" class="metric-value">$1.60 (4.6%)</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ NO-VIG CALCULATOR ============ -->
+  <section id="view-novig" class="view" role="tabpanel" aria-labelledby="nav-novig">
+    <div class="card">
+
+      <div class="grid-2">
+        <div>
+          <label for="oddsA">Side A (American odds)</label>
+          <input id="oddsA" type="number" value="-110" step="1" />
+        </div>
+        <div>
+          <label for="oddsB">Side B (American odds)</label>
+          <input id="oddsB" type="number" value="-110" step="1" />
+        </div>
+      </div>
+
+      <div class="section-label">Fair line</div>
+      <div class="metrics" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="metric">
+          <div class="metric-label">Side A</div>
+          <div id="nvProbA" class="metric-value">50.00% <span class="pct">(+100)</span></div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Side B</div>
+          <div id="nvProbB" class="metric-value">50.00% <span class="pct">(+100)</span></div>
+        </div>
+        <div class="metric">
+          <div class="metric-label" data-tooltip="Total overround baked into the line.&#10;Vig = sum of raw implied probs − 100%">Vig</div>
+          <div id="vig" class="metric-value">4.76%</div>
+        </div>
+      </div>
+
+      <div id="errorMsg" class="error"></div>
+
+    </div>
+  </section>
+
+
+</main>
+
+<script>
+// ============================================================
+//  Tab navigation
+// ============================================================
+(function() {
+  const navRoi = document.getElementById('nav-roi');
+  const navNovig = document.getElementById('nav-novig');
+  const viewRoi = document.getElementById('view-roi');
+  const viewNovig = document.getElementById('view-novig');
+
+  function show(which) {
+    const isRoi = which === 'roi';
+    navRoi.classList.toggle('active', isRoi);
+    navRoi.setAttribute('aria-selected', isRoi ? 'true' : 'false');
+    navNovig.classList.toggle('active', !isRoi);
+    navNovig.setAttribute('aria-selected', !isRoi ? 'true' : 'false');
+    viewRoi.classList.toggle('active', isRoi);
+    viewNovig.classList.toggle('active', !isRoi);
+  }
+  navRoi.addEventListener('click', () => show('roi'));
+  navNovig.addEventListener('click', () => show('novig'));
+})();
+
+// ============================================================
+//  ROI calculator
+// ============================================================
+(function() {
+  let mode = 'shares';
+
+  const purchase = document.getElementById('purchase');
+  const truth = document.getElementById('truth');
+  const feeType = document.getElementById('fee-type');
+  const modeShares = document.getElementById('mode-shares');
+  const modeDollars = document.getElementById('mode-dollars');
+  const amountLabel = document.getElementById('amount-label');
+  const amountNum = document.getElementById('amount-num');
+
+  const edgeRaw = document.getElementById('edge-raw');
+  const converseLabel = document.getElementById('converse-label');
+  const converseValue = document.getElementById('converse-value');
+  const breakeven = document.getElementById('breakeven');
+  const highestAcceptable = document.getElementById('highest-acceptable');
+
+  const roiPost = document.getElementById('roi-post');
+  const feePaid = document.getElementById('fee-paid');
+
+  function clampPrice(v) {
+    const n = parseFloat(v);
+    if (isNaN(n)) return 0;
+    return Math.max(0, Math.min(100, n));
+  }
+  function getPrice() { return clampPrice(purchase.value); }
+  function getTruth() { return clampPrice(truth.value); }
+
+  function getFeeRate() {
+    return feeType.value === 'maker' ? 0.0175 : 0.07;
+  }
+
+  // Kalshi fee formula: round_up(rate × C × P × (1-P)) in dollars,
+  // where P is contract price in dollars (0..1). Round up to next cent.
+  function computeFee(rate, contracts, priceCents) {
+    const P = priceCents / 100;
+    const raw = rate * contracts * P * (1 - P);
+    return Math.ceil(raw * 100) / 100;
+  }
+
+  function setMode(next) {
+    if (next === mode) return;
+    const p = getPrice();
+    const rate = getFeeRate();
+    const oldVal = parseFloat(amountNum.value) || 0;
+
+    let newVal;
+    if (next === 'dollars') {
+      const shares = Math.floor(oldVal);
+      const cost = (p / 100) * shares;
+      const fee = computeFee(rate, shares, p);
+      newVal = cost + fee;
+    } else {
+      const P = p / 100;
+      const denom = P * (1 + rate * (1 - P));
+      let n = denom > 0 ? Math.floor(oldVal / denom) : 0;
+      while (n > 0 && (n * P + computeFee(rate, n, p)) > oldVal + 1e-9) n--;
+      while ((n + 1) * P + computeFee(rate, n + 1, p) <= oldVal + 1e-9) n++;
+      newVal = Math.max(0, n);
+    }
+
+    mode = next;
+
+    if (mode === 'shares') {
+      modeShares.classList.add('active');
+      modeShares.setAttribute('aria-selected', 'true');
+      modeDollars.classList.remove('active');
+      modeDollars.setAttribute('aria-selected', 'false');
+      amountLabel.textContent = 'Contracts';
+      amountNum.step = '1';
+      amountNum.value = Math.round(newVal);
+    } else {
+      modeDollars.classList.add('active');
+      modeDollars.setAttribute('aria-selected', 'true');
+      modeShares.classList.remove('active');
+      modeShares.setAttribute('aria-selected', 'false');
+      amountLabel.textContent = 'Dollars (total committed)';
+      amountNum.step = '0.01';
+      amountNum.value = newVal.toFixed(2);
+    }
+    update();
+  }
+
+  function resolvePosition() {
+    const v = parseFloat(amountNum.value) || 0;
+    const p = getPrice();
+    const rate = getFeeRate();
+
+    if (mode === 'shares') {
+      const shares = Math.max(0, Math.floor(v));
+      const costBefore = (p / 100) * shares;
+      const fee = computeFee(rate, shares, p);
+      const totalPaid = costBefore + fee;
+      return { shares, costBefore, fee, totalPaid };
+    }
+
+    const D = Math.max(0, v);
+    if (p <= 0 || D <= 0) {
+      return { shares: 0, costBefore: 0, fee: 0, totalPaid: 0 };
+    }
+    const P = p / 100;
+    const denom = P * (1 + rate * (1 - P));
+    let n = denom > 0 ? Math.floor(D / denom) : 0;
+    while (n > 0 && (n * P + computeFee(rate, n, p)) > D + 1e-9) n--;
+    while ((n + 1) * P + computeFee(rate, n + 1, p) <= D + 1e-9) n++;
+    n = Math.max(0, n);
+    const costBefore = P * n;
+    const fee = computeFee(rate, n, p);
+    return { shares: n, costBefore, fee, totalPaid: costBefore + fee };
+  }
+
+  function fmtSigned(prefix, n, suffix, digits) {
+    const d = digits === undefined ? 2 : digits;
+    if (n >= 0) return '+' + prefix + n.toFixed(d) + (suffix || '');
+    return '−' + prefix + Math.abs(n).toFixed(d) + (suffix || '');
+  }
+
+  function colorize(el, n) {
+    el.style.color = n >= 0 ? 'var(--success)' : 'var(--danger)';
+  }
+
+  function breakevenPriceCents(t, rate) {
+    const T = t / 100;
+    if (rate === 0) return t;
+    const a = rate;
+    const b = -(1 + rate);
+    const c = T;
+    const disc = b * b - 4 * a * c;
+    if (disc < 0) return NaN;
+    const sqrtDisc = Math.sqrt(disc);
+    const x1 = (-b - sqrtDisc) / (2 * a);
+    const x2 = (-b + sqrtDisc) / (2 * a);
+    let x = Math.min(x1, x2);
+    if (x < 0 || x > 1) x = Math.max(x1, x2);
+    return x * 100;
+  }
+
+  function update() {
+    const p = getPrice();
+    const t = getTruth();
+    const rate = getFeeRate();
+    const pos = resolvePosition();
+    const contracts = pos.shares;
+    const costBefore = pos.costBefore;
+    const fee = pos.fee;
+    const totalCostVal = pos.totalPaid;
+
+    // Your position
+    const edge = t - p;
+    const roiPreFee = p > 0 ? (edge / p) * 100 : 0;
+    edgeRaw.innerHTML = (edge >= 0 ? '+' : '') + edge.toFixed(1) + '¢ <span class="pct">(' + (roiPreFee >= 0 ? '+' : '') + roiPreFee.toFixed(1) + '%)</span>';
+    colorize(edgeRaw, edge);
+
+    if (mode === 'shares') {
+      converseLabel.textContent = 'Cost';
+      converseValue.textContent = '$' + totalCostVal.toFixed(2);
+    } else {
+      converseLabel.textContent = 'Contracts';
+      converseValue.textContent = Math.round(contracts).toLocaleString();
+    }
+
+    const beVal = contracts > 0 ? (totalCostVal / contracts) * 100 : NaN;
+    breakeven.textContent = isNaN(beVal) ? '—' : beVal.toFixed(1) + '¢';
+
+    const haVal = breakevenPriceCents(t, rate);
+    highestAcceptable.textContent = isNaN(haVal) ? '—' : haVal.toFixed(1) + '¢';
+
+    // Analysis (after fee)
+    const profitPostExp = (t / 100) * contracts - totalCostVal;
+    const roiPostVal = totalCostVal > 0 ? (profitPostExp / totalCostVal) * 100 : 0;
+
+    roiPost.innerHTML = fmtSigned('$', profitPostExp, '', 2) + ' <span class="pct">(' + (roiPostVal >= 0 ? '+' : '') + roiPostVal.toFixed(1) + '%)</span>';
+    colorize(roiPost, profitPostExp);
+
+    const feePctVal = costBefore > 0 ? (fee / costBefore) * 100 : 0;
+    feePaid.innerHTML = '$' + fee.toFixed(2) + ' <span class="pct">(' + feePctVal.toFixed(1) + '%)</span>';
+  }
+
+  modeShares.addEventListener('click', () => setMode('shares'));
+  modeDollars.addEventListener('click', () => setMode('dollars'));
+
+  [purchase, truth, amountNum].forEach(el => {
+    el.addEventListener('input', update);
+  });
+  feeType.addEventListener('change', update);
+
+  update();
+})();
+
+// ============================================================
+//  No-vig calculator
+// ============================================================
+(function() {
+  const oddsA = document.getElementById('oddsA');
+  const oddsB = document.getElementById('oddsB');
+  const vigEl = document.getElementById('vig');
+  const nvProbA = document.getElementById('nvProbA');
+  const nvProbB = document.getElementById('nvProbB');
+  const err = document.getElementById('errorMsg');
+
+  function americanToProb(odds) {
+    if (odds === 0 || isNaN(odds)) return null;
+    if (odds > 0) return 100 / (odds + 100);
+    return -odds / (-odds + 100);
+  }
+
+  function probToAmerican(p) {
+    if (p <= 0 || p >= 1) return '—';
+    let odds;
+    if (p >= 0.5) {
+      odds = -Math.round((p / (1 - p)) * 100);
+    } else {
+      odds = Math.round(((1 - p) / p) * 100);
+    }
+    return odds > 0 ? '+' + odds : String(odds);
+  }
+
+  function fmtPct(x) {
+    return (x * 100).toFixed(2) + '%';
+  }
+
+  function update() {
+    const a = parseFloat(oddsA.value);
+    const b = parseFloat(oddsB.value);
+
+    const pa = americanToProb(a);
+    const pb = americanToProb(b);
+
+    if (pa === null || pb === null) {
+      err.textContent = 'Enter valid American odds (e.g. -110, +150). Cannot be 0 or between -100 and +100.';
+      err.style.display = 'block';
+      return;
+    }
+
+    if ((a > -100 && a < 100 && a !== 0) || (b > -100 && b < 100 && b !== 0)) {
+      err.textContent = 'American odds must be \u2265 +100 or \u2264 -100.';
+      err.style.display = 'block';
+      return;
+    }
+
+    err.style.display = 'none';
+
+    const total = pa + pb;
+    const vigPct = (total - 1) * 100;
+    vigEl.textContent = vigPct.toFixed(2) + '%';
+
+    const nvA = pa / total;
+    const nvB = pb / total;
+    nvProbA.innerHTML = fmtPct(nvA) + ' <span class="pct">(' + probToAmerican(nvA) + ')</span>';
+    nvProbB.innerHTML = fmtPct(nvB) + ' <span class="pct">(' + probToAmerican(nvB) + ')</span>';
+  }
+
+  oddsA.addEventListener('input', update);
+  oddsB.addEventListener('input', update);
+  update();
+})();
+</script>
+</body>
+</html>
