@@ -163,7 +163,6 @@ function next(){
   updateStat();
   if(mode==='find'){
     el('pTarget').textContent=current;
-    map.setView(SF_CENTER,SF_ZOOM);
   }else{ // name
     hoodLayer.eachLayer(l=>{l._locked=false;styleIdle(l);});
     const l=hoodByName[current];
