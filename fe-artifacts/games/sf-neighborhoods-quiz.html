@@ -50,19 +50,12 @@
   .answer-tip{background:var(--panel);border:1px solid var(--line);color:var(--ink);
     font-size:12px;padding:2px 6px;border-radius:5px;box-shadow:none}
   .answer-tip::before{display:none}
-  .street-lbl{background:none;border:0;box-shadow:none;color:#7d8694;
-    font-size:10px;font-weight:600;text-shadow:0 0 3px #000,0 0 3px #000;white-space:nowrap}
-  .street-lbl::before{display:none}
 </style>
 </head>
 <body>
 <div id="app">
   <header>
-    <h1>SF Quiz</h1>
-    <div class="mode-tabs" id="subjectTabs">
-      <button data-subj="hoods" class="active">Neighborhoods</button>
-      <button data-subj="streets">Streets</button>
-    </div>
+    <h1>SF Neighborhoods</h1>
     <div class="mode-tabs" id="modeTabs">
       <button data-mode="find" class="active">Find it</button>
       <button data-mode="name">Name it</button>
@@ -70,7 +63,6 @@
     </div>
     <div class="spacer"></div>
     <div class="stat" id="stat"></div>
-    <button class="btn" id="streetsBtn">Streets: on</button>
     <button class="btn" id="restart">Restart</button>
   </header>
   <main>
@@ -92,9 +84,8 @@ const DATA = await fetch("sf-neighborhoods-quiz.data.json").then(r=>{
   if(!r.ok) throw new Error("Failed to load quiz data ("+r.status+")");
   return r.json();
 });
-const GEO=DATA.geo, STREETS=DATA.streets, STREET_QUIZ=DATA.streetQuiz;
+const GEO=DATA.geo;
 const HOOD_NAMES = GEO.features.map(f=>f.properties.name).sort();
-const STREET_NAMES = STREET_QUIZ.features.map(f=>f.properties.n).sort();
 const SF_CENTER=[37.759,-122.444], SF_ZOOM=12;
 
 // single source of truth for semantic colors: the CSS :root tokens
@@ -111,123 +102,34 @@ const map=L.map('map',{zoomControl:true,attributionControl:false}).setView(SF_CE
 L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_nolabels/{z}/{x}/{y}{r}.png',
   {maxZoom:19,subdomains:'abcd'}).addTo(map);
 
-// --- streets overlay (non-interactive, sits under neighborhood shapes) ---
-map.createPane('streets'); map.getPane('streets').style.zIndex=350;
-map.getPane('streets').style.pointerEvents='none';
-map.createPane('streetLabels'); map.getPane('streetLabels').style.zIndex=360;
-map.getPane('streetLabels').style.pointerEvents='none';
-
-const streetStyle={
-  motorway:{color:'#5a6675',weight:2.4},
-  trunk:{color:'#525d6b',weight:2.0},
-  primary:{color:'#454f5b',weight:1.5}
-};
-const streetLayer=L.geoJSON(STREETS,{
-  pane:'streets',
-  style:f=>streetStyle[f.properties.t]||streetStyle.primary
-});
-
-// labels for a curated set of arterials, placed once
-const LABEL_STREETS=new Set(['Market Street','Van Ness Avenue','Mission Street','Geary Boulevard',
-  '19th Avenue','Lombard Street','Fell Street','Oak Street','Lincoln Way','Sloat Boulevard',
-  'Cesar Chavez Street','3rd Street','Bayshore Boulevard','Great Highway','The Embarcadero',
-  'Portola Drive','Junipero Serra Boulevard','Geneva Avenue','Park Presidio Boulevard',
-  'San Jose Avenue','Guerrero Street','Broadway','Bay Street']);
-const streetLabelLayer=L.layerGroup();
-(function(){
-  const placed={};
-  STREETS.features.forEach(f=>{
-    const n=f.properties.n;
-    if(!LABEL_STREETS.has(n)||placed[n]) return;
-    const c=f.geometry.coordinates, mid=c[c.length>>1];
-    placed[n]=true;
-    L.marker([mid[1],mid[0]],{pane:'streetLabels',interactive:false,
-      icon:L.divIcon({className:'street-lbl',html:n,iconSize:[0,0]})}).addTo(streetLabelLayer);
-  });
-})();
-
-let streetsOn=true;
-function applyStreets(){
-  if(streetsOn){streetLayer.addTo(map);streetLabelLayer.addTo(map);}
-  else{map.removeLayer(streetLayer);map.removeLayer(streetLabelLayer);}
-  document.getElementById('streetsBtn').textContent='Streets: '+(streetsOn?'on':'off');
-}
-applyStreets();
-
 const base={color:C.idleLine,weight:1,fillColor:C.idle,fillOpacity:.28};
 const hover={color:C.accent,weight:1.5,fillColor:C.accentFill,fillOpacity:.7};
+const styleOk=l=>l.setStyle({color:C.good,weight:1.5,fillColor:C.goodFill,fillOpacity:.8});
+const styleWrong=l=>l.setStyle({color:C.bad,weight:1.5,fillColor:C.badFill,fillOpacity:.7});
+const styleShow=l=>l.setStyle({color:C.warn,weight:2,fillColor:C.warnFill,fillOpacity:.7});
+const styleIdle=l=>l.setStyle(base);
+const emphasize=l=>l.setStyle({color:C.accent,weight:2,fillColor:C.accentFill,fillOpacity:.75});
 
-// pane for clickable street quiz layer (above polygons so lines are clickable)
-map.createPane('streetQuiz'); map.getPane('streetQuiz').style.zIndex=400;
-
-// ---------- Neighborhood subject ----------
 const hoodByName={};
 const hoodLayer=L.geoJSON(GEO,{
   style:()=>base,
   onEachFeature:(f,l)=>{
     hoodByName[f.properties.name]=l;
     l.on('click',()=>onClick(f.properties.name,l));
-    l.on('mouseover',()=>{ if(subject!==SUBJ.hoods) return;
-                           if(mode==='learn'){revealHover(f.properties.name,l);}
+    l.on('mouseover',()=>{ if(mode==='learn'){revealHover(f.properties.name,l);}
                            else if(!l._locked) l.setStyle(hover); });
-    l.on('mouseout',()=>{ if(subject===SUBJ.hoods&&mode!=='learn'&&!l._locked) l.setStyle(base); });
+    l.on('mouseout',()=>{ if(mode!=='learn'&&!l._locked) l.setStyle(base); });
   }
-});
+}).addTo(map);
 function hoodReset(){hoodLayer.eachLayer(l=>{l._locked=false;l.setStyle(base);});}
-function hoodEmphasize(l){l.setStyle({color:C.accent,weight:2,fillColor:C.accentFill,fillOpacity:.75});}
-
-// ---------- Street subject ----------
-const STREET_HIT={color:'#5a6675',weight:6,opacity:0.01}; // fat invisible hit area
-const streetQuizByName={};
-const streetQuizLayer=L.geoJSON(STREET_QUIZ,{
-  pane:'streetQuiz',
-  style:()=>STREET_HIT,
-  onEachFeature:(f,l)=>{
-    streetQuizByName[f.properties.n]=l;
-    l.on('click',()=>onClick(f.properties.n,l));
-    l.on('mouseover',()=>{ if(subject!==SUBJ.streets) return;
-                           if(mode==='learn'){revealHover(f.properties.n,l);}
-                           else if(!l._locked) l.setStyle({color:C.accent,weight:6,opacity:.85}); });
-    l.on('mouseout',()=>{ if(subject===SUBJ.streets&&mode!=='learn'&&!l._locked)
-                            l.setStyle(STREET_HIT); });
-  }
-});
-function streetReset(){streetQuizLayer.eachLayer(l=>{l._locked=false;l.setStyle(STREET_HIT);});}
-function streetEmphasize(l){l.setStyle({color:C.accent,weight:5,opacity:.95});}
-
-// subject descriptors
-const SUBJ={
-  hoods:{key:'hoods',noun:'neighborhood',names:HOOD_NAMES,by:hoodByName,
-    layer:hoodLayer,reset:hoodReset,emphasize:hoodEmphasize,bounds:l=>l.getBounds(),
-    ok:l=>l.setStyle({color:C.good,weight:1.5,fillColor:C.goodFill,fillOpacity:.8}),
-    wrong:l=>l.setStyle({color:C.bad,weight:1.5,fillColor:C.badFill,fillOpacity:.7}),
-    show:l=>l.setStyle({color:C.warn,weight:2,fillColor:C.warnFill,fillOpacity:.7}),
-    idle:l=>l.setStyle(base)},
-  streets:{key:'streets',noun:'street',names:STREET_NAMES,by:streetQuizByName,
-    layer:streetQuizLayer,reset:streetReset,emphasize:streetEmphasize,bounds:l=>l.getBounds(),
-    ok:l=>l.setStyle({color:C.good,weight:5,opacity:.95}),
-    wrong:l=>l.setStyle({color:C.bad,weight:5,opacity:.9}),
-    show:l=>l.setStyle({color:C.warn,weight:5,opacity:.95}),
-    idle:l=>l.setStyle(STREET_HIT)}
-};
 
 // ---- state ----
-let subject=SUBJ.hoods, mode='find', queue=[], current=null,
+let mode='find', queue=[], current=null,
     correct=0, attempts=0, wrongThis=0, choiceWrap=null;
 const el=id=>document.getElementById(id);
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
 function clearChoices(){if(choiceWrap){choiceWrap.remove();choiceWrap=null;}}
 
-function setSubject(key){
-  subject=SUBJ[key];
-  document.querySelectorAll('#subjectTabs button').forEach(b=>b.classList.toggle('active',b.dataset.subj===key));
-  // swap which interactive layer is on the map
-  if(key==='hoods'){ if(!map.hasLayer(hoodLayer))hoodLayer.addTo(map);
-                     if(map.hasLayer(streetQuizLayer))map.removeLayer(streetQuizLayer); }
-  else { if(!map.hasLayer(streetQuizLayer))streetQuizLayer.addTo(map);
-         if(map.hasLayer(hoodLayer))hoodLayer.addTo(map); } // keep hoods as faint backdrop
-  start();
-}
 function setMode(m){
   mode=m;
   document.querySelectorAll('#modeTabs button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
@@ -235,23 +137,20 @@ function setMode(m){
 }
 
 function start(){
-  hoodReset(); streetReset();
+  hoodReset();
   correct=0;attempts=0;wrongThis=0;current=null;
   el('done').style.display='none';
   el('pFb').textContent='';el('pFb').className='fb';
   clearChoices();
-  // in streets subject, hide the name-label backdrop so we don't give away answers (except Learn)
-  setLabelVisibility(subject.key==='hoods' && streetsOn);
   if(mode==='learn'){
     el('prompt').style.display='none';
-    el('stat').textContent='Hover a '+subject.noun+' to reveal its name · '+subject.names.length+' total';
-    if(subject.key==='hoods') map.setView(SF_CENTER,SF_ZOOM);
-    else map.fitBounds(streetQuizLayer.getBounds(),{padding:[30,30]});
+    el('stat').textContent='Hover a neighborhood to reveal its name · '+HOOD_NAMES.length+' total';
+    map.setView(SF_CENTER,SF_ZOOM);
     return;
   }
   el('prompt').style.display='block';
-  queue=shuffle(subject.names);
-  el('pLabel').textContent = mode==='find' ? 'Find on the map' : 'Name this '+subject.noun;
+  queue=shuffle(HOOD_NAMES);
+  el('pLabel').textContent = mode==='find' ? 'Find on the map' : 'Name this neighborhood';
   next();
 }
 
@@ -264,40 +163,39 @@ function next(){
   updateStat();
   if(mode==='find'){
     el('pTarget').textContent=current;
-    if(subject.key==='hoods') map.setView(SF_CENTER,SF_ZOOM);
+    map.setView(SF_CENTER,SF_ZOOM);
   }else{ // name
-    subject.layer.eachLayer(l=>{l._locked=false;subject.idle(l);});
-    const l=subject.by[current];
+    hoodLayer.eachLayer(l=>{l._locked=false;styleIdle(l);});
+    const l=hoodByName[current];
     l._locked=true;
-    subject.emphasize(l);
+    emphasize(l);
     el('pTarget').textContent='???';
-    map.fitBounds(subject.bounds(l),{padding:[60,60],maxZoom:subject.key==='hoods'?14:13});
+    map.fitBounds(l.getBounds(),{padding:[60,60],maxZoom:14});
     buildChoices();
   }
 }
 
 function updateStat(){
-  const total=subject.names.length;
+  const total=HOOD_NAMES.length;
   el('stat').innerHTML=`<b>${correct}</b>/${total} correct · ${queue.length} left · accuracy <b>${attempts?Math.round(correct/attempts*100):100}%</b>`;
 }
 
 // FIND: click the right feature
 function onClick(name,l){
   if(mode!=='find'||!current) return;
-  if(subject.by[name]!==l) return; // click came from the inactive subject's layer
   attempts++;
   if(name===current){
-    correct++; l._locked=true; subject.ok(l);
+    correct++; l._locked=true; styleOk(l);
     el('pFb').textContent='Correct';el('pFb').className='fb good';
     setTimeout(next,520);
   }else{
     wrongThis++;
     el('pFb').textContent='That was '+name+' — try again';
     el('pFb').className='fb bad';
-    subject.wrong(l);
-    setTimeout(()=>{if(!l._locked)subject.idle(l);},650);
+    styleWrong(l);
+    setTimeout(()=>{if(!l._locked)styleIdle(l);},650);
     if(wrongThis>=3){
-      const t=subject.by[current]; subject.show(t); t._locked=true;
+      const t=hoodByName[current]; styleShow(t); t._locked=true;
       el('pFb').textContent='Here it is: '+current;
       setTimeout(next,1100);
     }
@@ -308,7 +206,7 @@ function onClick(name,l){
 // NAME: multiple choice
 function buildChoices(){
   clearChoices();
-  const pool=shuffle(subject.names.filter(n=>n!==current)).slice(0,3);
+  const pool=shuffle(HOOD_NAMES.filter(n=>n!==current)).slice(0,3);
   const opts=shuffle(pool.concat(current));
   choiceWrap=document.createElement('div');
   choiceWrap.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px';
@@ -337,34 +235,23 @@ function chooseName(o,b){
 
 // LEARN: hover reveals name
 function revealHover(name,l){
-  subject.emphasize(l);
-  l.bindTooltip(name,{className:'answer-tip',permanent:false,
-    direction:'top',sticky:subject.key==='streets'}).openTooltip();
-  l.on('mouseout',()=>{subject.idle(l);},{once:true});
+  emphasize(l);
+  l.bindTooltip(name,{className:'answer-tip',permanent:false,direction:'top'}).openTooltip();
+  l.on('mouseout',()=>{styleIdle(l);},{once:true});
 }
 
 function finish(){
   el('done').style.display='flex';
   const pct=attempts?Math.round(correct/attempts*100):0;
   el('doneTitle').textContent = pct>=90?'Local legend':pct>=70?'Solid':pct>=50?'Getting there':'Keep at it';
-  el('doneScore').textContent=`${correct}/${subject.names.length} on first instinct · ${pct}% accuracy across ${attempts} clicks`;
+  el('doneScore').textContent=`${correct}/${HOOD_NAMES.length} on first instinct · ${pct}% accuracy across ${attempts} clicks`;
 }
 
-// street backdrop labels are hidden in streets quiz so names aren't given away
-function setLabelVisibility(on){
-  if(on){ if(!map.hasLayer(streetLabelLayer))streetLabelLayer.addTo(map); }
-  else { if(map.hasLayer(streetLabelLayer))map.removeLayer(streetLabelLayer); }
-}
-
-document.querySelectorAll('#subjectTabs button').forEach(b=>b.onclick=()=>setSubject(b.dataset.subj));
 document.querySelectorAll('#modeTabs button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
 el('restart').onclick=start;
 el('doneRestart').onclick=start;
-el('streetsBtn').onclick=()=>{streetsOn=!streetsOn;applyStreets();
-  setLabelVisibility(subject.key==='hoods'&&streetsOn);};
 
-// start: hoods subject on map by default (setSubject adds the layer)
-setSubject('hoods');
+start();
 
 </script>
 </body>
