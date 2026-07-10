@@ -128,7 +128,7 @@ a { color: inherit; }
 .entry-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
 .entry {
   display: grid;
-  grid-template-columns: 190px 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: baseline;
   gap: 20px;
   padding: 26px 8px;
@@ -138,13 +138,6 @@ a { color: inherit; }
   transition: padding-left 0.28s ease, background 0.28s ease;
 }
 .entry:hover { padding-left: 20px; background: linear-gradient(90deg, rgba(34, 184, 255, 0.07), transparent 70%); }
-.entry-meta {
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.22em;
-  color: var(--muted);
-  padding-top: 0.5em;
-}
 .entry-title { display: block; font-family: var(--font-display); font-size: 1.9rem; line-height: 1.1; }
 .entry:hover .entry-title { background: var(--brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .entry-desc { display: block; color: var(--muted); font-size: 0.78rem; line-height: 1.5; margin-top: 6px; max-width: 46ch; }
@@ -152,8 +145,7 @@ a { color: inherit; }
 .entry:hover .entry-go { transform: translateX(5px); color: var(--ink); }
 
 @media (max-width: 620px) {
-  .entry { grid-template-columns: 1fr auto; }
-  .entry-meta { grid-column: 1 / -1; padding-top: 0; }
+  .entry-title { font-size: 1.6rem; }
 }
 
 /* ---------- entrance ---------- */
