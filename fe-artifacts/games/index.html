@@ -11,39 +11,30 @@
   <link rel="stylesheet" href="/assets/site.css" />
 </head>
 <body>
-  <div class="grid-bg"></div>
-  <main class="wrap">
-    <div class="hub-head reveal d1">
-      <a href="/" aria-label="Back to Penta Projects home">
-        <svg class="penta small" viewBox="0 0 120 120" role="img" aria-label="Penta Projects logo">
-          <defs>
-            <linearGradient id="pentaGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#00e5c0" />
-              <stop offset="0.55" stop-color="#22b8ff" />
-              <stop offset="1" stop-color="#3b82f6" />
-            </linearGradient>
-          </defs>
-          <g class="ring ring-outer"><polygon points="60,14 103.7,45.8 87,97.2 33,97.2 16.3,45.8" /></g>
-          <g class="ring ring-mid"><polygon points="60,14 103.7,45.8 87,97.2 33,97.2 16.3,45.8" /></g>
-          <g class="ring ring-inner"><polygon points="60,14 103.7,45.8 87,97.2 33,97.2 16.3,45.8" /></g>
-          <circle class="core" cx="60" cy="60" r="5" />
-        </svg>
-      </a>
-      <span class="kicker">Penta Projects</span>
-    </div>
+  <header class="site-head reveal d1">
+    <a class="logo small gradient-text" href="/">Penta Projects</a>
+    <nav class="nav">
+      <a class="btn primary" href="/games">Games</a>
+      <a class="btn" href="/tools">Tools</a>
+    </nav>
+  </header>
 
-    <h1 class="hub-title reveal d2">Games</h1>
-    <p class="tagline reveal d2">Quick, playable experiments. More on the way.</p>
+  <main class="content">
+    <h1 class="page-title reveal d1">Games</h1>
+    <p class="page-sub reveal d1">Quick, playable experiments.</p>
 
-    <section class="cards reveal d3">
-      <a class="card" href="/games/sf-neighborhoods-quiz.html">
-        <span class="tag">Geography &middot; Quiz</span>
-        <h3>Neighborhoods of SF</h3>
-        <p>How well do you really know San Francisco? Place the neighborhoods and find out.</p>
-      </a>
-    </section>
-
-    <a class="back reveal d4" href="/">&larr; Home</a>
+    <ul class="entry-list reveal d2">
+      <li>
+        <a class="entry" href="/games/sf-neighborhoods-quiz.html">
+          <span class="entry-meta">Geography &middot; Quiz</span>
+          <span>
+            <span class="entry-title">Neighborhoods of SF</span>
+            <span class="entry-desc">How well do you really know San Francisco? Place the neighborhoods and find out.</span>
+          </span>
+          <span class="entry-go">&rarr;</span>
+        </a>
+      </li>
+    </ul>
   </main>
 </body>
 </html>
