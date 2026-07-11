@@ -1,2 +1,6 @@
 working-docs/
 node_modules/
+
+# Quiz seed data — source for scripts/upload-quizzes.mjs, published to the
+# Supabase `quizzes` table. Not served and not tracked; kept on disk locally.
+data/quizzes/

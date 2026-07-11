@@ -17,8 +17,25 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 
 const PLAY_COLUMNS = 'id, user_id, game_id, mode, score, total, created_at';
 
+// Selector only needs display + framing metadata; the heavy `geo` column is
+// fetched per-quiz on demand so listing all cities stays cheap.
+const QUIZ_LIST_COLUMNS = 'slug, name, description, center_lat, center_lng, zoom';
+
 // One client instance for the whole app.
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Normalizes a `quizzes` row into the shape the quiz page speaks (center as a
+// [lat, lng] pair), hiding the split lat/lng columns from callers.
+function toQuiz(row) {
+  return {
+    slug: row.slug,
+    name: row.name,
+    description: row.description,
+    center: [row.center_lat, row.center_lng],
+    zoom: row.zoom,
+    geo: row.geo,
+  };
+}
 
 // Passing `username` through options.data lands it in raw_user_meta_data, which
 // the DB trigger reads to create the profile row during signup.
@@ -88,6 +105,30 @@ export async function fetchPlays(userId) {
     .order('created_at', { ascending: true });
   if (error) throw error;
   return data;
+}
+
+// Lists every quiz for the selector, ordered as configured at publish time.
+// Omits `geo` — see QUIZ_LIST_COLUMNS. Returns [] when no quizzes exist.
+export async function fetchQuizList() {
+  const { data, error } = await supabase
+    .from('quizzes')
+    .select(QUIZ_LIST_COLUMNS)
+    .order('sort_order', { ascending: true })
+    .order('name', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(toQuiz);
+}
+
+// Loads a single quiz (including its `geo` FeatureCollection) by slug. Returns
+// null when the slug is unknown, so callers can fall back to the selector.
+export async function fetchQuiz(slug) {
+  const { data, error } = await supabase
+    .from('quizzes')
+    .select(`${QUIZ_LIST_COLUMNS}, geo`)
+    .eq('slug', slug)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? toQuiz(data) : null;
 }
 
 // Wraps the SDK subscription so the recorder/UI layer can drive capture-then-save

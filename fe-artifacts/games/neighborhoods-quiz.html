@@ -73,6 +73,7 @@
   .city-card .name{font-size:17px;font-weight:650}
   .city-card .desc{font-size:13px;color:var(--muted);line-height:1.4}
   .city-card .go{color:var(--accent);font-size:13px;font-weight:600;margin-top:2px}
+  .select-msg{grid-column:1/-1;color:var(--muted);font-size:14px;margin:8px 2px}
 </style>
 </head>
 <body>
@@ -121,63 +122,59 @@
 
 <script type="module">
 import { Profiles } from "../assets/js/profiles.js";
-
-// Registry of every neighborhood quiz. Each entry is a self-contained game:
-// `slug` is the tracked gameId (must match manifest.js), the rest is display +
-// map framing. Add a city here and it appears on the selector automatically.
-const CITIES = {
-  'sf-neighborhoods': {
-    name: 'San Francisco',
-    desc: 'How well do you really know San Francisco? Place the neighborhoods and find out.',
-    data: 'sf-neighborhoods-quiz.data.json',
-    center: [37.759, -122.444], zoom: 12,
-  },
-  'seattle-neighborhoods': {
-    name: 'Seattle',
-    desc: 'Ballard to Beacon Hill, Fremont to Rainier Valley — place the Emerald City.',
-    data: 'seattle-neighborhoods-quiz.data.json',
-    center: [47.6276, -122.3408], zoom: 12,
-  },
-  'dc-neighborhoods': {
-    name: 'DC + Arlington',
-    desc: 'Georgetown to Anacostia, Rosslyn to Shirlington — how well do you know DC and Arlington?',
-    data: 'dc-neighborhoods-quiz.data.json',
-    center: [38.8936, -77.0409], zoom: 12,
-  },
-  'fairfax-neighborhoods': {
-    name: 'Fairfax County',
-    desc: 'Reston, McLean, Annandale and more — place the communities of Fairfax County.',
-    data: 'fairfax-neighborhoods-quiz.data.json',
-    center: [38.8621, -77.3035], zoom: 11,
-  },
-};
+import { fetchQuiz, fetchQuizList } from "../assets/js/dataClient.js";
 
 const el = id => document.getElementById(id);
 const slug = new URLSearchParams(location.search).get('city');
-const city = slug ? CITIES[slug] : null;
 
-if (city) {
-  boot(slug, city).catch(err => {
-    console.error('Quiz failed to start', err);
-    el('pTarget').textContent = 'Failed to load';
-  });
-} else {
+function esc(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+start().catch(err => console.error('Neighborhoods quiz failed to start', err));
+
+// A `?city=<slug>` that resolves to a quiz plays it; anything else (no slug, an
+// unknown slug, or a load error) falls back to the city selector.
+async function start() {
+  if (slug) {
+    let quiz = null;
+    try { quiz = await fetchQuiz(slug); }
+    catch (err) { console.error('Failed to load quiz', err); }
+    if (quiz) { boot(quiz); return; }
+  }
   renderSelect();
 }
 
-function renderSelect() {
+async function renderSelect() {
+  const grid = el('cityGrid');
   el('select').style.display = 'flex';
-  el('cityGrid').innerHTML = Object.entries(CITIES).map(([s, c]) => `
-    <a class="city-card" href="?city=${encodeURIComponent(s)}">
-      <span class="name">${c.name}</span>
-      <span class="desc">${c.desc}</span>
+  grid.innerHTML = '<p class="select-msg">Loading cities…</p>';
+  let quizzes;
+  try {
+    quizzes = await fetchQuizList();
+  } catch (err) {
+    console.error('Failed to load quiz list', err);
+    grid.innerHTML = '<p class="select-msg">Couldn’t load the quizzes. Please refresh.</p>';
+    return;
+  }
+  if (!quizzes.length) {
+    grid.innerHTML = '<p class="select-msg">No quizzes available yet.</p>';
+    return;
+  }
+  grid.innerHTML = quizzes.map(q => `
+    <a class="city-card" href="?city=${encodeURIComponent(q.slug)}">
+      <span class="name">${esc(q.name)}</span>
+      <span class="desc">${esc(q.description)}</span>
       <span class="go">Play &rarr;</span>
     </a>`).join('');
 }
 
-async function boot(gameId, city) {
-  document.title = `${city.name} Neighborhoods Quiz`;
-  el('title').textContent = `${city.name} Neighborhoods`;
+function boot(quiz) {
+  const gameId = quiz.slug;
+  document.title = `${quiz.name} Neighborhoods Quiz`;
+  el('title').textContent = `${quiz.name} Neighborhoods`;
   el('app').style.display = 'flex';
 
   // Auth/profile layer runs independently of the game bootstrap: an init failure
@@ -185,13 +182,9 @@ async function boot(gameId, city) {
   Profiles.init({ gameSlug: gameId, headerMount: el('profileMount') })
     .catch(err => console.error('Profiles init failed', err));
 
-  const DATA = await fetch(city.data).then(r => {
-    if (!r.ok) throw new Error("Failed to load quiz data (" + r.status + ")");
-    return r.json();
-  });
-  const GEO = DATA.geo;
+  const GEO = quiz.geo;
   const HOOD_NAMES = GEO.features.map(f => f.properties.name).sort();
-  const CENTER = city.center, ZOOM = city.zoom;
+  const CENTER = quiz.center, ZOOM = quiz.zoom;
 
   // single source of truth for semantic colors: the CSS :root tokens
   const cssVar = (() => { const s = getComputedStyle(document.documentElement); return n => s.getPropertyValue(n).trim(); })();
