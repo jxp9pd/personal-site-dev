@@ -6,6 +6,7 @@
 
 import * as dataClient from './dataClient.js';
 import { isKnownSlug } from './manifest.js';
+import { buildProfileHref } from './nav.js';
 import { createRecorder } from './recorder.js';
 import { createAuthUI } from './ui.js';
 
@@ -96,7 +97,8 @@ async function init({ gameSlug, headerMount } = {}) {
     },
     onLogout: () => dataClient.signOut(),
     onOpenProfile: () => {
-      window.location.href = '/profile.html';
+      // Remember where we came from so the profile's "← Home" can return here.
+      window.location.href = buildProfileHref(location.pathname + location.search);
     },
   });
 
@@ -117,7 +119,7 @@ async function init({ gameSlug, headerMount } = {}) {
 // flushed on later login; a logged-in user's persists immediately. Unknown
 // slugs are refused so untracked pages can't write junk plays.
 function recordPlay({ gameId, mode, score, total }) {
-  if (!isKnownSlug(gameId)) return;
+  if (!isKnownSlug(gameId)) return { status: 'unsupported' };
   return recorder.capture({ gameId, mode, score, total });
 }
 
