@@ -6,120 +6,145 @@
 <title>Your Profile</title>
 <style>
   :root{
-    --bg:#0f1115; --panel:#171a21; --ink:#e8eaed; --muted:#9aa0aa;
-    --line:#262b34; --accent:#4f9cf9; --good:#37b86b; --bad:#e0564a;
+    --bg:#05070a; --panel:#0b0e13; --field:#0d1117;
+    --line:#1b222b; --line-soft:#171d26; --line-field:#232b36; --line-strong:#2a3441;
+    --ink:#e6edf3; --ink-dim:#c9d1d9; --muted:#8b949e; --muted-strong:#6e7681;
+    --green:#3fb950; --green-btn:#238636; --green-btn-hover:#2ea043;
+    --blue:#4493f8; --bad:#e0564a;
   }
-  *{box-sizing:border-box}
+  *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
-    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-  header{padding:12px 20px;border-bottom:1px solid var(--line);
-    display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-  header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.2px}
-  header a.home{color:var(--muted);text-decoration:none;font-size:13px;font-weight:550}
-  header a.home:hover{color:var(--ink)}
-  .spacer{flex:1}
-  main{max-width:820px;margin:0 auto;padding:24px 20px 60px}
+    -webkit-font-smoothing:antialiased;font-size:15px;line-height:1.5}
+  a{color:var(--blue);text-decoration:none}
+  a:hover{color:#6aa9fb}
+  button{font-family:inherit}
+  table{border-collapse:collapse}
+  ::selection{background:rgba(63,185,80,.3)}
 
-  .msg{background:var(--panel);border:1px solid var(--line);border-radius:12px;
-    padding:28px 24px;text-align:center;color:var(--muted)}
+  .page{min-height:100vh;display:flex;justify-content:center;padding:32px 16px}
+  .shell{width:100%;max-width:820px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+
+  .topnav{display:flex;align-items:center;justify-content:space-between;
+    padding:16px 24px;border-bottom:1px solid var(--line-soft)}
+  .topnav .nav-left{display:flex;align-items:center;gap:16px}
+  .topnav .home{color:var(--muted);font-size:14px}
+  .topnav .home:hover{color:var(--ink)}
+  .topnav .nav-title{color:var(--ink);font-size:15px;font-weight:600}
+
+  .body{padding:28px 24px 36px}
+
+  .person{display:flex;align-items:center;gap:16px;margin-bottom:26px}
+  .avatar{width:52px;height:52px;border-radius:999px;flex:0 0 auto;object-fit:cover;
+    display:flex;align-items:center;justify-content:center;
+    font-size:22px;font-weight:700;color:#05070a}
+  .who{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .who .uname{font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+  .who .meta{font-size:13px;color:var(--muted)}
+  .bio-public{font-size:14px;color:var(--ink-dim);line-height:1.55;
+    white-space:pre-wrap;word-break:break-word;margin:-8px 0 26px}
+
+  .tabs{display:flex;border-bottom:1px solid var(--line);margin-bottom:24px}
+  .tab{padding:10px 2px;margin-right:28px;font-size:14px;background:transparent;
+    border:none;border-bottom:2px solid transparent;color:var(--muted);
+    font-weight:500;cursor:pointer}
+  .tab.on{color:var(--ink);font-weight:600;border-bottom-color:var(--green)}
+
+  .sections{display:flex;flex-direction:column;gap:36px}
+  .sec-label{font-size:11px;font-weight:600;letter-spacing:.08em;color:var(--muted-strong);
+    margin-bottom:8px}
+
+  .grid{width:100%}
+  .grid th{font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--muted-strong);
+    padding:8px 12px;text-align:left}
+  .grid th.num,.grid td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .grid td{border-top:1px solid var(--line)}
+  .rec td{padding:16px 12px;font-size:15px}
+  .rec .game{color:var(--ink);font-weight:500}
+  .rec .attempts{color:var(--ink-dim)}
+  .rec .best,.rec .avg{color:var(--green);font-weight:600}
+  .rec td.act{text-align:right}
+  .act-pill{background:transparent;border:1px solid var(--line-strong);color:var(--muted);
+    font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+    padding:6px 14px;border-radius:999px}
+  button.act-pill{cursor:pointer}
+  button.act-pill:hover{border-color:var(--green);color:var(--green)}
+
+  .log td{padding:14px 12px;font-size:14px}
+  .log .game{color:var(--ink)}
+  .log .mode{color:var(--muted)}
+  .log .score{color:var(--ink);font-weight:600}
+  .log .date{color:var(--muted)}
+
+  .pager{display:flex;align-items:center;gap:14px;margin-top:16px}
+  .pager .info{font-size:13px;color:var(--muted)}
+  .btn-sm{background:transparent;border:1px solid var(--line-strong);color:var(--ink-dim);
+    font-size:13px;font-weight:600;padding:6px 14px;border-radius:999px;cursor:pointer}
+  .btn-sm:hover:not(:disabled){border-color:var(--green);color:var(--green)}
+  .btn-sm:disabled{color:var(--muted-strong);opacity:.55;cursor:default}
+
+  .form{display:flex;flex-direction:column;gap:20px;max-width:520px}
+  .form .row{display:flex;flex-direction:column;gap:7px}
+  .form label{font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--muted)}
+  .form input,.form textarea{background:var(--field);border:1px solid var(--line-field);
+    border-radius:8px;padding:10px 12px;color:var(--ink);font-size:14px}
+  .form textarea{resize:vertical;line-height:1.5;min-height:78px}
+  .form input:focus,.form textarea:focus{outline:none;border-color:var(--green)}
+  .form input:disabled{color:var(--muted);cursor:not-allowed}
+  .hint{font-size:12px;color:var(--muted-strong)}
+  .actions{display:flex;gap:10px;align-items:center;margin-top:4px}
+  .btn{background:var(--green-btn);border:none;color:#fff;font-size:14px;font-weight:600;
+    padding:9px 18px;border-radius:8px;cursor:pointer}
+  .btn:hover{background:var(--green-btn-hover)}
+  .btn:disabled{opacity:.6;cursor:default}
+  .btn-ghost{background:transparent;border:1px solid var(--line-strong);color:var(--ink-dim);
+    font-size:14px;font-weight:500;padding:9px 18px;border-radius:8px;cursor:pointer}
+  .note{font-size:12px;color:var(--muted)}
+  .note.ok{color:var(--green)}
+  .note.err{color:var(--bad)}
+
+  .msg{text-align:center;color:var(--muted);padding:24px 8px}
   .msg h2{margin:0 0 8px;color:var(--ink);font-size:18px;font-weight:650}
   .msg p{margin:0 0 16px}
-  .btn{display:inline-block;background:var(--accent);border:1px solid var(--accent);
-    color:#fff;padding:9px 16px;border-radius:8px;cursor:pointer;text-decoration:none;
-    font:600 14px/1 inherit}
-  .btn:hover{filter:brightness(1.06)}
-  .link{color:var(--accent);text-decoration:none}
-  .link:hover{text-decoration:underline}
-
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
-    padding:18px 20px;margin-bottom:18px}
-  .card-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:14px}
-  .card-head .game{font-size:17px;font-weight:650}
-  .card-head .mode{font-size:12px;color:var(--muted);text-transform:uppercase;
-    letter-spacing:.6px;background:var(--bg);border:1px solid var(--line);
-    padding:3px 8px;border-radius:999px}
-  .card-head .head-right{margin-left:auto;display:flex;align-items:center}
-  .cat-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;
-    font-weight:650;margin:26px 0 12px}
-  .mode-toggle{display:inline-flex;gap:2px;background:var(--bg);border:1px solid var(--line);
-    border-radius:999px;padding:2px}
-  .mode-btn{background:none;border:none;color:var(--muted);cursor:pointer;
-    font:600 12px/1 inherit;padding:6px 11px;border-radius:999px;letter-spacing:.3px}
-  .mode-btn.on{background:var(--panel);color:var(--ink)}
-
-  .highlights{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-  .hl{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
-  .hl .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
-  .hl .score{font-size:22px;font-weight:700;margin-top:4px}
-  .hl .score.best{color:var(--good)}
-  .hl .date{font-size:12px;color:var(--muted);margin-top:2px}
-
-  .log-table{width:100%;border-collapse:collapse;font-size:14px}
-  .log-table th{text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;
-    letter-spacing:.6px;font-weight:600;padding:0 10px 8px}
-  .log-table td{padding:9px 10px;border-top:1px solid var(--line)}
-  .log-table .lscore{font-variant-numeric:tabular-nums;font-weight:600}
-  .log-table .lmode{color:var(--muted)}
-  .log-table .ldate{color:var(--muted);white-space:nowrap}
-  .log-nav{display:flex;align-items:center;gap:14px;margin-top:14px}
-  .log-page{font-size:13px;color:var(--muted)}
-  .btn-sm{background:var(--panel);border:1px solid var(--line);color:var(--ink);
-    padding:6px 12px;border-radius:8px;cursor:pointer;font:600 13px/1 inherit}
-  .btn-sm:hover:not(:disabled){border-color:var(--accent)}
-  .btn-sm:disabled{color:var(--muted);cursor:default;opacity:.6}
-
-  .person{display:flex;gap:16px;align-items:center;margin-bottom:20px}
-  .avatar{width:64px;height:64px;border-radius:50%;flex:0 0 auto;object-fit:cover;
-    display:flex;align-items:center;justify-content:center;
-    font-size:26px;font-weight:700;color:#fff;letter-spacing:.5px}
-  .person .who{min-width:0}
-  .person .uname{font-size:20px;font-weight:700;line-height:1.2}
-  .person .meta{font-size:13px;color:var(--muted);margin-top:3px}
-  .bio-block{background:var(--panel);border:1px solid var(--line);border-radius:12px;
-    padding:14px 16px;margin-bottom:22px}
-  .bio-text{white-space:pre-wrap;word-break:break-word}
-  .bio-empty{color:var(--muted);font-style:italic}
-  .bio-row{display:flex;gap:10px;align-items:center;margin-top:10px}
-  .bio-ta{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;
-    color:var(--ink);padding:9px 11px;font:inherit;resize:vertical;min-height:64px}
-  .linkbtn{background:none;border:none;color:var(--accent);cursor:pointer;font:inherit;padding:0}
-  .linkbtn:hover{text-decoration:underline}
-  .linkbtn:disabled{color:var(--muted);cursor:default;text-decoration:none}
-  .bio-note{font-size:12px;color:var(--muted);margin-left:auto}
-  .bio-note.err{color:var(--bad)}
+  .prompt{background:var(--green-btn);border:none;color:#fff;padding:9px 16px;
+    border-radius:8px;cursor:pointer;font:600 14px/1 inherit}
+  .prompt:hover{background:var(--green-btn-hover)}
+  .link{color:var(--blue)}
 </style>
 </head>
 <body>
-<header>
-  <a class="home" href="/">&larr; Home</a>
-  <h1>Your Profile</h1>
-  <div class="spacer"></div>
-  <div id="profileMount"></div>
-</header>
-<main id="content"></main>
+<div class="page">
+  <div class="shell">
+    <div class="card">
+      <nav class="topnav">
+        <div class="nav-left">
+          <a class="home" href="/games">&larr; Home</a>
+          <span class="nav-title" id="navTitle">Your Profile</span>
+        </div>
+        <div id="profileMount"></div>
+      </nav>
+      <div class="body" id="content"></div>
+    </div>
+  </div>
+</div>
 
 <script type="module">
 import { Profiles } from "./assets/js/profiles.js";
 import { getSession, fetchPlays, fetchProfileByUsername, updateProfile, onAuthStateChange }
   from "./assets/js/dataClient.js";
 import { computeStats } from "./assets/js/stats.js";
-import { getGame, getModeLabel, categoryOf, gamesByCategory } from "./assets/js/manifest.js";
+import { getGame, getModeLabel, gamesByCategory } from "./assets/js/manifest.js";
 import { initialsAvatar } from "./assets/js/avatar.js";
 import { paginate } from "./assets/js/pagination.js";
-import { resolveHomeHref } from "./assets/js/nav.js";
 
 const BIO_MAX = 200;
 const LOG_PAGE_SIZE = 10;
 
 const content = document.getElementById("content");
+const navTitle = document.getElementById("navTitle");
 
-// "← Home" returns to the page that opened the profile (passed via ?from=),
-// falling back to the site root. resolveHomeHref rejects off-origin values.
-const homeLink = document.querySelector("header a.home");
-if (homeLink) homeLink.href = resolveHomeHref(location.search);
-
-// Header button + shared login modal + logged-out auto-prompt come from the
-// facade; this page only owns the profile body below the header.
+// Header account button + shared login modal + logged-out auto-prompt come from
+// the facade; this page owns the card body below the nav.
 Profiles.init({ headerMount: document.getElementById("profileMount") })
   .catch(err => console.error("Profiles init failed", err));
 
@@ -151,6 +176,16 @@ function scoreText(play) {
   return `${play.score}/${play.total}`;
 }
 
+function percent(ratio) {
+  return Number.isFinite(ratio) ? `${Math.round(ratio * 100)}%` : "—";
+}
+
+function ratioOf(play) {
+  return play.total > 0 ? play.score / play.total : NaN;
+}
+
+// ---- whole-body message states (no person header / tabs) ----
+
 function messageHtml({ title, body, actionHtml = "" }) {
   return `
     <div class="msg">
@@ -161,22 +196,17 @@ function messageHtml({ title, body, actionHtml = "" }) {
 }
 
 function renderLoggedOut() {
+  navTitle.textContent = "Your Profile";
   content.innerHTML = messageHtml({
     title: "Log in to see your profile",
     body: "Your best scores and full play history live here once you're signed in.",
-    actionHtml: `<button class="btn" id="loginBtn" type="button">Log in</button>`,
+    actionHtml: `<button class="prompt" id="loginBtn" type="button">Log in</button>`,
   });
   document.getElementById("loginBtn")?.addEventListener("click", () => Profiles.promptLogin());
 }
 
-function emptyHtml() {
-  return messageHtml({
-    title: "No games recorded yet",
-    body: `Go play a round and it'll show up here. <a class="link" href="/games">Browse games &rarr;</a>`,
-  });
-}
-
 function renderError() {
+  navTitle.textContent = "Your Profile";
   content.innerHTML = messageHtml({
     title: "Couldn't load your profile",
     body: "Something went wrong fetching your play history. Please refresh and try again.",
@@ -185,22 +215,46 @@ function renderError() {
 
 // Distinct from the empty state: the requested username matched no profile.
 function renderNotFound(username) {
+  navTitle.textContent = "Profile";
   content.innerHTML = messageHtml({
     title: "No profile found",
     body: `We couldn't find a profile for "${esc(username)}".`,
   });
 }
 
-function percent(ratio) {
-  return Number.isFinite(ratio) ? `${Math.round(ratio * 100)}%` : "—";
+// ---- person header ----
+
+// avatar_url is a dormant seam (always null in v1): when present it would win,
+// otherwise fall back to the deterministic generated initials avatar.
+function avatarHtml(profile) {
+  if (profile.avatar_url) {
+    return `<img class="avatar" src="${esc(profile.avatar_url)}" alt="">`;
+  }
+  const { initials, color } = initialsAvatar(profile.username || profile.user_id);
+  return `<div class="avatar" style="background:${esc(color)}">${esc(initials)}</div>`;
 }
 
-function ratioOf(play) {
-  return play.total > 0 ? play.score / play.total : NaN;
+// Email is private: only shown on the viewer's own profile, never in public mode.
+function personHtml(profile, session, isOwnProfile) {
+  const joined = fmtDate(profile.created_at);
+  const email = isOwnProfile ? session?.user?.email : null;
+  const meta = [];
+  if (email) meta.push(esc(email));
+  if (joined) meta.push(`Joined ${esc(joined)}`);
+  return `
+    <div class="person">
+      ${avatarHtml(profile)}
+      <div class="who">
+        <div class="uname">${esc(profile.username)}</div>
+        <div class="meta">${meta.join(" · ")}</div>
+      </div>
+    </div>`;
 }
+
+// ---- Games tab: records + activity ----
 
 // stats is a flat list of per-(gameId, mode) summaries; collapse it to
-// gameId -> Map(mode -> summary) so each game renders as one card.
+// gameId -> Map(mode -> summary) so each game renders as one records row.
 function groupByGame(stats) {
   const byGame = new Map();
   for (const g of stats) {
@@ -218,261 +272,218 @@ function orderedModes(gameId, modesMap) {
   return [...modesMap.keys()];
 }
 
-// Selected mode per game, kept across toggle clicks (reset each full render).
+// Selected mode per game for the records row, kept across toggle clicks.
 const selectedModes = new Map();
 
-function statHtml(group) {
-  return `
-    <div class="highlights">
-      <div class="hl"><div class="label">Attempts</div><div class="score">${group.count}</div></div>
-      <div class="hl"><div class="label">Best</div><div class="score best">${percent(ratioOf(group.best))}</div></div>
-      <div class="hl"><div class="label">Average</div><div class="score">${percent(group.average)}</div></div>
-    </div>`;
+// Played games in manifest order (category, then declaration), unknown slugs last.
+function orderedGameIds(byGame) {
+  const ids = [];
+  const seen = new Set();
+  for (const { games } of gamesByCategory()) {
+    for (const g of games) {
+      if (byGame.has(g.slug)) { ids.push(g.slug); seen.add(g.slug); }
+    }
+  }
+  for (const gameId of byGame.keys()) if (!seen.has(gameId)) ids.push(gameId);
+  return ids;
 }
 
-function gameCardHtml(gameId, modesMap) {
+function recordRowHtml(gameId, modesMap) {
   const modes = orderedModes(gameId, modesMap);
   if (!selectedModes.has(gameId)) {
     selectedModes.set(gameId, modes.includes("find") ? "find" : modes[0]);
   }
   const selected = selectedModes.get(gameId);
-
-  const headRight = modes.length > 1
-    ? `<div class="mode-toggle" role="tablist">${modes.map((m) =>
-        `<button class="mode-btn${m === selected ? " on" : ""}" type="button"
-           role="tab" aria-selected="${m === selected}"
-           data-game="${esc(gameId)}" data-mode="${esc(m)}">${esc(modeLabel(gameId, m))}</button>`).join("")}</div>`
-    : `<span class="mode">${esc(modeLabel(gameId, selected))}</span>`;
-
+  const g = modesMap.get(selected);
+  const toggle = modes.length > 1
+    ? `<button class="act-pill rec-toggle" type="button" data-game="${esc(gameId)}">${esc(modeLabel(gameId, selected))}</button>`
+    : `<span class="act-pill">${esc(modeLabel(gameId, selected))}</span>`;
   return `
-    <section class="card" data-game="${esc(gameId)}">
-      <div class="card-head">
-        <span class="game">${esc(gameName(gameId))}</span>
-        <div class="head-right">${headRight}</div>
-      </div>
-      <div class="stat-region">${statHtml(modesMap.get(selected))}</div>
-    </section>`;
+    <tr>
+      <td class="game">${esc(gameName(gameId))}</td>
+      <td class="attempts num">${g.count}</td>
+      <td class="best num">${percent(ratioOf(g.best))}</td>
+      <td class="avg num">${percent(g.average)}</td>
+      <td class="act">${toggle}</td>
+    </tr>`;
 }
 
-function categorySectionHtml(category, cardsHtml) {
-  return `<h2 class="cat-title">${esc(category)}</h2>${cardsHtml}`;
-}
-
-// Renders category sections in manifest order, one card per played game, then a
-// trailing "Other" section for played games whose slug the manifest doesn't know.
-function categoriesHtml(byGame) {
-  const rendered = new Set();
-  const sections = [];
-
-  for (const { category, games } of gamesByCategory()) {
-    const cards = games
-      .filter((g) => byGame.has(g.slug))
-      .map((g) => { rendered.add(g.slug); return gameCardHtml(g.slug, byGame.get(g.slug)); });
-    if (cards.length) sections.push(categorySectionHtml(category, cards.join("")));
-  }
-
-  const orphanCards = [...byGame.entries()]
-    .filter(([gameId]) => !rendered.has(gameId))
-    .map(([gameId, modesMap]) => gameCardHtml(gameId, modesMap));
-  if (orphanCards.length) {
-    sections.push(categorySectionHtml("Other", orphanCards.join("")));
-  }
-
-  return sections.join("");
-}
-
-function wireModeToggles() {
-  content.querySelectorAll(".mode-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const { game: gameId, mode } = btn.dataset;
-      selectedModes.set(gameId, mode);
-      const card = content.querySelector(`.card[data-game="${gameId}"]`);
-      if (!card) return;
-      card.querySelector(".stat-region").innerHTML =
-        statHtml(viewCtx.byGame.get(gameId).get(mode));
-      card.querySelectorAll(".mode-btn").forEach((b) => {
-        const on = b.dataset.mode === mode;
-        b.classList.toggle("on", on);
-        b.setAttribute("aria-selected", String(on));
-      });
-    });
-  });
-}
-
-// Global newest-first ordering across all games/modes, matching stats.js recency
-// (created_at desc, then id desc as a deterministic tiebreak).
-function sortNewestFirst(plays) {
-  return plays.slice().sort((a, b) => {
-    if (a.created_at !== b.created_at) return a.created_at < b.created_at ? 1 : -1;
-    return String(a.id) < String(b.id) ? 1 : -1;
-  });
+function recordsHtml() {
+  const rows = orderedGameIds(viewCtx.byGame)
+    .map((gameId) => recordRowHtml(gameId, viewCtx.byGame.get(gameId)))
+    .join("");
+  return `
+    <div>
+      <div class="sec-label">RECORDS</div>
+      <table class="grid rec">
+        <thead>
+          <tr>
+            <th>GAME</th>
+            <th class="num">ATTEMPTS</th>
+            <th class="num">BEST</th>
+            <th class="num">AVERAGE</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 // Current 1-based page of the activity log; clamped by paginate() on render.
 let logPage = 1;
 
-function logRowHtml(play) {
-  return `
-    <tr>
-      <td>${esc(gameName(play.game_id))}</td>
-      <td class="lmode">${esc(modeLabel(play.game_id, play.mode))}</td>
-      <td class="lscore">${esc(scoreText(play))}</td>
-      <td class="ldate">${esc(fmtDateTime(play.created_at))}</td>
-    </tr>`;
-}
-
-function logHtml() {
+function activityHtml() {
   const { pageItems, page, pageCount } = paginate(viewCtx.logPlays, logPage, LOG_PAGE_SIZE);
   logPage = page;
-  const rows = pageItems.map(logRowHtml).join("");
-  const nav = pageCount > 1 ? `
-    <div class="log-nav">
+  const rows = pageItems.map((play) => `
+    <tr>
+      <td class="game">${esc(gameName(play.game_id))}</td>
+      <td class="mode">${esc(modeLabel(play.game_id, play.mode))}</td>
+      <td class="score num">${esc(scoreText(play))}</td>
+      <td class="date num">${esc(fmtDateTime(play.created_at))}</td>
+    </tr>`).join("");
+  const pager = pageCount > 1 ? `
+    <div class="pager">
       <button class="btn-sm" id="logPrev" type="button" ${page <= 1 ? "disabled" : ""}>&larr; Prev</button>
-      <span class="log-page">Page ${page} of ${pageCount}</span>
+      <span class="info">Page ${page} of ${pageCount}</span>
       <button class="btn-sm" id="logNext" type="button" ${page >= pageCount ? "disabled" : ""}>Next &rarr;</button>
     </div>` : "";
   return `
-    <h2 class="cat-title">Activity</h2>
-    <table class="log-table">
-      <thead><tr><th>Game</th><th>Mode</th><th>Score</th><th>Date</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    ${nav}`;
+    <div>
+      <div class="sec-label">ACTIVITY</div>
+      <table class="grid log">
+        <thead>
+          <tr>
+            <th>GAME</th>
+            <th>MODE</th>
+            <th class="num">SCORE</th>
+            <th class="num">DATE</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      ${pager}
+    </div>`;
 }
 
-function wireLogNav() {
-  const rerender = () => {
-    const wrap = document.getElementById("activityLog");
-    if (!wrap) return;
-    wrap.innerHTML = logHtml();
-    wireLogNav();
-  };
-  document.getElementById("logPrev")?.addEventListener("click", () => { logPage -= 1; rerender(); });
-  document.getElementById("logNext")?.addEventListener("click", () => { logPage += 1; rerender(); });
-}
-
-// avatar_url is a dormant seam (always null in v1): when present it would win,
-// otherwise fall back to the deterministic generated initials avatar.
-function avatarHtml(profile) {
-  if (profile.avatar_url) {
-    return `<img class="avatar" src="${esc(profile.avatar_url)}" alt="">`;
+function gamesPanelHtml() {
+  if (viewCtx.stats.length === 0) {
+    return messageHtml({
+      title: "No games recorded yet",
+      body: `Go play a round and it'll show up here. <a class="link" href="/games">Browse games &rarr;</a>`,
+    });
   }
-  const { initials, color } = initialsAvatar(profile.username || profile.user_id);
-  return `<div class="avatar" style="background:${esc(color)}">${esc(initials)}</div>`;
+  return `<div class="sections">${recordsHtml()}${activityHtml()}</div>`;
 }
 
-// Email is private: only surfaced on the viewer's own profile, never in public
-// mode (the viewed user's email isn't even stored in profiles).
-function personCardHtml(profile, session, isOwnProfile) {
-  const joined = fmtDate(profile.created_at);
-  const email = isOwnProfile ? session?.user?.email : null;
-  const metaParts = [];
-  if (email) metaParts.push(esc(email));
-  if (joined) metaParts.push(`Joined ${esc(joined)}`);
+// ---- Profile tab (own profile only) ----
+
+function profilePanelHtml(profile) {
+  const bio = (profile.bio ?? "").trim();
   return `
-    <section class="person">
-      ${avatarHtml(profile)}
-      <div class="who">
-        <div class="uname">${esc(profile.username)}</div>
-        <div class="meta">${metaParts.join(" · ")}</div>
+    <div class="form">
+      <div class="row">
+        <label>Display name</label>
+        <input value="${esc(profile.username)}" disabled>
+        <span class="hint">Your username identifies you and can't be changed.</span>
       </div>
-    </section>`;
-}
-
-function bioViewHtml(bio) {
-  const text = (bio ?? "").trim();
-  const body = text
-    ? `<div class="bio-text">${esc(text)}</div>`
-    : `<div class="bio-empty">No bio yet.</div>`;
-  return `${body}
-    <div class="bio-row">
-      <button class="linkbtn" id="bioEdit" type="button">${text ? "Edit bio" : "Add a bio"}</button>
+      <div class="row">
+        <label>Bio</label>
+        <textarea id="bioTa" rows="3" maxlength="${BIO_MAX}">${esc(bio)}</textarea>
+      </div>
+      <div class="actions">
+        <button class="btn" id="bioSave" type="button">Save changes</button>
+        <button class="btn-ghost" id="bioCancel" type="button">Cancel</button>
+        <span class="note" id="bioNote"></span>
+      </div>
     </div>`;
 }
 
-function bioEditHtml(bio) {
-  const text = (bio ?? "").trim();
-  return `
-    <textarea class="bio-ta" id="bioTa" maxlength="${BIO_MAX}" rows="3">${esc(text)}</textarea>
-    <div class="bio-row">
-      <button class="btn" id="bioSave" type="button">Save</button>
-      <button class="linkbtn" id="bioCancel" type="button">Cancel</button>
-      <span class="bio-note" id="bioNote"></span>
-    </div>`;
-}
+// ---- render + wiring ----
 
-// Read-only bio for public mode: no edit affordance.
-function bioReadonlyHtml(bio) {
-  const text = (bio ?? "").trim();
-  return `<div class="bio-text">${esc(text)}</div>`;
-}
-
-// Render context for the profile currently on screen (own or public), kept so a
-// bio save / mode toggle / log paging can re-render without re-fetching.
+// Render context for the profile currently on screen (own or public), kept so
+// tab switches / toggles / paging re-render without re-fetching.
 let viewCtx = null;
+let activeTab = "games";
 
-function render() {
+function renderContent() {
   const { session, profile, isOwnProfile, stats } = viewCtx;
-  selectedModes.clear();
-  logPage = 1;
+  navTitle.textContent = isOwnProfile ? "Your Profile" : profile.username;
   viewCtx.byGame = groupByGame(stats);
 
-  const h1 = document.querySelector("header h1");
-  if (h1) h1.textContent = isOwnProfile ? "Your Profile" : profile.username;
+  const header = personHtml(profile, session, isOwnProfile);
 
-  // Own profile: always show an editable bio block (so it can be added). Public
-  // profile: show the bio read-only, and only when it's non-empty.
-  let bioBlockHtml = "";
-  if (isOwnProfile) {
-    bioBlockHtml = `<div class="bio-block" id="bioBlock">${bioViewHtml(profile.bio)}</div>`;
-  } else if ((profile.bio ?? "").trim()) {
-    bioBlockHtml = `<div class="bio-block">${bioReadonlyHtml(profile.bio)}</div>`;
-  }
+  // Public profiles surface the bio read-only under the header; own profiles
+  // edit it in the Profile tab instead (mirroring the mockup).
+  const publicBio = !isOwnProfile && (profile.bio ?? "").trim()
+    ? `<div class="bio-public">${esc((profile.bio ?? "").trim())}</div>`
+    : "";
 
-  const bodyHtml = stats.length === 0
-    ? emptyHtml()
-    : `${categoriesHtml(viewCtx.byGame)}<div id="activityLog">${logHtml()}</div>`;
+  const tabs = isOwnProfile ? `
+    <div class="tabs">
+      <button class="tab ${activeTab === "games" ? "on" : ""}" id="tabGames" type="button">Games</button>
+      <button class="tab ${activeTab === "profile" ? "on" : ""}" id="tabProfile" type="button">Profile</button>
+    </div>` : "";
 
-  content.innerHTML = `
-    ${personCardHtml(profile, session, isOwnProfile)}
-    ${bioBlockHtml}
-    ${bodyHtml}`;
+  const panel = (isOwnProfile && activeTab === "profile")
+    ? profilePanelHtml(profile)
+    : gamesPanelHtml();
 
-  if (isOwnProfile) wireBioView();
-  wireModeToggles();
-  wireLogNav();
+  content.innerHTML = `${header}${publicBio}${tabs}${panel}`;
+
+  wireTabs();
+  wireRecordToggles();
+  wirePager();
+  if (isOwnProfile && activeTab === "profile") wireProfileForm();
 }
 
-function wireBioView() {
-  document.getElementById("bioEdit")?.addEventListener("click", () => {
-    document.getElementById("bioBlock").innerHTML = bioEditHtml(viewCtx.profile.bio);
-    wireBioEdit();
+function wireTabs() {
+  document.getElementById("tabGames")?.addEventListener("click", () => {
+    activeTab = "games";
+    renderContent();
+  });
+  document.getElementById("tabProfile")?.addEventListener("click", () => {
+    activeTab = "profile";
+    renderContent();
   });
 }
 
-function wireBioEdit() {
+function wireRecordToggles() {
+  content.querySelectorAll(".rec-toggle").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const gameId = btn.dataset.game;
+      const modes = orderedModes(gameId, viewCtx.byGame.get(gameId));
+      const idx = modes.indexOf(selectedModes.get(gameId));
+      selectedModes.set(gameId, modes[(idx + 1) % modes.length]);
+      renderContent();
+    });
+  });
+}
+
+function wirePager() {
+  document.getElementById("logPrev")?.addEventListener("click", () => { logPage -= 1; renderContent(); });
+  document.getElementById("logNext")?.addEventListener("click", () => { logPage += 1; renderContent(); });
+}
+
+function wireProfileForm() {
   const ta = document.getElementById("bioTa");
   const note = document.getElementById("bioNote");
   const saveBtn = document.getElementById("bioSave");
   const cancelBtn = document.getElementById("bioCancel");
 
-  const showCount = () => {
-    note.classList.remove("err");
-    note.textContent = `${ta.value.length}/${BIO_MAX}`;
-  };
-  showCount();
-  ta.addEventListener("input", showCount);
-  ta.focus();
-
   cancelBtn.addEventListener("click", () => {
-    document.getElementById("bioBlock").innerHTML = bioViewHtml(viewCtx.profile.bio);
-    wireBioView();
+    ta.value = (viewCtx.profile.bio ?? "").trim();
+    note.className = "note";
+    note.textContent = "";
   });
 
   saveBtn.addEventListener("click", async () => {
     const next = ta.value.trim().slice(0, BIO_MAX);
     saveBtn.disabled = true;
     cancelBtn.disabled = true;
+    note.className = "note";
+    note.textContent = "Saving…";
     try {
       const updated = await updateProfile({ bio: next });
       viewCtx.profile.bio = updated?.bio ?? next;
@@ -480,18 +491,30 @@ function wireBioEdit() {
       console.error("updateProfile failed", err);
       saveBtn.disabled = false;
       cancelBtn.disabled = false;
-      note.classList.add("err");
+      note.className = "note err";
       note.textContent = "Couldn't save — try again.";
       return;
     }
-    document.getElementById("bioBlock").innerHTML = bioViewHtml(viewCtx.profile.bio);
-    wireBioView();
+    saveBtn.disabled = false;
+    cancelBtn.disabled = false;
+    note.className = "note ok";
+    note.textContent = "Saved";
   });
 }
 
-// Guards against out-of-order async renders when auth events and the initial
-// load race: only the newest invocation is allowed to paint.
-let renderSeq = 0;
+function fallbackProfile(session) {
+  return {
+    user_id: session.user.id,
+    username: sessionUsername(session),
+    bio: null,
+    created_at: session.user.created_at,
+    avatar_url: null,
+  };
+}
+
+function sessionUsername(session) {
+  return session.user.user_metadata?.username || session.user.email || "You";
+}
 
 function requestedUsername() {
   try {
@@ -500,6 +523,10 @@ function requestedUsername() {
     return null;
   }
 }
+
+// Guards against out-of-order async renders when auth events and the initial
+// load race: only the newest invocation is allowed to paint.
+let renderSeq = 0;
 
 async function refresh(sessionArg) {
   const seq = ++renderSeq;
@@ -551,8 +578,8 @@ async function refresh(sessionArg) {
   }
   if (seq !== renderSeq) return;
 
-  // Ownership (by user_id) gates email + bio editing; a ?u= that resolves to the
-  // signed-in user's own row is therefore treated as self mode.
+  // Ownership (by user_id) gates email + the editable Profile tab; a ?u= that
+  // resolves to the signed-in user's own row is therefore treated as self mode.
   const isOwnProfile = !!session && session.user.id === profile.user_id;
 
   viewCtx = {
@@ -562,21 +589,19 @@ async function refresh(sessionArg) {
     stats: computeStats(plays),
     logPlays: sortNewestFirst(plays),
   };
-  render();
+  activeTab = "games";
+  selectedModes.clear();
+  logPage = 1;
+  renderContent();
 }
 
-function fallbackProfile(session) {
-  return {
-    user_id: session.user.id,
-    username: sessionUsername(session),
-    bio: null,
-    created_at: session.user.created_at,
-    avatar_url: null,
-  };
-}
-
-function sessionUsername(session) {
-  return session.user.user_metadata?.username || session.user.email || "You";
+// Global newest-first ordering across all games/modes, matching stats.js recency
+// (created_at desc, then id desc as a deterministic tiebreak).
+function sortNewestFirst(plays) {
+  return plays.slice().sort((a, b) => {
+    if (a.created_at !== b.created_at) return a.created_at < b.created_at ? 1 : -1;
+    return String(a.id) < String(b.id) ? 1 : -1;
+  });
 }
 
 onAuthStateChange((_event, session) => refresh(session ?? null));
