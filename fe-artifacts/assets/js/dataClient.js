@@ -212,6 +212,24 @@ export async function fetchPackList() {
   return (data ?? []).map(toPack);
 }
 
+// Loads a single pack plus its items (ordered by sort_order) by slug. Prices are
+// coerced to numbers (PostgREST can serialize numeric as a string). Returns null
+// when the slug is unknown, so callers can fall back to the selector.
+export async function fetchPack(slug) {
+  const { data, error } = await supabase
+    .from('packs')
+    .select(`${PACK_LIST_COLUMNS}, pack_items(name, price, image_url, sort_order)`)
+    .eq('slug', slug)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const items = (data.pack_items ?? [])
+    .slice()
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((it) => ({ name: it.name, price: Number(it.price), imageUrl: it.image_url ?? null }));
+  return { ...toPack(data), items };
+}
+
 // Wraps the SDK subscription so the recorder/UI layer can drive capture-then-save
 // off auth transitions. Returns the SDK's subscription handle (has .unsubscribe()).
 export function onAuthStateChange(cb) {
