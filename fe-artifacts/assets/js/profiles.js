@@ -121,4 +121,12 @@ function recordPlay({ gameId, mode, score, total }) {
   return recorder.capture({ gameId, mode, score, total });
 }
 
-export const Profiles = { init, recordPlay };
+function isLoggedIn() {
+  return currentSession != null;
+}
+
+function promptLogin() {
+  authUI?.openModal();
+}
+
+export const Profiles = { init, recordPlay, isLoggedIn, promptLogin };
