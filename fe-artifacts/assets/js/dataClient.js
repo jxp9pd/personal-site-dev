@@ -53,7 +53,22 @@ export async function signUp({ email, password, username }) {
   return data;
 }
 
-export async function signIn({ email, password }) {
+// Resolves a username to its account email via the SECURITY DEFINER RPC (see
+// migration 0005). Returns null when no username matches. Throws only on a
+// genuine SDK error.
+export async function emailForUsername(username) {
+  const { data, error } = await supabase.rpc('email_for_username', { p_username: username });
+  if (error) throw error;
+  return data ?? null;
+}
+
+// Supabase's password grant only accepts an email, so we resolve the username
+// first. An unknown username throws the same "Invalid login credentials" shape
+// GoTrue uses for a bad password, so callers map both to one message and never
+// reveal whether a username exists.
+export async function signIn({ username, password }) {
+  const email = await emailForUsername(username);
+  if (!email) throw new Error('Invalid login credentials');
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
   return data;
