@@ -91,7 +91,7 @@ function boot(quiz) {
   };
 
   const map = L.map('map', { zoomControl: true, attributionControl: false }).setView(CENTER, ZOOM);
-  L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_nolabels/{z}/{x}/{y}{r}.png',
+  L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_nolabels/{z}/{x}/{y}{r}.png',
     { maxZoom: 19, subdomains: 'abcd' }).addTo(map);
 
   const base = { color: C.idleLine, weight: 1, fillColor: C.idle, fillOpacity: .28 };
