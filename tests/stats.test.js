@@ -120,4 +120,68 @@ describe("computeStats", () => {
     expect(result).toHaveLength(1);
     expect(groupFor(result, "sf-neighborhoods", "name")).toBeUndefined();
   });
+
+  it("averages a single play to that play's ratio", () => {
+    const plays = [play({ id: "a", score: 7, total: 10 })];
+    const g = groupFor(computeStats(plays), "sf-neighborhoods", "find");
+    expect(g.average).toBe(0.7);
+  });
+
+  it("averages multiple plays as the mean of per-play ratios", () => {
+    const plays = [
+      play({ id: "a", score: 5, total: 10 }),
+      play({ id: "b", score: 10, total: 10 }),
+    ];
+    const g = groupFor(computeStats(plays), "sf-neighborhoods", "find");
+    // ratios 0.5 and 1.0 -> exactly-representable mean 0.75
+    expect(g.average).toBe(0.75);
+  });
+
+  it("averages over per-play ratios, not summed score / summed total", () => {
+    const plays = [
+      play({ id: "a", score: 1, total: 1 }),
+      play({ id: "b", score: 0, total: 100 }),
+    ];
+    const g = groupFor(computeStats(plays), "sf-neighborhoods", "find");
+    // mean of ratios = (1/1 + 0/100) / 2 = 0.5, not summed 1/101
+    expect(g.average).toBe(0.5);
+  });
+
+  it("averages non-terminating per-play ratios", () => {
+    const plays = [
+      play({ id: "a", score: 1, total: 3 }),
+      play({ id: "b", score: 1, total: 3 }),
+    ];
+    const g = groupFor(computeStats(plays), "sf-neighborhoods", "find");
+    expect(g.average).toBeCloseTo(1 / 3, 12);
+  });
+
+  it("adds average without altering best, mostRecent, count, or ordering", () => {
+    const plays = [
+      play({ id: "a", score: 5, total: 10, created_at: "2026-01-01T00:00:00.000Z" }),
+      play({ id: "b", score: 8, total: 10, created_at: "2026-01-02T00:00:00.000Z" }),
+      play({ id: "c", score: 3, total: 10, created_at: "2026-01-03T00:00:00.000Z" }),
+    ];
+    const g = groupFor(computeStats(plays), "sf-neighborhoods", "find");
+    expect(g.count).toBe(3);
+    expect(g.best.id).toBe("b");
+    expect(g.mostRecent.id).toBe("c");
+    expect(g.history.map((p) => p.id)).toEqual(["c", "b", "a"]);
+    expect(g.average).toBeCloseTo(0.5333333333, 9);
+  });
+
+  it("preserves gameId-then-mode sort order with average present", () => {
+    const plays = [
+      play({ id: "a", game_id: "sf-neighborhoods", mode: "name", score: 2 }),
+      play({ id: "b", game_id: "nyc-boroughs", mode: "find", score: 4 }),
+      play({ id: "c", game_id: "sf-neighborhoods", mode: "find", score: 6 }),
+    ];
+    const result = computeStats(plays);
+    expect(result.map((g) => [g.gameId, g.mode])).toEqual([
+      ["nyc-boroughs", "find"],
+      ["sf-neighborhoods", "find"],
+      ["sf-neighborhoods", "name"],
+    ]);
+    result.forEach((g) => expect(typeof g.average).toBe("number"));
+  });
 });

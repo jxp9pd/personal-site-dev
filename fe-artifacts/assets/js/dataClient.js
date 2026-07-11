@@ -17,6 +17,8 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 
 const PLAY_COLUMNS = 'id, user_id, game_id, mode, score, total, created_at';
 
+const PROFILE_COLUMNS = 'user_id, username, bio, created_at, avatar_url';
+
 // Selector only needs display + framing metadata; the heavy `geo` column is
 // fetched per-quiz on demand so listing all cities stays cheap.
 const QUIZ_LIST_COLUMNS = 'slug, name, description, center_lat, center_lng, zoom';
@@ -103,6 +105,42 @@ export async function fetchPlays(userId) {
     .select(PLAY_COLUMNS)
     .eq('user_id', targetUserId)
     .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+// ILIKE treats `_` and `%` as wildcards, but usernames legitimately contain
+// underscores, so escape them to force a literal (case-insensitive) match.
+function escapeLike(value) {
+  return String(value).replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
+// Case-insensitive username lookup (profiles is unique on lower(username)).
+// Returns the profile row, or null when no username matches. Throws only on a
+// genuine SDK error.
+export async function fetchProfileByUsername(username) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(PROFILE_COLUMNS)
+    .ilike('username', escapeLike(username))
+    .maybeSingle();
+  if (error) throw error;
+  return data ?? null;
+}
+
+// Updates the caller's own profile row. Ownership is derived from the live
+// session, never a caller argument (RLS enforces owner-only writes regardless).
+// Returns the updated row.
+export async function updateProfile({ bio }) {
+  const session = await getSession();
+  if (!session) throw new Error('updateProfile requires an authenticated session');
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ bio })
+    .eq('user_id', session.user.id)
+    .select(PROFILE_COLUMNS)
+    .single();
   if (error) throw error;
   return data;
 }
