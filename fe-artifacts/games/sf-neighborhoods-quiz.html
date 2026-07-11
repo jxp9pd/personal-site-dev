@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SF Neighborhoods Quiz</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --ink:#e8eaed; --muted:#9aa0aa;
+    --line:#262b34; --accent:#4f9cf9; --good:#37b86b; --bad:#e0564a;
+    --warn:#e0a93f; --idle:#2a2f38; --idle-line:#3a414c;
+    /* darker fill companions for map polygons using the semantic colors above */
+    --accent-fill:#33414f; --good-fill:#1f7a47; --bad-fill:#7a2a24; --warn-fill:#6b5320;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  #app{display:flex;flex-direction:column;height:100vh}
+  header{padding:10px 16px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  header h1{font-size:16px;margin:0;font-weight:650;letter-spacing:.2px}
+  .mode-tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);
+    border-radius:8px;padding:3px}
+  .mode-tabs button{background:none;border:0;color:var(--muted);padding:6px 12px;
+    border-radius:6px;cursor:pointer;font-size:13px;font-weight:550}
+  .mode-tabs button.active{background:var(--accent);color:#fff}
+  .spacer{flex:1}
+  .stat{font-size:13px;color:var(--muted)}
+  .stat b{color:var(--ink)}
+  .btn{background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    padding:6px 12px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:550}
+  .btn:hover{border-color:var(--accent)}
+  main{flex:1;position:relative}
+  #map{position:absolute;inset:0;background:#0b0d10}
+  .leaflet-container{background:#0b0d10}
+  .prompt{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:500;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:10px 18px;min-width:260px;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+  .prompt .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+  .prompt .target{font-size:20px;font-weight:680;margin-top:2px}
+  .prompt .fb{font-size:13px;margin-top:4px;min-height:17px}
+  .fb.good{color:var(--good)} .fb.bad{color:var(--bad)}
+  .done{position:absolute;inset:0;z-index:600;background:rgba(10,12,15,.92);
+    display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+  .done h2{margin:0;font-size:26px}
+  .done .score{font-size:15px;color:var(--muted)}
+  .save-nudge{display:flex;flex-direction:column;align-items:center;gap:8px;
+    color:var(--muted);font-size:13px}
+  .save-nudge[hidden]{display:none}
+  .save-nudge .btn{border-color:var(--accent);color:var(--ink)}
+  .saved-note{font-size:13px;color:var(--good)}
+  .saved-note[hidden]{display:none}
+  .leaflet-interactive{transition:fill .25s,fill-opacity .25s}
+  .answer-tip{background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    font-size:12px;padding:2px 6px;border-radius:5px;box-shadow:none}
+  .answer-tip::before{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>SF Neighborhoods</h1>
+    <div class="mode-tabs" id="modeTabs">
+      <button data-mode="find" class="active">Find it</button>
+      <button data-mode="name">Name it</button>
+      <button data-mode="learn">Learn</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="stat" id="stat"></div>
+    <button class="btn" id="restart">Restart</button>
+    <div id="profileMount"></div>
+  </header>
+  <main>
+    <div id="map"></div>
+    <div class="prompt" id="prompt">
+      <div class="label" id="pLabel">Find</div>
+      <div class="target" id="pTarget">—</div>
+      <div class="fb" id="pFb"></div>
+    </div>
+    <div class="done" id="done">
+      <h2 id="doneTitle">Done</h2>
+      <div class="score" id="doneScore"></div>
+      <div class="save-nudge" id="saveNudge" hidden>
+        <span id="saveNudgeText">Log in to save this score to your profile.</span>
+        <button class="btn" id="saveLogin">Log in to save</button>
+      </div>
+      <div class="saved-note" id="savedNote" hidden>Saved to your profile</div>
+      <button class="btn" id="doneRestart">Go again</button>
+    </div>
+  </main>
+</div>
+<script type="module">
+import { Profiles } from "../assets/js/profiles.js";
+
+// Auth/profile layer runs independently of the game bootstrap: an init failure
+// (e.g. network) must never stop the quiz from starting or being played.
+Profiles.init({ gameSlug: 'sf-neighborhoods', headerMount: document.getElementById('profileMount') })
+  .catch(err => console.error('Profiles init failed', err));
+
+const DATA = await fetch("sf-neighborhoods-quiz.data.json").then(r=>{
+  if(!r.ok) throw new Error("Failed to load quiz data ("+r.status+")");
+  return r.json();
+});
+const GEO=DATA.geo;
+const HOOD_NAMES = GEO.features.map(f=>f.properties.name).sort();
+const SF_CENTER=[37.759,-122.444], SF_ZOOM=12;
+
+// single source of truth for semantic colors: the CSS :root tokens
+const cssVar=(()=>{const s=getComputedStyle(document.documentElement);return n=>s.getPropertyValue(n).trim();})();
+const C={
+  accent:cssVar('--accent'), accentFill:cssVar('--accent-fill'),
+  good:cssVar('--good'), goodFill:cssVar('--good-fill'),
+  bad:cssVar('--bad'), badFill:cssVar('--bad-fill'),
+  warn:cssVar('--warn'), warnFill:cssVar('--warn-fill'),
+  idle:cssVar('--idle'), idleLine:cssVar('--idle-line')
+};
+
+const map=L.map('map',{zoomControl:true,attributionControl:false}).setView(SF_CENTER,SF_ZOOM);
+L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_nolabels/{z}/{x}/{y}{r}.png',
+  {maxZoom:19,subdomains:'abcd'}).addTo(map);
+
+const base={color:C.idleLine,weight:1,fillColor:C.idle,fillOpacity:.28};
+const hover={color:C.accent,weight:1.5,fillColor:C.accentFill,fillOpacity:.7};
+const styleOk=l=>l.setStyle({color:C.good,weight:1.5,fillColor:C.goodFill,fillOpacity:.8});
+const styleWrong=l=>l.setStyle({color:C.bad,weight:1.5,fillColor:C.badFill,fillOpacity:.7});
+const styleShow=l=>l.setStyle({color:C.warn,weight:2,fillColor:C.warnFill,fillOpacity:.7});
+const styleIdle=l=>l.setStyle(base);
+const emphasize=l=>l.setStyle({color:C.accent,weight:2,fillColor:C.accentFill,fillOpacity:.75});
+
+const hoodByName={};
+const hoodLayer=L.geoJSON(GEO,{
+  style:()=>base,
+  onEachFeature:(f,l)=>{
+    hoodByName[f.properties.name]=l;
+    l.on('click',()=>onClick(f.properties.name,l));
+    l.on('mouseover',()=>{ if(mode==='learn'){revealHover(f.properties.name,l);}
+                           else if(!l._locked) l.setStyle(hover); });
+    l.on('mouseout',()=>{ if(mode!=='learn'&&!l._locked) l.setStyle(base); });
+  }
+}).addTo(map);
+function hoodReset(){hoodLayer.eachLayer(l=>{l._locked=false;l._revealed=false;l.unbindTooltip();l.setStyle(base);});}
+
+// once a hood has been clicked, hovering shows its name
+function revealName(l,name){l._revealed=true;l.bindTooltip(name,{className:'answer-tip',direction:'top'});}
+
+// ---- state ----
+let mode='find', queue=[], current=null,
+    correct=0, answered=0, choiceWrap=null;
+const el=id=>document.getElementById(id);
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
+function clearChoices(){if(choiceWrap){choiceWrap.remove();choiceWrap=null;}}
+
+function setMode(m){
+  mode=m;
+  document.querySelectorAll('#modeTabs button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+  start();
+}
+
+function start(){
+  hoodReset();
+  correct=0;answered=0;current=null;
+  el('done').style.display='none';
+  el('pFb').textContent='';el('pFb').className='fb';
+  clearChoices();
+  if(mode==='learn'){
+    el('prompt').style.display='none';
+    el('stat').textContent='Hover a neighborhood to reveal its name · '+HOOD_NAMES.length+' total';
+    map.setView(SF_CENTER,SF_ZOOM);
+    return;
+  }
+  el('prompt').style.display='block';
+  queue=shuffle(HOOD_NAMES);
+  el('pLabel').textContent = mode==='find' ? 'Find on the map' : 'Name this neighborhood';
+  next();
+}
+
+function next(){
+  el('pFb').textContent='';el('pFb').className='fb';
+  clearChoices();
+  if(queue.length===0){return finish();}
+  current=queue.shift();
+  updateStat();
+  if(mode==='find'){
+    el('pTarget').textContent=current;
+  }else{ // name
+    hoodLayer.eachLayer(l=>{l._locked=false;styleIdle(l);});
+    const l=hoodByName[current];
+    l._locked=true;
+    emphasize(l);
+    el('pTarget').textContent='???';
+    map.fitBounds(l.getBounds(),{padding:[60,60],maxZoom:14});
+    buildChoices();
+  }
+}
+
+function updateStat(){
+  const total=HOOD_NAMES.length;
+  el('stat').innerHTML=`<b>${correct}</b>/${total} correct · ${queue.length} left · accuracy <b>${answered?Math.round(correct/answered*100):100}%</b>`;
+}
+
+// FIND: one click per prompt, then move on
+function onClick(name,l){
+  if(mode!=='find'||!current) return;
+  answered++;
+  l._locked=true; revealName(l,name);
+  if(name===current){
+    correct++; styleOk(l);
+    el('pFb').textContent='Correct';el('pFb').className='fb good';
+  }else{
+    styleWrong(l);
+    el('pFb').textContent='That was '+name+' — answer was '+current;
+    el('pFb').className='fb bad';
+  }
+  updateStat();
+  setTimeout(next,700);
+}
+
+// NAME: multiple choice
+function buildChoices(){
+  clearChoices();
+  const pool=shuffle(HOOD_NAMES.filter(n=>n!==current)).slice(0,3);
+  const opts=shuffle(pool.concat(current));
+  choiceWrap=document.createElement('div');
+  choiceWrap.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px';
+  opts.forEach(o=>{
+    const b=document.createElement('button');
+    b.className='btn';b.textContent=o;b.style.fontSize='12px';
+    b.onclick=()=>chooseName(o,b);
+    choiceWrap.appendChild(b);
+  });
+  el('prompt').appendChild(choiceWrap);
+}
+function chooseName(o,b){
+  answered++;
+  if(o===current){
+    correct++;
+    b.style.background=C.goodFill;b.style.borderColor=C.good;
+    el('pFb').textContent='Correct';el('pFb').className='fb good';
+  }else{
+    b.style.background=C.badFill;b.style.borderColor=C.bad;
+    el('pFb').textContent='Nope — '+current;el('pFb').className='fb bad';
+    [...choiceWrap.children].forEach(c=>{if(c.textContent===current){c.style.background=C.goodFill;c.style.borderColor=C.good;}});
+  }
+  el('pTarget').textContent=current;
+  [...choiceWrap.children].forEach(c=>c.disabled=true);
+  updateStat();
+  setTimeout(()=>{clearChoices();next();},700);
+}
+
+// LEARN: hover reveals name
+function revealHover(name,l){
+  emphasize(l);
+  l.bindTooltip(name,{className:'answer-tip',permanent:false,direction:'top'}).openTooltip();
+  l.on('mouseout',()=>{styleIdle(l);},{once:true});
+}
+
+function finish(){
+  el('done').style.display='flex';
+  const pct=answered?Math.round(correct/answered*100):0;
+  el('doneTitle').textContent = pct>=90?'Local legend':pct>=70?'Solid':pct>=50?'Getting there':'Keep at it';
+  el('doneScore').textContent=`${correct}/${HOOD_NAMES.length} correct · ${pct}% accuracy`;
+
+  // Only tracked modes count as a completed play; learn never reaches finish().
+  if(mode==='find'||mode==='name'){
+    try{ Profiles.recordPlay({ gameId:'sf-neighborhoods', mode, score:correct, total:HOOD_NAMES.length }); }
+    catch(err){ console.error('recordPlay failed', err); }
+
+    let loggedIn=false;
+    try{ loggedIn=Profiles.isLoggedIn(); }catch{}
+    el('saveNudge').hidden=loggedIn;
+    el('savedNote').hidden=!loggedIn;
+  }else{
+    el('saveNudge').hidden=true;
+    el('savedNote').hidden=true;
+  }
+}
+
+document.querySelectorAll('#modeTabs button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+el('restart').onclick=start;
+el('doneRestart').onclick=start;
+el('saveLogin').onclick=()=>{ try{ Profiles.promptLogin(); }catch(err){ console.error('promptLogin failed', err); } };
+
+start();
+
+</script>
+</body>
+</html>
