@@ -19,9 +19,10 @@ const PLAY_COLUMNS = 'id, user_id, game_id, mode, score, total, created_at';
 
 const PROFILE_COLUMNS = 'user_id, username, bio, created_at, avatar_url';
 
-// Selector only needs display + framing metadata; the heavy `geo` column is
-// fetched per-quiz on demand so listing all cities stays cheap.
-const QUIZ_LIST_COLUMNS = 'slug, name, description, center_lat, center_lng, zoom';
+// Selector only needs display + framing metadata (plus the lightweight landmark
+// SVG it renders behind each card); the heavy `geo` column is fetched per-quiz
+// on demand so listing all cities stays cheap.
+const QUIZ_LIST_COLUMNS = 'slug, name, description, center_lat, center_lng, zoom, art_svg';
 
 // One client instance for the whole app.
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -36,6 +37,7 @@ function toQuiz(row) {
     center: [row.center_lat, row.center_lng],
     zoom: row.zoom,
     geo: row.geo,
+    artSvg: row.art_svg ?? null,
   };
 }
 

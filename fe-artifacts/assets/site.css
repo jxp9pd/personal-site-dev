@@ -80,6 +80,7 @@ a { color: inherit; }
   background: transparent;
   transition: color 0.25s, background 0.25s, transform 0.25s, box-shadow 0.25s;
 }
+.btn[aria-current="page"] { color: var(--paper); background: var(--ink); }
 .btn .arrow { transition: transform 0.25s; }
 .btn:hover {
   color: var(--paper);

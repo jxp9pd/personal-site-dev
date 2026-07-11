@@ -5,8 +5,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("../fe-artifacts/assets/js/dataClient.js", () => ({
   fetchQuiz: vi.fn(),
   fetchQuizList: vi.fn(async () => [
-    { slug: "sf-neighborhoods", name: "San Francisco", description: "SF" },
-    { slug: "seattle-neighborhoods", name: "Seattle", description: "Seattle" },
+    { slug: "sf-neighborhoods", name: "San Francisco", description: "SF", artSvg: '<svg data-city="sf"></svg>' },
+    { slug: "seattle-neighborhoods", name: "Seattle", description: "Seattle", artSvg: null },
   ]),
 }));
 
@@ -55,5 +55,21 @@ describe("neighborhoods quiz — city select screen", () => {
     const arg = Profiles.init.mock.calls[0][0];
     expect(arg.headerMount).toBeInstanceOf(HTMLElement);
     expect(document.getElementById("select").contains(arg.headerMount)).toBe(true);
+  });
+
+  it("renders the landmark art layer only when a quiz has artSvg", async () => {
+    await start();
+
+    const cards = document.querySelectorAll("#cityGrid .city-card");
+    expect(cards).toHaveLength(2);
+
+    const [sf, seattle] = cards;
+    // SF has art: the art layer is present and holds the inlined SVG.
+    const sfArt = sf.querySelector(".art");
+    expect(sfArt).not.toBeNull();
+    expect(sfArt.querySelector("svg")).not.toBeNull();
+    // Seattle has no art: just the centered name, no art layer.
+    expect(seattle.querySelector(".art")).toBeNull();
+    expect(seattle.querySelector(".name").textContent).toBe("Seattle");
   });
 });
