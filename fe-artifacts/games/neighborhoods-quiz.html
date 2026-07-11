@@ -118,6 +118,51 @@
     font-weight:400;text-align:center;letter-spacing:.01em;transition:color .2s}
   .city-card:hover .name{color:var(--accent)}
   .select-msg{grid-column:1/-1;color:var(--muted);font-size:14px;margin:8px 2px}
+  /* Restart shows its label by default; the compact icon is mobile-only. */
+  #restart .restart-icon{display:none}
+
+  /* ---- Mobile (single breakpoint). Desktop above is the default. ---- */
+  @media (max-width:640px){
+    /* Slim top bar: back · title · stat · restart · profile on one row. */
+    header{gap:10px;flex-wrap:nowrap;padding:10px 14px}
+    header h1{font-size:17px;flex:1;min-width:0;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .back{flex-shrink:0}
+    .spacer{display:none}
+    #profileMount{flex-shrink:0}
+    .stat{flex-shrink:0;font-size:11px;white-space:nowrap}
+    /* Stat collapses to "<correct>/<total> correct". */
+    #stat .s-left,#stat .s-acc{display:none}
+    /* Learn mode: no instruction text on mobile (tap is self-evident). */
+    #app[data-mode="learn"] #stat{display:none}
+    /* Restart becomes a compact circular icon button. */
+    #restart{padding:8px;width:38px;height:38px;justify-content:center}
+    #restart .restart-label{display:none}
+    #restart .restart-icon{display:inline;font-size:16px}
+
+    /* Mode tabs relocate to a fixed, thumb-zone bottom bar (CSS only). */
+    #modeTabs{position:fixed;left:0;right:0;bottom:0;z-index:700;
+      gap:0;border:0;border-top:1px solid var(--line);border-radius:0;
+      background:var(--paper);padding:6px 8px;
+      padding-bottom:calc(6px + env(safe-area-inset-bottom));
+      justify-content:space-around;
+      box-shadow:0 -6px 20px -12px rgba(20,19,15,.4)}
+    #modeTabs button{flex:1;padding:12px 8px;border-radius:12px;font-size:11px}
+
+    /* Prompt near full-width, pinned top; Name choices stay a tappable 2×2. */
+    .prompt{left:12px;right:12px;transform:none;min-width:0;width:auto;padding:10px 14px}
+    .prompt .target{font-size:22px}
+    .prompt .btn{padding:12px 10px;min-height:44px}
+
+    /* Done screen clears the fixed bottom bar. */
+    .done{padding-bottom:76px}
+
+    /* Selector polish: less top padding, full-width heading, profile top-right. */
+    #select{padding:24px 18px 40px}
+    #select .select-head{margin-bottom:20px}
+    #select .back-to-games{margin-bottom:16px}
+    #select h1{font-size:2rem}
+  }
 </style>
 </head>
 <body>
@@ -147,7 +192,7 @@
     </div>
     <div class="spacer"></div>
     <div class="stat" id="stat"></div>
-    <button class="btn" id="restart">Restart</button>
+    <button class="btn" id="restart" aria-label="Restart"><span class="restart-label">Restart</span><span class="restart-icon" aria-hidden="true">↻</span></button>
     <div id="profileMount"></div>
   </header>
   <main>

@@ -133,6 +133,7 @@ function boot(quiz) {
 
   function startRound() {
     hoodReset();
+    el('app').dataset.mode = mode;
     correct = 0; answered = 0; current = null;
     el('done').style.display = 'none';
     el('pFb').textContent = ''; el('pFb').className = 'fb';
@@ -170,7 +171,13 @@ function boot(quiz) {
 
   function updateStat() {
     const total = HOOD_NAMES.length;
-    el('stat').innerHTML = `<b>${correct}</b>/${total} correct · ${queue.length} left · accuracy <b>${answered ? Math.round(correct / answered * 100) : 100}%</b>`;
+    // Segments are spans so the mobile breakpoint can drop "left"/"accuracy"
+    // and show only the count. The leading " · " lives inside each optional
+    // span so hiding it removes its separator too. textContent is unchanged.
+    el('stat').innerHTML =
+      `<span class="s-correct"><b>${correct}</b>/${total} correct</span>` +
+      `<span class="s-left"> · ${queue.length} left</span>` +
+      `<span class="s-acc"> · accuracy <b>${answered ? Math.round(correct / answered * 100) : 100}%</b></span>`;
   }
 
   // FIND: one click per prompt, then move on
