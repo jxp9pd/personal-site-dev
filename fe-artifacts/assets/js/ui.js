@@ -106,11 +106,11 @@ export function createAuthUI({
       <button class="pp-close" type="button" aria-label="Close">&times;</button>
       <h2 class="pp-title">Log in</h2>
       <form class="pp-form">
-        <div class="pp-field pp-field-username" hidden>
+        <div class="pp-field pp-field-username">
           <label>Username</label>
           <input type="text" class="pp-username" autocomplete="username" autocapitalize="off">
         </div>
-        <div class="pp-field">
+        <div class="pp-field pp-field-email" hidden>
           <label>Email</label>
           <input type="email" class="pp-email" autocomplete="email" autocapitalize="off">
         </div>
@@ -131,8 +131,8 @@ export function createAuthUI({
   const modal = overlay.querySelector('.pp-modal');
   const title = overlay.querySelector('.pp-title');
   const form = overlay.querySelector('.pp-form');
-  const usernameField = overlay.querySelector('.pp-field-username');
   const usernameInput = overlay.querySelector('.pp-username');
+  const emailField = overlay.querySelector('.pp-field-email');
   const emailInput = overlay.querySelector('.pp-email');
   const passwordInput = overlay.querySelector('.pp-password');
   const submitBtn = overlay.querySelector('.pp-submit');
@@ -171,7 +171,7 @@ export function createAuthUI({
 
   function setSignupMode(on) {
     signupMode = on;
-    usernameField.hidden = !on;
+    emailField.hidden = !on;
     title.textContent = on ? 'Sign up' : 'Log in';
     submitBtn.textContent = on ? 'Sign up' : 'Log in';
     passwordInput.autocomplete = on ? 'new-password' : 'current-password';
@@ -182,7 +182,7 @@ export function createAuthUI({
 
   function openModal() {
     overlay.hidden = false;
-    setTimeout(() => (signupMode ? usernameInput : emailInput).focus(), 0);
+    setTimeout(() => usernameInput.focus(), 0);
   }
 
   function closeModal() {
@@ -219,12 +219,19 @@ export function createAuthUI({
     const password = passwordInput.value;
     const username = usernameInput.value.trim();
     showError('');
+    const missing = signupMode
+      ? !username || !email || !password
+      : !username || !password;
+    if (missing) {
+      showError('Please fill in all fields.');
+      return;
+    }
     setBusy(true);
     try {
       if (signupMode) {
         await onSignup?.({ email, password, username });
       } else {
-        await onLogin?.({ email, password });
+        await onLogin?.({ username, password });
       }
       closeModal();
     } catch (err) {

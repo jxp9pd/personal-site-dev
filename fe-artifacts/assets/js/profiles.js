@@ -57,7 +57,7 @@ function signupError(err) {
 function loginError(err) {
   const raw = typeof err?.message === 'string' ? err.message : '';
   if (raw.includes('Invalid login credentials')) {
-    return 'Incorrect email or password.';
+    return 'Incorrect username or password.';
   }
   return isOpaqueMessage(raw) ? 'Something went wrong. Please try again.' : raw;
 }
@@ -81,9 +81,9 @@ async function init({ gameSlug, headerMount } = {}) {
 
   authUI = createAuthUI({
     mountButtonInto: headerMount,
-    onLogin: async ({ email, password }) => {
+    onLogin: async ({ username, password }) => {
       try {
-        return await dataClient.signIn({ email, password });
+        return await dataClient.signIn({ username, password });
       } catch (err) {
         throw new Error(loginError(err));
       }
