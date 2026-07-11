@@ -28,6 +28,11 @@ const GAMES = {
     category: 'Neighborhoods',
     modes: NEIGHBORHOOD_MODES,
   },
+  'guess-the-price': {
+    name: 'Guess the Price',
+    category: 'Guess the Price',
+    modes: { wearables: 'Wearables', groceries: 'Groceries' },
+  },
 };
 
 export function getGame(slug) {

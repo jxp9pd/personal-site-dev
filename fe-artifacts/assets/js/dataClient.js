@@ -24,6 +24,9 @@ const PROFILE_COLUMNS = 'user_id, username, bio, created_at, avatar_url';
 // on demand so listing all cities stays cheap.
 const QUIZ_LIST_COLUMNS = 'slug, name, description, center_lat, center_lng, zoom, art_svg';
 
+// Pack selector needs only display metadata; items are fetched per-pack on play.
+const PACK_LIST_COLUMNS = 'slug, name, description, art_svg';
+
 // One client instance for the whole app.
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -184,6 +187,29 @@ export async function fetchQuiz(slug) {
     .maybeSingle();
   if (error) throw error;
   return data ? toQuiz(data) : null;
+}
+
+// Normalizes a `packs` row into the display shape the selector speaks.
+function toPack(row) {
+  return {
+    slug: row.slug,
+    name: row.name,
+    description: row.description,
+    artSvg: row.art_svg ?? null,
+  };
+}
+
+// Lists every pack for the Guess the Price selector, ordered as configured at
+// publish time, then by name as a stable tiebreaker. Omits items — see
+// PACK_LIST_COLUMNS. Returns [] when no packs exist.
+export async function fetchPackList() {
+  const { data, error } = await supabase
+    .from('packs')
+    .select(PACK_LIST_COLUMNS)
+    .order('sort_order', { ascending: true })
+    .order('name', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(toPack);
 }
 
 // Wraps the SDK subscription so the recorder/UI layer can drive capture-then-save

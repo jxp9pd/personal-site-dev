@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Guess the Price</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --paper:#fdfcf3; --paper-2:#f7f5ea;
+    --bg:#fdfcf3; --panel:#fdfcf3; --ink:#14130f; --muted:#6b675e;
+    --line:rgba(20,19,15,.14);
+    --g1:#00e5c0; --g2:#22b8ff; --g3:#3b82f6;
+    --brand:linear-gradient(100deg,var(--g1),var(--g2) 55%,var(--g3));
+    --font-display:"Instrument Serif","Iowan Old Style",Georgia,serif;
+    --font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --accent:#22b8ff; --good:#0f9d58; --bad:#d64541; --warn:#c98a1e;
+    --idle:#6b675e; --idle-line:rgba(20,19,15,.3);
+    --good-fill:rgba(15,157,88,.12); --warn-fill:rgba(201,138,30,.14);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+    font-family:var(--font-mono);font-size:15px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .gradient-text{background:var(--brand);-webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;color:transparent}
+  .btn{display:inline-flex;align-items:center;gap:8px;background:transparent;
+    border:1px solid var(--ink);color:var(--ink);padding:8px 16px;border-radius:999px;
+    cursor:pointer;font-family:var(--font-mono);font-size:11px;font-weight:500;
+    text-transform:uppercase;letter-spacing:.14em;text-decoration:none;
+    transition:color .25s,background .25s,box-shadow .25s}
+  .btn:hover{color:var(--paper);background:var(--ink);
+    box-shadow:0 12px 30px -14px rgba(20,19,15,.55)}
+  .eyebrow{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.18em}
+
+  /* ---- Pack selection screen ---- */
+  #select{display:none;min-height:100vh;min-height:100dvh;flex-direction:column;
+    padding:56px clamp(24px,5vw,64px) 64px;
+    background-image:
+      radial-gradient(120% 90% at 50% -10%, rgba(34,184,255,.06), transparent 60%),
+      radial-gradient(80% 60% at 85% 110%, rgba(0,229,192,.05), transparent 55%)}
+  #select .select-head{max-width:860px;margin:0 auto 32px;width:100%}
+  #select .back-to-games{margin-bottom:24px}
+  #select .select-bar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+  #select h1{font-family:var(--font-display);font-size:clamp(2.4rem,6vw,3.2rem);
+    margin:0 0 4px;font-weight:400;line-height:1}
+  #select .sub{color:var(--muted);font-size:14px;margin:0;letter-spacing:.01em}
+  .pack-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+    gap:14px;max-width:860px;margin:0 auto;width:100%}
+  .pack-card{position:relative;display:flex;align-items:flex-end;min-height:150px;
+    background:var(--paper-2);overflow:hidden;border:1px solid var(--line);
+    border-radius:16px;padding:18px;text-decoration:none;color:var(--ink)}
+  .pack-card .art{position:absolute;inset:0;color:var(--ink);opacity:.12;
+    pointer-events:none;display:block}
+  .pack-card .art svg{width:100%;height:100%;display:block}
+  .pack-card .pack-body{position:relative;display:flex;flex-direction:column;gap:4px}
+  .pack-card .name{font-family:var(--font-display);font-size:26px;font-weight:400;
+    letter-spacing:.01em;line-height:1.05;transition:color .2s}
+  .pack-card .desc{font-size:12px;color:var(--muted);line-height:1.4}
+  .pack-card:hover .name{color:var(--accent)}
+  .select-msg{grid-column:1/-1;color:var(--muted);font-size:14px;margin:8px 2px}
+
+  /* ---- Playing / reveal / summary screen ---- */
+  #play{display:none;flex-direction:column;min-height:100vh;min-height:100dvh}
+  #play header{padding:12px clamp(16px,3vw,24px);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:16px;background:var(--paper)}
+  #play header .back{color:var(--muted);text-decoration:none;font-size:11px;font-weight:500;
+    text-transform:uppercase;letter-spacing:.14em}
+  #play header .back:hover{color:var(--ink)}
+  #play header .spacer{flex:1}
+  #play main{flex:1;display:flex;flex-direction:column;align-items:center;
+    justify-content:flex-start;padding:clamp(20px,4vw,40px) 20px 64px;gap:0}
+
+  .stage{width:100%;max-width:520px}
+  .stage[hidden]{display:none}
+
+  /* Timer */
+  .timer-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+  .countdown{font-family:var(--font-display);font-size:22px;line-height:1}
+  .countdown.low{color:var(--bad)}
+  .timer-bar{height:6px;border-radius:999px;background:var(--paper-2);
+    border:1px solid var(--line);overflow:hidden}
+  .timer-fill{height:100%;width:100%;background:var(--brand);
+    transition:width 1s linear}
+
+  /* Guess card */
+  .guess-card{margin-top:28px;text-align:center}
+  .guess-card .ask{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.16em}
+  .guess-card .product{font-family:var(--font-display);font-size:clamp(1.8rem,5vw,2.6rem);
+    font-weight:400;line-height:1.1;margin:4px 0 20px}
+  .image-frame{width:100%;aspect-ratio:4/3;border:1px solid var(--line);border-radius:16px;
+    background:var(--paper-2);overflow:hidden;display:flex;align-items:center;justify-content:center;
+    margin-bottom:20px}
+  .image-frame img{width:100%;height:100%;object-fit:cover;display:block}
+  .image-frame .chip{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.16em}
+  .guess-input-wrap{display:flex;align-items:center;gap:10px;justify-content:center}
+  .dollar{font-family:var(--font-display);font-size:28px;color:var(--muted)}
+  #guessInput{font-family:var(--font-mono);font-size:22px;text-align:center;
+    width:180px;padding:10px 12px;border:1px solid var(--ink);border-radius:12px;
+    background:var(--paper);color:var(--ink)}
+  #guessInput:focus{outline:none;border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(34,184,255,.18)}
+  .lock-row{margin-top:18px}
+
+  /* Reveal card */
+  .reveal-card{text-align:center;margin-top:12px}
+  .reveal-card .actual{font-family:var(--font-display);font-size:clamp(2.4rem,7vw,3.4rem);
+    font-weight:400;line-height:1}
+  .reveal-card .actual-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.16em}
+  .reveal-stats{display:flex;justify-content:center;gap:28px;margin:18px 0}
+  .reveal-stats .k{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.14em}
+  .reveal-stats .v{font-family:var(--font-display);font-size:24px;line-height:1.1}
+  .reveal-stats .v.good{color:var(--good)} .reveal-stats .v.warn{color:var(--warn)}
+  .points-line{font-family:var(--font-display);font-size:26px;margin-bottom:6px}
+  .points-bar{height:8px;border-radius:999px;background:var(--paper-2);
+    border:1px solid var(--line);overflow:hidden;max-width:360px;margin:0 auto 22px}
+  .points-fill{height:100%;background:var(--brand)}
+
+  /* Summary */
+  .summary-card{text-align:center;margin-top:8px}
+  .summary-card .total{font-family:var(--font-display);font-size:clamp(3rem,10vw,4.4rem);
+    line-height:1}
+  .summary-card .out-of{font-size:13px;color:var(--muted);margin-top:2px}
+  .summary-card .accuracy{font-size:13px;color:var(--muted);margin-top:8px}
+  .per-item{margin:26px 0 8px;text-align:left}
+  .per-item h3{font-size:10px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.16em;margin:0 0 10px;text-align:center}
+  .item-row{display:grid;grid-template-columns:1fr 90px 48px;align-items:center;
+    gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .item-row .bar{height:6px;border-radius:999px;background:var(--paper-2);
+    border:1px solid var(--line);overflow:hidden}
+  .item-row .bar span{display:block;height:100%;background:var(--brand)}
+  .item-row.poor .bar span{background:var(--warn)}
+  .item-row .pts{text-align:right;font-variant-numeric:tabular-nums}
+  .summary-actions{display:flex;gap:10px;justify-content:center;margin-top:26px;flex-wrap:wrap}
+
+  /* Save affordances (shared with reveal/summary footer) */
+  .save-nudge{display:flex;flex-direction:column;align-items:center;gap:8px;
+    color:var(--muted);font-size:13px;margin-top:18px}
+  .save-nudge[hidden]{display:none}
+  .saved-note{font-size:13px;color:var(--good);margin-top:18px}
+  .saved-note[hidden]{display:none}
+  .save-error{display:flex;flex-direction:column;align-items:center;gap:8px;
+    color:var(--bad);font-size:13px;margin-top:18px}
+  .save-error[hidden]{display:none}
+  .save-error .btn{border-color:var(--bad);color:var(--bad)}
+  .save-error .btn:hover{background:var(--bad);color:var(--paper)}
+
+  @media (max-width:640px){
+    #select{padding:24px 18px 40px}
+    #select .select-head{margin-bottom:20px}
+    #select .back-to-games{margin-bottom:16px}
+    #select h1{font-size:2rem}
+    #play main{padding:20px 16px 56px}
+  }
+</style>
+</head>
+<body>
+
+<section id="select">
+  <div class="select-head">
+    <a class="btn back-to-games" href="/games/">&larr; Games</a>
+    <div class="select-bar">
+      <div>
+        <h1>Guess the Price</h1>
+        <p class="sub">Pick a pack and see how sharp your price instincts really are.</p>
+      </div>
+      <div id="selectProfileMount"></div>
+    </div>
+  </div>
+  <div class="pack-grid" id="packGrid"></div>
+</section>
+
+<div id="play">
+  <header>
+    <a class="back" href="?">&larr; Packs</a>
+    <div class="eyebrow" id="playEyebrow"></div>
+    <div class="spacer"></div>
+    <div id="playProfileMount"></div>
+  </header>
+  <main>
+    <!-- Guessing stage -->
+    <section class="stage guess-stage" id="guessStage" hidden>
+      <div class="timer-row">
+        <span class="eyebrow">Time left</span>
+        <span class="countdown" id="countdown">20</span>
+      </div>
+      <div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
+      <div class="guess-card">
+        <div class="ask">What’s the price of</div>
+        <div class="product" id="productName">—</div>
+        <div class="image-frame" id="imageFrame"><span class="chip">No image</span></div>
+        <div class="guess-input-wrap">
+          <span class="dollar">$</span>
+          <input id="guessInput" type="text" inputmode="decimal" autocomplete="off"
+            placeholder="0.00" aria-label="Your price guess" />
+        </div>
+        <div class="lock-row">
+          <button class="btn" id="lockIn">Lock it in &rarr;</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Reveal stage -->
+    <section class="stage reveal-stage" id="revealStage" hidden>
+      <div class="reveal-card">
+        <div class="actual-label">Actual price</div>
+        <div class="actual" id="revealActual">—</div>
+        <div class="reveal-stats">
+          <div><div class="k">Your guess</div><div class="v" id="revealGuess">—</div></div>
+          <div><div class="k">Off by</div><div class="v" id="revealOff">—</div></div>
+        </div>
+        <div class="points-line gradient-text" id="revealPoints">+0</div>
+        <div class="points-bar"><div class="points-fill" id="revealPointsFill"></div></div>
+        <button class="btn" id="revealNext">Next &rarr;</button>
+      </div>
+    </section>
+
+    <!-- Summary stage -->
+    <section class="stage summary-stage" id="summaryStage" hidden>
+      <div class="summary-card">
+        <div class="total gradient-text" id="summaryTotal">0</div>
+        <div class="out-of" id="summaryOutOf">out of 0 points</div>
+        <div class="accuracy" id="summaryAccuracy"></div>
+        <div class="per-item">
+          <h3>Points per item</h3>
+          <div id="summaryItems"></div>
+        </div>
+        <div class="save-nudge" id="saveNudge" hidden>
+          <span>Log in to save this score to your profile.</span>
+          <button class="btn" id="saveLogin">Log in to save</button>
+        </div>
+        <div class="saved-note" id="savedNote" hidden>Saved to your profile</div>
+        <div class="save-error" id="saveError" hidden>
+          <span>Couldn’t save this score — check your connection.</span>
+          <button class="btn" id="saveRetry">Retry</button>
+        </div>
+        <div class="summary-actions">
+          <button class="btn" id="playAgain">Play again</button>
+          <a class="btn" id="changePack" href="?">Change pack</a>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script type="module">
+import { start } from "../assets/js/guess-the-price.js";
+start().catch(err => console.error('Guess the Price failed to start', err));
+</script>
+</body>
+</html>

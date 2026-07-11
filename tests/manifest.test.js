@@ -32,10 +32,13 @@ describe("gamesByCategory", () => {
   it("groups games under their category with stable ordering", () => {
     const grouped = gamesByCategory();
 
-    expect(grouped.map((g) => g.category)).toEqual(["Neighborhoods"]);
+    expect(grouped.map((g) => g.category)).toEqual(["Neighborhoods", "Guess the Price"]);
 
     const neighborhoods = grouped[0];
     expect(neighborhoods.games.map((g) => g.slug)).toEqual(NEIGHBORHOOD_SLUGS);
+
+    const guessThePrice = grouped[1];
+    expect(guessThePrice.games.map((g) => g.slug)).toEqual(["guess-the-price"]);
   });
 
   it("includes full game metadata alongside the slug", () => {
@@ -55,7 +58,7 @@ describe("gamesByCategory", () => {
     for (const slug of allSlugs) {
       expect(isKnownSlug(slug)).toBe(true);
     }
-    expect(allSlugs).toEqual(NEIGHBORHOOD_SLUGS);
+    expect(allSlugs).toEqual([...NEIGHBORHOOD_SLUGS, "guess-the-price"]);
   });
 });
 
@@ -77,5 +80,15 @@ describe("existing helpers stay intact", () => {
   it("isKnownSlug reflects membership in GAMES", () => {
     expect(isKnownSlug("dc-neighborhoods")).toBe(true);
     expect(isKnownSlug("nope")).toBe(false);
+  });
+
+  it("resolves Guess the Price metadata and pack mode labels", () => {
+    expect(getGame("guess-the-price")).toMatchObject({
+      name: "Guess the Price",
+      category: "Guess the Price",
+    });
+    expect(getModeLabel("guess-the-price", "wearables")).toBe("Wearables");
+    expect(getModeLabel("guess-the-price", "groceries")).toBe("Groceries");
+    expect(getModeLabel("guess-the-price", "nope")).toBe(null);
   });
 });
