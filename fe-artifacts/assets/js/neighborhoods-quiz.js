@@ -175,6 +175,9 @@ function boot(quiz) {
 
   // FIND: one click per prompt, then move on
   function onClick(name, l) {
+    // Learn mode has no prompt: a tap reveals the name via the same tooltip
+    // path as hover, so tapping between hoods moves the reveal along.
+    if (mode === 'learn') { revealHover(name, l); return; }
     if (mode !== 'find' || !current) return;
     answered++;
     if (name === current) {
