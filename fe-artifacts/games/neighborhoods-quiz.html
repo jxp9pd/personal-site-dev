@@ -283,14 +283,14 @@ function boot(quiz) {
   function onClick(name, l) {
     if (mode !== 'find' || !current) return;
     answered++;
-    l._locked = true; revealName(l, name);
     if (name === current) {
-      correct++; styleOk(l);
+      correct++;
+      l._locked = true; revealName(l, name); styleOk(l);
       el('pFb').textContent = 'Correct'; el('pFb').className = 'fb good';
     } else {
-      styleWrong(l);
-      el('pFb').textContent = 'That was ' + name + ' — answer was ' + current;
-      el('pFb').className = 'fb bad';
+      // Leave the wrong pick untouched (no reveal, no red, not locked) so its
+      // own clue is still a genuine challenge when it comes back around later.
+      el('pFb').textContent = 'Incorrect'; el('pFb').className = 'fb bad';
     }
     updateStat();
     setTimeout(next, 700);
