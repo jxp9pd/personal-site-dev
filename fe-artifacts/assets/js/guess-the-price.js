@@ -18,6 +18,8 @@ const el = id => document.getElementById(id);
 const ROUND_SECONDS = 20;
 // Below this relative error the "off by" figure reads as good rather than warn.
 const OFF_GOOD = 0.15;
+// Above this relative error a summary item is flagged as notably poor (warn bar).
+const POOR_ERR = 0.5;
 
 function currentSlug() {
   return new URLSearchParams(location.search).get('pack');
@@ -107,6 +109,7 @@ function boot(pack) {
   let secondsLeft = ROUND_SECONDS;
   let results = []; // { name, guess, actual, errorPct, points }
   let timerId = null;
+  let lastAgg = null; // aggregate of the finished round, kept for save retries
 
   function stopTimer() {
     if (timerId != null) { clearInterval(timerId); timerId = null; }
@@ -198,14 +201,91 @@ function boot(pack) {
     showItem();
   }
 
-  // Summary screen (3C) + persistence land in T6; for now route into the phase
-  // and show the running total so the last item doesn't dead-end.
+  function renderSummaryList() {
+    el('summaryItems').innerHTML = results
+      .map((r) => {
+        const pct = Math.max(0, Math.min(100, (r.points / 1000) * 100));
+        const poor = r.errorPct > POOR_ERR;
+        return `<div class="item-row${poor ? ' poor' : ''}">
+          <span class="item-name">${esc(r.name)}</span>
+          <span class="bar"><span style="width:${pct}%"></span></span>
+          <span class="pts">${r.points}</span>
+        </div>`;
+      })
+      .join('');
+  }
+
+  // Persists the just-finished round and reflects the ACTUAL outcome: "Saved to
+  // your profile" appears only once the row truly lands. A failed write shows a
+  // retry affordance instead of a false success, and the recorder keeps the play
+  // so the retry (or a later auth event) can still flush it. Mirrors
+  // neighborhoods-quiz.js.
+  async function saveResult() {
+    const nudge = el('saveNudge'), note = el('savedNote'), error = el('saveError');
+    nudge.hidden = true; error.hidden = true;
+    note.hidden = false; note.textContent = 'Saving…';
+
+    let outcome;
+    try {
+      outcome = await Profiles.recordPlay({
+        gameId: 'guess-the-price',
+        mode: pack.slug,
+        score: lastAgg.totalPoints,
+        total: lastAgg.maxPoints,
+      });
+    } catch (err) {
+      console.error('recordPlay failed', err);
+      outcome = { status: 'failed', error: err };
+    }
+
+    const status = outcome?.status;
+    if (status === 'saved') {
+      note.textContent = 'Saved to your profile';
+    } else if (status === 'pending') {
+      // Auth was lost between the check and the write; fall back to the nudge.
+      note.hidden = true;
+      nudge.hidden = false;
+    } else {
+      note.hidden = true;
+      error.hidden = false;
+    }
+  }
+
+  function persistRound() {
+    el('saveNudge').hidden = true;
+    el('savedNote').hidden = true;
+    el('saveError').hidden = true;
+
+    let loggedIn = false;
+    try { loggedIn = Profiles.isLoggedIn(); } catch { /* treat as guest */ }
+
+    if (!loggedIn) {
+      // Guest: capture holds the play so it flushes on later login; nudge to it.
+      try {
+        Profiles.recordPlay({
+          gameId: 'guess-the-price',
+          mode: pack.slug,
+          score: lastAgg.totalPoints,
+          total: lastAgg.maxPoints,
+        });
+      } catch (err) { console.error('recordPlay failed', err); }
+      el('saveNudge').hidden = false;
+      return;
+    }
+
+    saveResult().catch((err) => console.error('save failed', err));
+  }
+
   function enterSummary() {
     phase = 'summary';
-    const { totalPoints, maxPoints } = aggregateRound(results);
-    el('summaryTotal').textContent = String(totalPoints);
-    el('summaryOutOf').textContent = `out of ${maxPoints} points`;
+    lastAgg = aggregateRound(results);
+    el('playEyebrow').textContent = `${pack.name.toUpperCase()} · ROUND COMPLETE`;
+    el('summaryTotal').textContent = String(lastAgg.totalPoints);
+    el('summaryOutOf').textContent = `out of ${lastAgg.maxPoints} points`;
+    el('summaryAccuracy').textContent = `${lastAgg.avgAccuracy}% average accuracy`;
+    renderSummaryList();
     showStage('summary');
+    persistRound();
   }
 
   function startRound() {
@@ -228,6 +308,16 @@ function boot(pack) {
   });
   lockIn.addEventListener('click', () => endItem());
   revealNext.addEventListener('click', () => advance());
+
+  // PLAY AGAIN reshuffles + replays the same pack; CHANGE PACK is a plain link
+  // back to the selector (href="?") in the markup.
+  el('playAgain').addEventListener('click', () => startRound());
+  el('saveLogin').addEventListener('click', () => {
+    try { Profiles.promptLogin(); } catch (err) { console.error('promptLogin failed', err); }
+  });
+  el('saveRetry').addEventListener('click', () => {
+    saveResult().catch((err) => console.error('retry save failed', err));
+  });
 
   startRound();
 }
