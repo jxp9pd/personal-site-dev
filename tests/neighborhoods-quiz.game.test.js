@@ -253,6 +253,19 @@ describe("neighborhoods quiz — learn mode hover reveal", () => {
     expect(tip.open).toBe(true);
   });
 
+  it("reveals a hood's name on tap via the same bound, opened tooltip", async () => {
+    const L = await bootQuiz();
+    switchMode("learn");
+
+    const name = HOOD_NAMES[0];
+    L.fireClick(name);
+
+    const tip = L.layerFor(name)._tooltip;
+    expect(tip).not.toBe(null);
+    expect(tip.content).toBe(name);
+    expect(tip.open).toBe(true);
+  });
+
   it("never finishes: no done screen and recordPlay is never called", async () => {
     const L = await bootQuiz();
     switchMode("learn");
