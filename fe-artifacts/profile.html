@@ -38,10 +38,16 @@
   .card-head .mode{font-size:12px;color:var(--muted);text-transform:uppercase;
     letter-spacing:.6px;background:var(--bg);border:1px solid var(--line);
     padding:3px 8px;border-radius:999px}
-  .card-head .count{margin-left:auto;font-size:13px;color:var(--muted)}
+  .card-head .head-right{margin-left:auto;display:flex;align-items:center}
+  .cat-title{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;
+    font-weight:650;margin:26px 0 12px}
+  .mode-toggle{display:inline-flex;gap:2px;background:var(--bg);border:1px solid var(--line);
+    border-radius:999px;padding:2px}
+  .mode-btn{background:none;border:none;color:var(--muted);cursor:pointer;
+    font:600 12px/1 inherit;padding:6px 11px;border-radius:999px;letter-spacing:.3px}
+  .mode-btn.on{background:var(--panel);color:var(--ink)}
 
-  .highlights{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
-  @media (max-width:480px){.highlights{grid-template-columns:1fr}}
+  .highlights{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .hl{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
   .hl .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
   .hl .score{font-size:22px;font-weight:700;margin-top:4px}
@@ -91,7 +97,7 @@ import { Profiles } from "./assets/js/profiles.js";
 import { getSession, fetchPlays, fetchProfileByUsername, updateProfile, onAuthStateChange }
   from "./assets/js/dataClient.js";
 import { computeStats } from "./assets/js/stats.js";
-import { getGame, getModeLabel } from "./assets/js/manifest.js";
+import { getGame, getModeLabel, categoryOf, gamesByCategory } from "./assets/js/manifest.js";
 import { initialsAvatar } from "./assets/js/avatar.js";
 import { resolveHomeHref } from "./assets/js/nav.js";
 
@@ -169,35 +175,112 @@ function renderError() {
   });
 }
 
-function groupCard(group) {
-  const logRows = group.history.map(play => `
-    <li>
-      <span class="lscore">${esc(scoreText(play))}</span>
-      <span class="ldate">${esc(fmtDateTime(play.created_at))}</span>
-    </li>`).join("");
+function percent(ratio) {
+  return Number.isFinite(ratio) ? `${Math.round(ratio * 100)}%` : "—";
+}
+
+function ratioOf(play) {
+  return play.total > 0 ? play.score / play.total : NaN;
+}
+
+// stats is a flat list of per-(gameId, mode) summaries; collapse it to
+// gameId -> Map(mode -> summary) so each game renders as one card.
+function groupByGame(stats) {
+  const byGame = new Map();
+  for (const g of stats) {
+    if (!byGame.has(g.gameId)) byGame.set(g.gameId, new Map());
+    byGame.get(g.gameId).set(g.mode, g);
+  }
+  return byGame;
+}
+
+// Modes with plays, ordered by the manifest's declared mode order when the game
+// is known, else by insertion order.
+function orderedModes(gameId, modesMap) {
+  const game = getGame(gameId);
+  if (game?.modes) return Object.keys(game.modes).filter((m) => modesMap.has(m));
+  return [...modesMap.keys()];
+}
+
+// Selected mode per game, kept across toggle clicks (reset each full render).
+const selectedModes = new Map();
+
+function statHtml(group) {
+  return `
+    <div class="highlights">
+      <div class="hl"><div class="label">Attempts</div><div class="score">${group.count}</div></div>
+      <div class="hl"><div class="label">Best</div><div class="score best">${percent(ratioOf(group.best))}</div></div>
+      <div class="hl"><div class="label">Average</div><div class="score">${percent(group.average)}</div></div>
+    </div>`;
+}
+
+function gameCardHtml(gameId, modesMap) {
+  const modes = orderedModes(gameId, modesMap);
+  if (!selectedModes.has(gameId)) {
+    selectedModes.set(gameId, modes.includes("find") ? "find" : modes[0]);
+  }
+  const selected = selectedModes.get(gameId);
+
+  const headRight = modes.length > 1
+    ? `<div class="mode-toggle" role="tablist">${modes.map((m) =>
+        `<button class="mode-btn${m === selected ? " on" : ""}" type="button"
+           role="tab" aria-selected="${m === selected}"
+           data-game="${esc(gameId)}" data-mode="${esc(m)}">${esc(modeLabel(gameId, m))}</button>`).join("")}</div>`
+    : `<span class="mode">${esc(modeLabel(gameId, selected))}</span>`;
 
   return `
-    <section class="card">
+    <section class="card" data-game="${esc(gameId)}">
       <div class="card-head">
-        <span class="game">${esc(gameName(group.gameId))}</span>
-        <span class="mode">${esc(modeLabel(group.gameId, group.mode))}</span>
-        <span class="count">${group.count} play${group.count === 1 ? "" : "s"}</span>
+        <span class="game">${esc(gameName(gameId))}</span>
+        <div class="head-right">${headRight}</div>
       </div>
-      <div class="highlights">
-        <div class="hl">
-          <div class="label">Best</div>
-          <div class="score best">${esc(scoreText(group.best))}</div>
-          <div class="date">${esc(fmtDate(group.best.created_at))}</div>
-        </div>
-        <div class="hl">
-          <div class="label">Most recent</div>
-          <div class="score">${esc(scoreText(group.mostRecent))}</div>
-          <div class="date">${esc(fmtDate(group.mostRecent.created_at))}</div>
-        </div>
-      </div>
-      <div class="log-title">All playthroughs</div>
-      <ul class="log">${logRows}</ul>
+      <div class="stat-region">${statHtml(modesMap.get(selected))}</div>
     </section>`;
+}
+
+function categorySectionHtml(category, cardsHtml) {
+  return `<h2 class="cat-title">${esc(category)}</h2>${cardsHtml}`;
+}
+
+// Renders category sections in manifest order, one card per played game, then a
+// trailing "Other" section for played games whose slug the manifest doesn't know.
+function categoriesHtml(byGame) {
+  const rendered = new Set();
+  const sections = [];
+
+  for (const { category, games } of gamesByCategory()) {
+    const cards = games
+      .filter((g) => byGame.has(g.slug))
+      .map((g) => { rendered.add(g.slug); return gameCardHtml(g.slug, byGame.get(g.slug)); });
+    if (cards.length) sections.push(categorySectionHtml(category, cards.join("")));
+  }
+
+  const orphanCards = [...byGame.entries()]
+    .filter(([gameId]) => !rendered.has(gameId))
+    .map(([gameId, modesMap]) => gameCardHtml(gameId, modesMap));
+  if (orphanCards.length) {
+    sections.push(categorySectionHtml("Other", orphanCards.join("")));
+  }
+
+  return sections.join("");
+}
+
+function wireModeToggles() {
+  content.querySelectorAll(".mode-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const { game: gameId, mode } = btn.dataset;
+      selectedModes.set(gameId, mode);
+      const card = content.querySelector(`.card[data-game="${gameId}"]`);
+      if (!card) return;
+      card.querySelector(".stat-region").innerHTML =
+        statHtml(selfCtx.byGame.get(gameId).get(mode));
+      card.querySelectorAll(".mode-btn").forEach((b) => {
+        const on = b.dataset.mode === mode;
+        b.classList.toggle("on", on);
+        b.setAttribute("aria-selected", String(on));
+      });
+    });
+  });
 }
 
 // avatar_url is a dormant seam (always null in v1): when present it would win,
@@ -253,12 +336,15 @@ let selfCtx = null;
 
 function renderSelf() {
   const { session, profile, stats } = selfCtx;
-  const statsHtml = stats.length === 0 ? emptyHtml() : stats.map(groupCard).join("");
+  selectedModes.clear();
+  selfCtx.byGame = groupByGame(stats);
+  const statsHtml = stats.length === 0 ? emptyHtml() : categoriesHtml(selfCtx.byGame);
   content.innerHTML = `
     ${personCardHtml(profile, session)}
     <div class="bio-block" id="bioBlock">${bioViewHtml(profile.bio)}</div>
     ${statsHtml}`;
   wireBioView();
+  wireModeToggles();
 }
 
 function wireBioView() {
