@@ -13,6 +13,7 @@
 //       best,          // play row with the highest score in the group
 //       mostRecent,    // play row with the latest created_at in the group
 //       count,         // number of plays in the group
+//       average,       // mean of score/total across the group's plays, in [0, 1]
 //       history,       // plays for the group, newest-first
 //     },
 //     ...
@@ -74,6 +75,7 @@ export function computeStats(plays) {
         best: pickBest(history),
         mostRecent: history[0],
         count: history.length,
+        average: history.reduce((sum, p) => sum + p.score / p.total, 0) / history.length,
         history,
       };
     })
