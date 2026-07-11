@@ -183,6 +183,14 @@ function renderError() {
   });
 }
 
+// Distinct from the empty state: the requested username matched no profile.
+function renderNotFound(username) {
+  content.innerHTML = messageHtml({
+    title: "No profile found",
+    body: `We couldn't find a profile for "${esc(username)}".`,
+  });
+}
+
 function percent(ratio) {
   return Number.isFinite(ratio) ? `${Math.round(ratio * 100)}%` : "—";
 }
@@ -281,7 +289,7 @@ function wireModeToggles() {
       const card = content.querySelector(`.card[data-game="${gameId}"]`);
       if (!card) return;
       card.querySelector(".stat-region").innerHTML =
-        statHtml(selfCtx.byGame.get(gameId).get(mode));
+        statHtml(viewCtx.byGame.get(gameId).get(mode));
       card.querySelectorAll(".mode-btn").forEach((b) => {
         const on = b.dataset.mode === mode;
         b.classList.toggle("on", on);
@@ -314,7 +322,7 @@ function logRowHtml(play) {
 }
 
 function logHtml() {
-  const { pageItems, page, pageCount } = paginate(selfCtx.logPlays, logPage, LOG_PAGE_SIZE);
+  const { pageItems, page, pageCount } = paginate(viewCtx.logPlays, logPage, LOG_PAGE_SIZE);
   logPage = page;
   const rows = pageItems.map(logRowHtml).join("");
   const nav = pageCount > 1 ? `
@@ -353,9 +361,11 @@ function avatarHtml(profile) {
   return `<div class="avatar" style="background:${esc(color)}">${esc(initials)}</div>`;
 }
 
-function personCardHtml(profile, session) {
+// Email is private: only surfaced on the viewer's own profile, never in public
+// mode (the viewed user's email isn't even stored in profiles).
+function personCardHtml(profile, session, isOwnProfile) {
   const joined = fmtDate(profile.created_at);
-  const email = session.user.email;
+  const email = isOwnProfile ? session?.user?.email : null;
   const metaParts = [];
   if (email) metaParts.push(esc(email));
   if (joined) metaParts.push(`Joined ${esc(joined)}`);
@@ -391,29 +401,51 @@ function bioEditHtml(bio) {
     </div>`;
 }
 
-// Self-mode render context, kept so a bio save can re-render without re-fetching.
-let selfCtx = null;
+// Read-only bio for public mode: no edit affordance.
+function bioReadonlyHtml(bio) {
+  const text = (bio ?? "").trim();
+  return `<div class="bio-text">${esc(text)}</div>`;
+}
 
-function renderSelf() {
-  const { session, profile, stats } = selfCtx;
+// Render context for the profile currently on screen (own or public), kept so a
+// bio save / mode toggle / log paging can re-render without re-fetching.
+let viewCtx = null;
+
+function render() {
+  const { session, profile, isOwnProfile, stats } = viewCtx;
   selectedModes.clear();
   logPage = 1;
-  selfCtx.byGame = groupByGame(stats);
+  viewCtx.byGame = groupByGame(stats);
+
+  const h1 = document.querySelector("header h1");
+  if (h1) h1.textContent = isOwnProfile ? "Your Profile" : profile.username;
+
+  // Own profile: always show an editable bio block (so it can be added). Public
+  // profile: show the bio read-only, and only when it's non-empty.
+  let bioBlockHtml = "";
+  if (isOwnProfile) {
+    bioBlockHtml = `<div class="bio-block" id="bioBlock">${bioViewHtml(profile.bio)}</div>`;
+  } else if ((profile.bio ?? "").trim()) {
+    bioBlockHtml = `<div class="bio-block">${bioReadonlyHtml(profile.bio)}</div>`;
+  }
+
   const bodyHtml = stats.length === 0
     ? emptyHtml()
-    : `${categoriesHtml(selfCtx.byGame)}<div id="activityLog">${logHtml()}</div>`;
+    : `${categoriesHtml(viewCtx.byGame)}<div id="activityLog">${logHtml()}</div>`;
+
   content.innerHTML = `
-    ${personCardHtml(profile, session)}
-    <div class="bio-block" id="bioBlock">${bioViewHtml(profile.bio)}</div>
+    ${personCardHtml(profile, session, isOwnProfile)}
+    ${bioBlockHtml}
     ${bodyHtml}`;
-  wireBioView();
+
+  if (isOwnProfile) wireBioView();
   wireModeToggles();
   wireLogNav();
 }
 
 function wireBioView() {
   document.getElementById("bioEdit")?.addEventListener("click", () => {
-    document.getElementById("bioBlock").innerHTML = bioEditHtml(selfCtx.profile.bio);
+    document.getElementById("bioBlock").innerHTML = bioEditHtml(viewCtx.profile.bio);
     wireBioEdit();
   });
 }
@@ -433,7 +465,7 @@ function wireBioEdit() {
   ta.focus();
 
   cancelBtn.addEventListener("click", () => {
-    document.getElementById("bioBlock").innerHTML = bioViewHtml(selfCtx.profile.bio);
+    document.getElementById("bioBlock").innerHTML = bioViewHtml(viewCtx.profile.bio);
     wireBioView();
   });
 
@@ -443,7 +475,7 @@ function wireBioEdit() {
     cancelBtn.disabled = true;
     try {
       const updated = await updateProfile({ bio: next });
-      selfCtx.profile.bio = updated?.bio ?? next;
+      viewCtx.profile.bio = updated?.bio ?? next;
     } catch (err) {
       console.error("updateProfile failed", err);
       saveBtn.disabled = false;
@@ -452,7 +484,7 @@ function wireBioEdit() {
       note.textContent = "Couldn't save — try again.";
       return;
     }
-    document.getElementById("bioBlock").innerHTML = bioViewHtml(selfCtx.profile.bio);
+    document.getElementById("bioBlock").innerHTML = bioViewHtml(viewCtx.profile.bio);
     wireBioView();
   });
 }
@@ -460,6 +492,14 @@ function wireBioEdit() {
 // Guards against out-of-order async renders when auth events and the initial
 // load race: only the newest invocation is allowed to paint.
 let renderSeq = 0;
+
+function requestedUsername() {
+  try {
+    return new URLSearchParams(location.search).get("u");
+  } catch {
+    return null;
+  }
+}
 
 async function refresh(sessionArg) {
   const seq = ++renderSeq;
@@ -474,21 +514,35 @@ async function refresh(sessionArg) {
     if (seq !== renderSeq) return;
   }
 
-  if (!session) {
+  const requested = requestedUsername();
+
+  // Self mode with no session and no ?u= keeps the existing login prompt.
+  if (!requested && !session) {
     renderLoggedOut();
     return;
   }
 
-  // A brand-new signup's profile row can briefly lag; fall back to session-
-  // derived identity so the page still renders rather than erroring.
-  const uname = session.user.user_metadata?.username;
   let profile;
   let plays;
   try {
-    [profile, plays] = await Promise.all([
-      uname ? fetchProfileByUsername(uname) : Promise.resolve(null),
-      fetchPlays(session.user.id),
-    ]);
+    if (requested) {
+      profile = await fetchProfileByUsername(requested);
+      if (seq !== renderSeq) return;
+      if (!profile) {
+        renderNotFound(requested);
+        return;
+      }
+      plays = await fetchPlays(profile.user_id);
+    } else {
+      // A brand-new signup's profile row can briefly lag; fall back to session-
+      // derived identity so the page still renders rather than erroring.
+      const uname = session.user.user_metadata?.username;
+      [profile, plays] = await Promise.all([
+        uname ? fetchProfileByUsername(uname) : Promise.resolve(null),
+        fetchPlays(session.user.id),
+      ]);
+      profile = profile ?? fallbackProfile(session);
+    }
   } catch (err) {
     if (seq !== renderSeq) return;
     console.error("profile load failed", err);
@@ -497,13 +551,18 @@ async function refresh(sessionArg) {
   }
   if (seq !== renderSeq) return;
 
-  selfCtx = {
+  // Ownership (by user_id) gates email + bio editing; a ?u= that resolves to the
+  // signed-in user's own row is therefore treated as self mode.
+  const isOwnProfile = !!session && session.user.id === profile.user_id;
+
+  viewCtx = {
     session,
-    profile: profile ?? fallbackProfile(session),
+    profile,
+    isOwnProfile,
     stats: computeStats(plays),
     logPlays: sortNewestFirst(plays),
   };
-  renderSelf();
+  render();
 }
 
 function fallbackProfile(session) {
