@@ -80,7 +80,8 @@ a { color: inherit; }
   background: transparent;
   transition: color 0.25s, background 0.25s, transform 0.25s, box-shadow 0.25s;
 }
-.btn[aria-current="page"] { color: var(--paper); background: var(--ink); }
+.btn[aria-current="page"] { color: var(--paper); background: var(--brand); border-color: transparent; }
+.btn[aria-current="page"]:hover { background: var(--brand); box-shadow: 0 14px 34px -14px rgba(34, 184, 255, 0.6); }
 .btn .arrow { transition: transform 0.25s; }
 .btn:hover {
   color: var(--paper);
