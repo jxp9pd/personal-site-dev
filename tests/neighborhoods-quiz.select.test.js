@@ -19,27 +19,14 @@ vi.mock("../fe-artifacts/assets/js/profiles.js", () => ({
   },
 }));
 
+import { loadPage } from "./helpers/loadPage.js";
 import { Profiles } from "../fe-artifacts/assets/js/profiles.js";
 import { start } from "../fe-artifacts/assets/js/neighborhoods-quiz.js";
-
-// Minimal version of the page markup the select path touches.
-function renderPageSkeleton() {
-  document.body.innerHTML = `
-    <section id="select">
-      <div class="select-head">
-        <div id="selectProfileMount"></div>
-      </div>
-      <div class="city-grid" id="cityGrid"></div>
-    </section>
-    <div id="app">
-      <div id="profileMount"></div>
-    </div>`;
-}
 
 describe("neighborhoods quiz — city select screen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    renderPageSkeleton();
+    loadPage();
     // No ?city= => the city selector renders.
     window.history.replaceState({}, "", "/games/neighborhoods-quiz.html");
   });
