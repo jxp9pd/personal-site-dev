@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neighborhoods — Source Mockup</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{--bg:#0f1115;--panel:#171a21;--ink:#e8eaed;--muted:#9aa0aa;--line:#262b34;
+    --accent:#4f9cf9;--idle:#2a2f38;--idle-line:#3a414c;--accent-fill:#33414f;}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  #app{display:flex;flex-direction:column;height:100vh}
+  header{padding:10px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  header h1{font-size:16px;margin:0;font-weight:650}
+  .tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:3px}
+  .tabs button{background:none;border:0;color:var(--muted);padding:6px 12px;border-radius:6px;cursor:pointer;
+    font-size:13px;font-weight:550;white-space:nowrap}
+  .tabs button.active{background:var(--accent);color:#fff}
+  .spacer{flex:1}
+  .meta{font-size:12px;color:var(--muted);max-width:420px;text-align:right}
+  .meta b{color:var(--ink)}
+  .toggle{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer}
+  main{flex:1;position:relative}
+  #map{position:absolute;inset:0;background:#0b0d10}
+  .leaflet-container{background:#0b0d10}
+  .hood-label{background:none;border:0;box-shadow:none;color:var(--ink);font-size:11px;font-weight:600;
+    text-shadow:0 0 3px #000,0 0 3px #000,0 0 3px #000;white-space:nowrap;pointer-events:none}
+  .hood-label::before{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1 id="title">Neighborhoods</h1>
+    <div class="tabs" id="tabs"></div>
+    <label class="toggle"><input type="checkbox" id="labelToggle" checked> labels</label>
+    <div class="spacer"></div>
+    <div class="meta" id="meta"></div>
+  </header>
+  <main><div id="map"></div></main>
+</div>
+<script type="module">
+// Usage: mockup.html?data=<file.json>[&center=lat,lng,zoom]
+// Accepts either {"options":{key:{label,source,geo,count}}} or a plain {"geo":FeatureCollection}.
+const params = new URLSearchParams(location.search);
+const dataFile = params.get('data') || 'mockup.data.json';
+const DATA = await fetch(dataFile).then(r=>{ if(!r.ok) throw new Error('load failed '+r.status); return r.json(); });
+const OPTIONS = DATA.options || {single:{label:'Data', source:dataFile, geo:DATA.geo, count:DATA.geo.features.length}};
+const KEYS = Object.keys(OPTIONS);
+
+const cssVar=(()=>{const s=getComputedStyle(document.documentElement);return n=>s.getPropertyValue(n).trim();})();
+const C={accent:cssVar('--accent'),accentFill:cssVar('--accent-fill'),idle:cssVar('--idle'),idleLine:cssVar('--idle-line')};
+
+let center=[47.62,-122.33], zoom=12;
+if(params.get('center')){const [a,b,z]=params.get('center').split(',').map(Number);center=[a,b];if(z)zoom=z;}
+const map=L.map('map',{zoomControl:true,attributionControl:false}).setView(center,zoom);
+L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_nolabels/{z}/{x}/{y}{r}.png',
+  {maxZoom:19,subdomains:'abcd'}).addTo(map);
+
+const base={color:C.idleLine,weight:1,fillColor:C.idle,fillOpacity:.3};
+const hover={color:C.accent,weight:1.5,fillColor:C.accentFill,fillOpacity:.65};
+let layer=null, labels=[], showLabels=true;
+const el=id=>document.getElementById(id);
+
+function render(key){
+  if(layer){map.removeLayer(layer);layer=null;}
+  labels.forEach(l=>map.removeLayer(l));labels=[];
+  const opt=OPTIONS[key];
+  layer=L.geoJSON(opt.geo,{style:()=>base,onEachFeature:(f,l)=>{
+    l.on('mouseover',()=>l.setStyle(hover));
+    l.on('mouseout',()=>l.setStyle(base));
+    const c=f.properties.c;
+    if(c){const lbl=L.marker([c[1],c[0]],{opacity:0,interactive:false})
+      .bindTooltip(f.properties.name,{className:'hood-label',permanent:true,direction:'center'});
+      labels.push(lbl); if(showLabels) lbl.addTo(map);}
+  }}).addTo(map);
+  try{ map.fitBounds(layer.getBounds(),{padding:[30,30]}); }catch(e){}
+  el('meta').innerHTML=`<b>${opt.count}</b> areas · ${opt.source||''}`;
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.key===key));
+}
+
+KEYS.forEach(k=>{const b=document.createElement('button');
+  b.dataset.key=k;b.textContent=(OPTIONS[k].label||k)+' ('+OPTIONS[k].count+')';
+  b.onclick=()=>render(k);el('tabs').appendChild(b);});
+el('labelToggle').onchange=e=>{showLabels=e.target.checked;
+  labels.forEach(l=>{showLabels?l.addTo(map):map.removeLayer(l);});};
+render(KEYS[0]);
+</script>
+</body>
+</html>
