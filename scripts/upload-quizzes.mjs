@@ -20,9 +20,12 @@ import { SUPABASE_URL as CONFIG_URL } from '../fe-artifacts/assets/js/config.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = resolve(HERE, '../data/quizzes');
+const ART_DIR = resolve(DATA_DIR, 'art');
 
 // Single source of truth for quiz metadata at publish time. `file` is the
-// GeoJSON source in data/quizzes/; everything else populates the table columns.
+// GeoJSON source in data/quizzes/; `art` is the landmark SVG in data/quizzes/art/
+// rendered behind the city name on the selector. Everything else populates the
+// table columns.
 const QUIZZES = [
   {
     slug: 'sf-neighborhoods',
@@ -31,6 +34,7 @@ const QUIZZES = [
     center: [37.759, -122.444],
     zoom: 12,
     file: 'sf-neighborhoods.data.json',
+    art: 'sf-neighborhoods.svg',
   },
   {
     slug: 'seattle-neighborhoods',
@@ -39,6 +43,7 @@ const QUIZZES = [
     center: [47.6276, -122.3408],
     zoom: 12,
     file: 'seattle-neighborhoods.data.json',
+    art: 'seattle-neighborhoods.svg',
   },
   {
     slug: 'dc-neighborhoods',
@@ -47,6 +52,7 @@ const QUIZZES = [
     center: [38.8936, -77.0409],
     zoom: 12,
     file: 'dc-neighborhoods.data.json',
+    art: 'dc-neighborhoods.svg',
   },
   {
     slug: 'fairfax-neighborhoods',
@@ -55,6 +61,7 @@ const QUIZZES = [
     center: [38.8621, -77.3035],
     zoom: 11,
     file: 'fairfax-neighborhoods.data.json',
+    art: 'fairfax-neighborhoods.svg',
   },
 ];
 
@@ -77,6 +84,18 @@ async function buildRow(q, index) {
   const featureCount = geo?.features?.length ?? 0;
   if (!featureCount) throw new Error(`${q.file} has no GeoJSON features`);
 
+  // Landmark art is optional: a missing file leaves art_svg null and the card
+  // falls back to the plain centered name.
+  let artSvg = null;
+  if (q.art) {
+    try {
+      artSvg = (await readFile(resolve(ART_DIR, q.art), 'utf8')).trim();
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw err;
+      console.warn(`  ! ${q.slug}: art file ${q.art} not found, skipping art_svg`);
+    }
+  }
+
   return {
     row: {
       slug: q.slug,
@@ -86,6 +105,7 @@ async function buildRow(q, index) {
       center_lng: q.center[1],
       zoom: q.zoom,
       geo,
+      art_svg: artSvg,
       sort_order: index,
       updated_at: new Date().toISOString(),
     },

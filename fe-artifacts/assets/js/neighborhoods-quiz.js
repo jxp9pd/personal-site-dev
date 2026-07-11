@@ -55,11 +55,13 @@ async function renderSelect() {
     grid.innerHTML = '<p class="select-msg">No quizzes available yet.</p>';
     return;
   }
+  // `artSvg` is admin-only content (service-role upload, no client writes — same
+  // trust level as name/geo), so it is inlined as markup rather than escaped. The
+  // name still goes through esc(). A card with no art just shows its name.
   grid.innerHTML = quizzes.map(q => `
     <a class="city-card" href="?city=${encodeURIComponent(q.slug)}">
+      ${q.artSvg ? `<span class="art" aria-hidden="true">${q.artSvg}</span>` : ''}
       <span class="name">${esc(q.name)}</span>
-      <span class="desc">${esc(q.description)}</span>
-      <span class="go">Play &rarr;</span>
     </a>`).join('');
 }
 
