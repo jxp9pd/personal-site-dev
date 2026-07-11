@@ -64,6 +64,7 @@
     <div class="spacer"></div>
     <div class="stat" id="stat"></div>
     <button class="btn" id="restart">Restart</button>
+    <div id="profileMount"></div>
   </header>
   <main>
     <div id="map"></div>
@@ -80,6 +81,13 @@
   </main>
 </div>
 <script type="module">
+import { Profiles } from "../assets/js/profiles.js";
+
+// Auth/profile layer runs independently of the game bootstrap: an init failure
+// (e.g. network) must never stop the quiz from starting or being played.
+Profiles.init({ gameSlug: 'sf-neighborhoods', headerMount: document.getElementById('profileMount') })
+  .catch(err => console.error('Profiles init failed', err));
+
 const DATA = await fetch("sf-neighborhoods-quiz.data.json").then(r=>{
   if(!r.ok) throw new Error("Failed to load quiz data ("+r.status+")");
   return r.json();
