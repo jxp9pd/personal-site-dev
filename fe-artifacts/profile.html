@@ -54,13 +54,19 @@
   .hl .score.best{color:var(--good)}
   .hl .date{font-size:12px;color:var(--muted);margin-top:2px}
 
-  .log-title{font-size:12px;color:var(--muted);text-transform:uppercase;
-    letter-spacing:.6px;margin-bottom:8px}
-  .log{list-style:none;margin:0;padding:0}
-  .log li{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
-    padding:8px 0;border-top:1px solid var(--line)}
-  .log li .lscore{font-weight:600;font-variant-numeric:tabular-nums}
-  .log li .ldate{font-size:13px;color:var(--muted)}
+  .log-table{width:100%;border-collapse:collapse;font-size:14px}
+  .log-table th{text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.6px;font-weight:600;padding:0 10px 8px}
+  .log-table td{padding:9px 10px;border-top:1px solid var(--line)}
+  .log-table .lscore{font-variant-numeric:tabular-nums;font-weight:600}
+  .log-table .lmode{color:var(--muted)}
+  .log-table .ldate{color:var(--muted);white-space:nowrap}
+  .log-nav{display:flex;align-items:center;gap:14px;margin-top:14px}
+  .log-page{font-size:13px;color:var(--muted)}
+  .btn-sm{background:var(--panel);border:1px solid var(--line);color:var(--ink);
+    padding:6px 12px;border-radius:8px;cursor:pointer;font:600 13px/1 inherit}
+  .btn-sm:hover:not(:disabled){border-color:var(--accent)}
+  .btn-sm:disabled{color:var(--muted);cursor:default;opacity:.6}
 
   .person{display:flex;gap:16px;align-items:center;margin-bottom:20px}
   .avatar{width:64px;height:64px;border-radius:50%;flex:0 0 auto;object-fit:cover;
@@ -99,9 +105,11 @@ import { getSession, fetchPlays, fetchProfileByUsername, updateProfile, onAuthSt
 import { computeStats } from "./assets/js/stats.js";
 import { getGame, getModeLabel, categoryOf, gamesByCategory } from "./assets/js/manifest.js";
 import { initialsAvatar } from "./assets/js/avatar.js";
+import { paginate } from "./assets/js/pagination.js";
 import { resolveHomeHref } from "./assets/js/nav.js";
 
 const BIO_MAX = 200;
+const LOG_PAGE_SIZE = 10;
 
 const content = document.getElementById("content");
 
@@ -283,6 +291,58 @@ function wireModeToggles() {
   });
 }
 
+// Global newest-first ordering across all games/modes, matching stats.js recency
+// (created_at desc, then id desc as a deterministic tiebreak).
+function sortNewestFirst(plays) {
+  return plays.slice().sort((a, b) => {
+    if (a.created_at !== b.created_at) return a.created_at < b.created_at ? 1 : -1;
+    return String(a.id) < String(b.id) ? 1 : -1;
+  });
+}
+
+// Current 1-based page of the activity log; clamped by paginate() on render.
+let logPage = 1;
+
+function logRowHtml(play) {
+  return `
+    <tr>
+      <td>${esc(gameName(play.game_id))}</td>
+      <td class="lmode">${esc(modeLabel(play.game_id, play.mode))}</td>
+      <td class="lscore">${esc(scoreText(play))}</td>
+      <td class="ldate">${esc(fmtDateTime(play.created_at))}</td>
+    </tr>`;
+}
+
+function logHtml() {
+  const { pageItems, page, pageCount } = paginate(selfCtx.logPlays, logPage, LOG_PAGE_SIZE);
+  logPage = page;
+  const rows = pageItems.map(logRowHtml).join("");
+  const nav = pageCount > 1 ? `
+    <div class="log-nav">
+      <button class="btn-sm" id="logPrev" type="button" ${page <= 1 ? "disabled" : ""}>&larr; Prev</button>
+      <span class="log-page">Page ${page} of ${pageCount}</span>
+      <button class="btn-sm" id="logNext" type="button" ${page >= pageCount ? "disabled" : ""}>Next &rarr;</button>
+    </div>` : "";
+  return `
+    <h2 class="cat-title">Activity</h2>
+    <table class="log-table">
+      <thead><tr><th>Game</th><th>Mode</th><th>Score</th><th>Date</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    ${nav}`;
+}
+
+function wireLogNav() {
+  const rerender = () => {
+    const wrap = document.getElementById("activityLog");
+    if (!wrap) return;
+    wrap.innerHTML = logHtml();
+    wireLogNav();
+  };
+  document.getElementById("logPrev")?.addEventListener("click", () => { logPage -= 1; rerender(); });
+  document.getElementById("logNext")?.addEventListener("click", () => { logPage += 1; rerender(); });
+}
+
 // avatar_url is a dormant seam (always null in v1): when present it would win,
 // otherwise fall back to the deterministic generated initials avatar.
 function avatarHtml(profile) {
@@ -337,14 +397,18 @@ let selfCtx = null;
 function renderSelf() {
   const { session, profile, stats } = selfCtx;
   selectedModes.clear();
+  logPage = 1;
   selfCtx.byGame = groupByGame(stats);
-  const statsHtml = stats.length === 0 ? emptyHtml() : categoriesHtml(selfCtx.byGame);
+  const bodyHtml = stats.length === 0
+    ? emptyHtml()
+    : `${categoriesHtml(selfCtx.byGame)}<div id="activityLog">${logHtml()}</div>`;
   content.innerHTML = `
     ${personCardHtml(profile, session)}
     <div class="bio-block" id="bioBlock">${bioViewHtml(profile.bio)}</div>
-    ${statsHtml}`;
+    ${bodyHtml}`;
   wireBioView();
   wireModeToggles();
+  wireLogNav();
 }
 
 function wireBioView() {
@@ -437,6 +501,7 @@ async function refresh(sessionArg) {
     session,
     profile: profile ?? fallbackProfile(session),
     stats: computeStats(plays),
+    logPlays: sortNewestFirst(plays),
   };
   renderSelf();
 }
