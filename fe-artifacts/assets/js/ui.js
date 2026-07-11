@@ -9,46 +9,57 @@ const STYLE_ID = 'pp-auth-style';
 const DISMISS_KEY = 'pp-auth-dismissed';
 const PROFILE_URL = '/profile.html';
 
+// Homepage "paper" palette (mirrors /assets/site.css) so the widget matches the
+// light theme on every host page. Fonts fall back gracefully if a page hasn't
+// loaded the Google Fonts.
+const FONT_MONO = '"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace';
+const FONT_DISPLAY = '"Instrument Serif","Iowan Old Style",Georgia,serif';
 const CSS = `
 .pp-profile{position:relative;display:inline-flex}
-.pp-profile-btn{background:#171a21;border:1px solid #262b34;color:#e8eaed;
-  padding:6px 12px;border-radius:7px;cursor:pointer;font:550 13px/1 inherit;
-  max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pp-profile-btn:hover{border-color:#4f9cf9}
-.pp-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:1000;min-width:150px;
-  background:#171a21;border:1px solid #262b34;border-radius:8px;padding:4px;
-  box-shadow:0 8px 28px rgba(0,0,0,.5)}
+.pp-profile-btn{background:transparent;border:1px solid #14130f;color:#14130f;
+  padding:8px 16px;border-radius:999px;cursor:pointer;
+  font:500 11px/1 ${FONT_MONO};text-transform:uppercase;letter-spacing:.14em;
+  max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  transition:color .25s,background .25s,box-shadow .25s}
+.pp-profile-btn:hover{color:#fdfcf3;background:#14130f;box-shadow:0 12px 30px -14px rgba(20,19,15,.55)}
+.pp-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:1000;min-width:160px;
+  background:#fdfcf3;border:1px solid rgba(20,19,15,.14);border-radius:12px;padding:5px;
+  box-shadow:0 18px 44px -20px rgba(20,19,15,.4)}
 .pp-menu[hidden]{display:none}
 .pp-menu-item{display:block;width:100%;text-align:left;background:none;border:0;
-  color:#e8eaed;padding:8px 10px;border-radius:6px;cursor:pointer;font:500 13px/1 inherit}
-.pp-menu-item:hover{background:#262b34}
+  color:#14130f;padding:9px 12px;border-radius:8px;cursor:pointer;
+  font:500 11px/1 ${FONT_MONO};text-transform:uppercase;letter-spacing:.1em}
+.pp-menu-item:hover{background:#f7f5ea}
 
 .pp-overlay{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;
-  justify-content:center;background:rgba(8,10,13,.7);padding:16px}
+  justify-content:center;background:rgba(20,19,15,.4);padding:16px}
 .pp-overlay[hidden]{display:none}
-.pp-modal{position:relative;width:100%;max-width:340px;background:#171a21;
-  border:1px solid #262b34;border-radius:12px;padding:22px;color:#e8eaed;
-  box-shadow:0 18px 50px rgba(0,0,0,.55);
-  font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-.pp-close{position:absolute;top:10px;right:12px;background:none;border:0;
-  color:#9aa0aa;font-size:22px;line-height:1;cursor:pointer}
-.pp-close:hover{color:#e8eaed}
-.pp-title{margin:0 0 16px;font-size:18px;font-weight:650}
+.pp-modal{position:relative;width:100%;max-width:360px;background:#fdfcf3;
+  border:1px solid rgba(20,19,15,.14);border-radius:18px;padding:26px;color:#14130f;
+  box-shadow:0 30px 70px -30px rgba(20,19,15,.5);font:15px/1.45 ${FONT_MONO}}
+.pp-close{position:absolute;top:12px;right:14px;background:none;border:0;
+  color:#6b675e;font-size:22px;line-height:1;cursor:pointer}
+.pp-close:hover{color:#14130f}
+.pp-title{margin:0 0 18px;font-family:${FONT_DISPLAY};font-size:26px;font-weight:400;letter-spacing:.01em}
 .pp-field{margin-bottom:12px}
 .pp-field[hidden]{display:none}
-.pp-field label{display:block;font-size:12px;color:#9aa0aa;margin-bottom:5px}
-.pp-field input{width:100%;background:#0f1115;border:1px solid #262b34;color:#e8eaed;
-  border-radius:7px;padding:9px 10px;font-size:14px}
-.pp-field input:focus{outline:none;border-color:#4f9cf9}
-.pp-msg{min-height:18px;font-size:13px;margin:2px 0 12px;color:#e0564a}
+.pp-field label{display:block;font-size:10px;color:#6b675e;margin-bottom:6px;
+  text-transform:uppercase;letter-spacing:.12em}
+.pp-field input{width:100%;background:#f7f5ea;border:1px solid rgba(20,19,15,.22);color:#14130f;
+  border-radius:10px;padding:10px 12px;font:14px/1.4 ${FONT_MONO}}
+.pp-field input:focus{outline:none;border-color:#22b8ff;box-shadow:0 0 0 3px rgba(34,184,255,.15)}
+.pp-msg{min-height:18px;font-size:13px;margin:2px 0 12px;color:#d64541}
 .pp-msg[hidden]{display:none}
-.pp-submit{width:100%;background:#4f9cf9;border:1px solid #4f9cf9;color:#fff;
-  padding:10px;border-radius:8px;cursor:pointer;font:600 14px/1 inherit}
-.pp-submit:hover{filter:brightness(1.06)}
-.pp-submit:disabled{opacity:.6;cursor:default}
-.pp-toggle{margin-top:14px;text-align:center;font-size:13px;color:#9aa0aa}
-.pp-toggle-btn{background:none;border:0;color:#4f9cf9;cursor:pointer;
-  font:600 13px/1 inherit;padding:0 0 0 4px}
+.pp-submit{width:100%;background:#14130f;border:1px solid #14130f;color:#fdfcf3;
+  padding:11px;border-radius:999px;cursor:pointer;
+  font:500 11px/1 ${FONT_MONO};text-transform:uppercase;letter-spacing:.14em;
+  transition:background .25s,color .25s,box-shadow .25s}
+.pp-submit:hover{background:transparent;color:#14130f;box-shadow:0 12px 30px -14px rgba(20,19,15,.55)}
+.pp-submit:disabled{opacity:.5;cursor:default}
+.pp-toggle{margin-top:16px;text-align:center;font-size:12px;color:#6b675e}
+.pp-toggle-btn{background:none;border:0;color:#14130f;cursor:pointer;
+  font:500 12px/1 ${FONT_MONO};padding:0 0 2px 5px;border-bottom:1px solid rgba(20,19,15,.28)}
+.pp-toggle-btn:hover{border-bottom-color:#14130f}
 `;
 
 function injectStyleOnce() {
