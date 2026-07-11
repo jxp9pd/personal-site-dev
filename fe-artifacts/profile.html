@@ -71,8 +71,14 @@ import { Profiles } from "./assets/js/profiles.js";
 import { getSession, fetchPlays, onAuthStateChange } from "./assets/js/dataClient.js";
 import { computeStats } from "./assets/js/stats.js";
 import { getGame, getModeLabel } from "./assets/js/manifest.js";
+import { resolveHomeHref } from "./assets/js/nav.js";
 
 const content = document.getElementById("content");
+
+// "← Home" returns to the page that opened the profile (passed via ?from=),
+// falling back to the site root. resolveHomeHref rejects off-origin values.
+const homeLink = document.querySelector("header a.home");
+if (homeLink) homeLink.href = resolveHomeHref(location.search);
 
 // Header button + shared login modal + logged-out auto-prompt come from the
 // facade; this page only owns the profile body below the header.
