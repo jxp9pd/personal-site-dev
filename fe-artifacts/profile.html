@@ -55,6 +55,26 @@
     padding:8px 0;border-top:1px solid var(--line)}
   .log li .lscore{font-weight:600;font-variant-numeric:tabular-nums}
   .log li .ldate{font-size:13px;color:var(--muted)}
+
+  .person{display:flex;gap:16px;align-items:center;margin-bottom:20px}
+  .avatar{width:64px;height:64px;border-radius:50%;flex:0 0 auto;object-fit:cover;
+    display:flex;align-items:center;justify-content:center;
+    font-size:26px;font-weight:700;color:#fff;letter-spacing:.5px}
+  .person .who{min-width:0}
+  .person .uname{font-size:20px;font-weight:700;line-height:1.2}
+  .person .meta{font-size:13px;color:var(--muted);margin-top:3px}
+  .bio-block{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px;margin-bottom:22px}
+  .bio-text{white-space:pre-wrap;word-break:break-word}
+  .bio-empty{color:var(--muted);font-style:italic}
+  .bio-row{display:flex;gap:10px;align-items:center;margin-top:10px}
+  .bio-ta{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;
+    color:var(--ink);padding:9px 11px;font:inherit;resize:vertical;min-height:64px}
+  .linkbtn{background:none;border:none;color:var(--accent);cursor:pointer;font:inherit;padding:0}
+  .linkbtn:hover{text-decoration:underline}
+  .linkbtn:disabled{color:var(--muted);cursor:default;text-decoration:none}
+  .bio-note{font-size:12px;color:var(--muted);margin-left:auto}
+  .bio-note.err{color:var(--bad)}
 </style>
 </head>
 <body>
@@ -68,10 +88,14 @@
 
 <script type="module">
 import { Profiles } from "./assets/js/profiles.js";
-import { getSession, fetchPlays, onAuthStateChange } from "./assets/js/dataClient.js";
+import { getSession, fetchPlays, fetchProfileByUsername, updateProfile, onAuthStateChange }
+  from "./assets/js/dataClient.js";
 import { computeStats } from "./assets/js/stats.js";
 import { getGame, getModeLabel } from "./assets/js/manifest.js";
+import { initialsAvatar } from "./assets/js/avatar.js";
 import { resolveHomeHref } from "./assets/js/nav.js";
+
+const BIO_MAX = 200;
 
 const content = document.getElementById("content");
 
@@ -113,8 +137,8 @@ function scoreText(play) {
   return `${play.score}/${play.total}`;
 }
 
-function renderMessage({ title, body, actionHtml = "" }) {
-  content.innerHTML = `
+function messageHtml({ title, body, actionHtml = "" }) {
+  return `
     <div class="msg">
       <h2>${esc(title)}</h2>
       <p>${body}</p>
@@ -123,7 +147,7 @@ function renderMessage({ title, body, actionHtml = "" }) {
 }
 
 function renderLoggedOut() {
-  renderMessage({
+  content.innerHTML = messageHtml({
     title: "Log in to see your profile",
     body: "Your best scores and full play history live here once you're signed in.",
     actionHtml: `<button class="btn" id="loginBtn" type="button">Log in</button>`,
@@ -131,15 +155,15 @@ function renderLoggedOut() {
   document.getElementById("loginBtn")?.addEventListener("click", () => Profiles.promptLogin());
 }
 
-function renderEmpty() {
-  renderMessage({
+function emptyHtml() {
+  return messageHtml({
     title: "No games recorded yet",
     body: `Go play a round and it'll show up here. <a class="link" href="/games">Browse games &rarr;</a>`,
   });
 }
 
 function renderError() {
-  renderMessage({
+  content.innerHTML = messageHtml({
     title: "Couldn't load your profile",
     body: "Something went wrong fetching your play history. Please refresh and try again.",
   });
@@ -176,8 +200,111 @@ function groupCard(group) {
     </section>`;
 }
 
-function renderStats(stats) {
-  content.innerHTML = stats.map(groupCard).join("");
+// avatar_url is a dormant seam (always null in v1): when present it would win,
+// otherwise fall back to the deterministic generated initials avatar.
+function avatarHtml(profile) {
+  if (profile.avatar_url) {
+    return `<img class="avatar" src="${esc(profile.avatar_url)}" alt="">`;
+  }
+  const { initials, color } = initialsAvatar(profile.username || profile.user_id);
+  return `<div class="avatar" style="background:${esc(color)}">${esc(initials)}</div>`;
+}
+
+function personCardHtml(profile, session) {
+  const joined = fmtDate(profile.created_at);
+  const email = session.user.email;
+  const metaParts = [];
+  if (email) metaParts.push(esc(email));
+  if (joined) metaParts.push(`Joined ${esc(joined)}`);
+  return `
+    <section class="person">
+      ${avatarHtml(profile)}
+      <div class="who">
+        <div class="uname">${esc(profile.username)}</div>
+        <div class="meta">${metaParts.join(" · ")}</div>
+      </div>
+    </section>`;
+}
+
+function bioViewHtml(bio) {
+  const text = (bio ?? "").trim();
+  const body = text
+    ? `<div class="bio-text">${esc(text)}</div>`
+    : `<div class="bio-empty">No bio yet.</div>`;
+  return `${body}
+    <div class="bio-row">
+      <button class="linkbtn" id="bioEdit" type="button">${text ? "Edit bio" : "Add a bio"}</button>
+    </div>`;
+}
+
+function bioEditHtml(bio) {
+  const text = (bio ?? "").trim();
+  return `
+    <textarea class="bio-ta" id="bioTa" maxlength="${BIO_MAX}" rows="3">${esc(text)}</textarea>
+    <div class="bio-row">
+      <button class="btn" id="bioSave" type="button">Save</button>
+      <button class="linkbtn" id="bioCancel" type="button">Cancel</button>
+      <span class="bio-note" id="bioNote"></span>
+    </div>`;
+}
+
+// Self-mode render context, kept so a bio save can re-render without re-fetching.
+let selfCtx = null;
+
+function renderSelf() {
+  const { session, profile, stats } = selfCtx;
+  const statsHtml = stats.length === 0 ? emptyHtml() : stats.map(groupCard).join("");
+  content.innerHTML = `
+    ${personCardHtml(profile, session)}
+    <div class="bio-block" id="bioBlock">${bioViewHtml(profile.bio)}</div>
+    ${statsHtml}`;
+  wireBioView();
+}
+
+function wireBioView() {
+  document.getElementById("bioEdit")?.addEventListener("click", () => {
+    document.getElementById("bioBlock").innerHTML = bioEditHtml(selfCtx.profile.bio);
+    wireBioEdit();
+  });
+}
+
+function wireBioEdit() {
+  const ta = document.getElementById("bioTa");
+  const note = document.getElementById("bioNote");
+  const saveBtn = document.getElementById("bioSave");
+  const cancelBtn = document.getElementById("bioCancel");
+
+  const showCount = () => {
+    note.classList.remove("err");
+    note.textContent = `${ta.value.length}/${BIO_MAX}`;
+  };
+  showCount();
+  ta.addEventListener("input", showCount);
+  ta.focus();
+
+  cancelBtn.addEventListener("click", () => {
+    document.getElementById("bioBlock").innerHTML = bioViewHtml(selfCtx.profile.bio);
+    wireBioView();
+  });
+
+  saveBtn.addEventListener("click", async () => {
+    const next = ta.value.trim().slice(0, BIO_MAX);
+    saveBtn.disabled = true;
+    cancelBtn.disabled = true;
+    try {
+      const updated = await updateProfile({ bio: next });
+      selfCtx.profile.bio = updated?.bio ?? next;
+    } catch (err) {
+      console.error("updateProfile failed", err);
+      saveBtn.disabled = false;
+      cancelBtn.disabled = false;
+      note.classList.add("err");
+      note.textContent = "Couldn't save — try again.";
+      return;
+    }
+    document.getElementById("bioBlock").innerHTML = bioViewHtml(selfCtx.profile.bio);
+    wireBioView();
+  });
 }
 
 // Guards against out-of-order async renders when auth events and the initial
@@ -202,23 +329,44 @@ async function refresh(sessionArg) {
     return;
   }
 
+  // A brand-new signup's profile row can briefly lag; fall back to session-
+  // derived identity so the page still renders rather than erroring.
+  const uname = session.user.user_metadata?.username;
+  let profile;
   let plays;
   try {
-    plays = await fetchPlays(session.user.id);
+    [profile, plays] = await Promise.all([
+      uname ? fetchProfileByUsername(uname) : Promise.resolve(null),
+      fetchPlays(session.user.id),
+    ]);
   } catch (err) {
     if (seq !== renderSeq) return;
-    console.error("fetchPlays failed", err);
+    console.error("profile load failed", err);
     renderError();
     return;
   }
   if (seq !== renderSeq) return;
 
-  const stats = computeStats(plays);
-  if (stats.length === 0) {
-    renderEmpty();
-    return;
-  }
-  renderStats(stats);
+  selfCtx = {
+    session,
+    profile: profile ?? fallbackProfile(session),
+    stats: computeStats(plays),
+  };
+  renderSelf();
+}
+
+function fallbackProfile(session) {
+  return {
+    user_id: session.user.id,
+    username: sessionUsername(session),
+    bio: null,
+    created_at: session.user.created_at,
+    avatar_url: null,
+  };
+}
+
+function sessionUsername(session) {
+  return session.user.user_metadata?.username || session.user.email || "You";
 }
 
 onAuthStateChange((_event, session) => refresh(session ?? null));
