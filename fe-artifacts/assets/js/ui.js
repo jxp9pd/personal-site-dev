@@ -95,7 +95,12 @@ export function createAuthUI({
   const menu = profile.querySelector('.pp-menu');
   const menuProfile = profile.querySelector('.pp-menu-profile');
   const menuLogout = profile.querySelector('.pp-menu-logout');
-  (mountButtonInto || document.body).appendChild(profile);
+  // A page passes `null` to opt out of the header button (e.g. the profile page,
+  // which shouldn't link to itself). The login modal below still works, so
+  // promptLogin() and auth state tracking are unaffected.
+  if (mountButtonInto !== null) {
+    (mountButtonInto || document.body).appendChild(profile);
+  }
 
   // ---- modal ----
   const overlay = document.createElement('div');

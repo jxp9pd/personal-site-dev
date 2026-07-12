@@ -82,14 +82,12 @@ async function renderSelect() {
     return;
   }
   // `artSvg` is admin-only content (service-role upload, no client writes), so
-  // it is inlined as markup. Name/description still go through esc().
+  // it is inlined as markup; the name still goes through esc(). Cards mirror the
+  // neighborhoods selector: a centered name over back-laid art.
   grid.innerHTML = packs.map(p => `
     <a class="pack-card" href="?pack=${encodeURIComponent(p.slug)}">
       ${p.artSvg ? `<span class="art" aria-hidden="true">${p.artSvg}</span>` : ''}
-      <span class="pack-body">
-        <span class="name">${esc(p.name)}</span>
-        ${p.description ? `<span class="desc">${esc(p.description)}</span>` : ''}
-      </span>
+      <span class="name">${esc(p.name)}</span>
     </a>`).join('');
 }
 

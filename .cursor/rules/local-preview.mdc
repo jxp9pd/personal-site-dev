@@ -1,0 +1,28 @@
+---
+description: Serve a local static preview after any frontend change
+alwaysApply: true
+---
+
+# Local static preview after FE changes
+
+After making any change under `fe-artifacts/` (HTML, CSS, or JS), spin up a local
+static server so the user can preview it — unless one is already running.
+
+The web root is `fe-artifacts/` (pages use root-relative paths like `/assets`,
+`/games`, `/tools`, `/profile.html`), so the server MUST be rooted there:
+
+```bash
+python3 -m http.server 8000 --bind 127.0.0.1
+```
+
+Run it from `fe-artifacts/` (or pass `--directory fe-artifacts`) as a background
+process. Then give the user the URLs they can open, e.g.
+`http://127.0.0.1:8000/`, `http://127.0.0.1:8000/games/`.
+
+Notes:
+- Before starting, check the terminals folder for an existing `http.server` on
+  8000; reuse it instead of starting a duplicate.
+- This is a static site with no build step — edits are picked up on refresh, so
+  the server does not need restarting after further FE edits.
+- Game data loads from Supabase at runtime; layout/styling still previews fine
+  even if data calls fail locally.

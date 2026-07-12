@@ -33,32 +33,37 @@
     transition:color .25s,background .25s,box-shadow .25s}
   .btn:hover{color:var(--paper);background:var(--ink);
     box-shadow:0 12px 30px -14px rgba(20,19,15,.55)}
+  .btn[aria-current="page"]{color:var(--paper);background:var(--brand);border-color:transparent}
+  .btn[aria-current="page"]:hover{background:var(--brand);box-shadow:0 14px 34px -14px rgba(34,184,255,.6)}
   .eyebrow{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.18em}
+
+  /* Shared top bar — mirrors the homepage (/assets/site.css) so every portal
+     opens with the same Penta Projects logo (left) + nav (right). */
+  .site-head{display:flex;align-items:center;justify-content:space-between;gap:20px;
+    padding:28px clamp(24px,5vw,64px)}
+  .site-head .logo{font-family:var(--font-display);font-weight:400;font-size:1.75rem;
+    letter-spacing:.01em;text-decoration:none;line-height:1.3;white-space:nowrap}
+  .site-head .nav{display:flex;gap:14px;align-items:center}
 
   /* ---- Pack selection screen ---- */
   #select{display:none;min-height:100vh;min-height:100dvh;flex-direction:column;
-    padding:56px clamp(24px,5vw,64px) 64px;
     background-image:
       radial-gradient(120% 90% at 50% -10%, rgba(34,184,255,.06), transparent 60%),
       radial-gradient(80% 60% at 85% 110%, rgba(0,229,192,.05), transparent 55%)}
-  #select .select-head{max-width:860px;margin:0 auto 32px;width:100%}
-  #select .back-to-games{margin-bottom:24px}
-  #select .select-bar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+  .select-body{flex:1;width:100%;max-width:860px;margin:0 auto;
+    padding:4vh clamp(24px,5vw,64px) 64px}
+  #select .select-head{margin:0 0 32px}
   #select h1{font-family:var(--font-display);font-size:clamp(2.4rem,6vw,3.2rem);
     margin:0 0 4px;font-weight:400;line-height:1}
-  #select .sub{color:var(--muted);font-size:14px;margin:0;letter-spacing:.01em}
-  .pack-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
-    gap:14px;max-width:860px;margin:0 auto;width:100%}
-  .pack-card{position:relative;display:flex;align-items:flex-end;min-height:150px;
-    background:var(--paper-2);overflow:hidden;border:1px solid var(--line);
+  .pack-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+  .pack-card{position:relative;display:flex;align-items:center;justify-content:center;
+    min-height:150px;background:var(--paper-2);overflow:hidden;border:1px solid var(--line);
     border-radius:16px;padding:18px;text-decoration:none;color:var(--ink)}
   .pack-card .art{position:absolute;inset:0;color:var(--ink);opacity:.12;
     pointer-events:none;display:block}
   .pack-card .art svg{width:100%;height:100%;display:block}
-  .pack-card .pack-body{position:relative;display:flex;flex-direction:column;gap:4px}
-  .pack-card .name{font-family:var(--font-display);font-size:26px;font-weight:400;
-    letter-spacing:.01em;line-height:1.05;transition:color .2s}
-  .pack-card .desc{font-size:12px;color:var(--muted);line-height:1.4}
+  .pack-card .name{position:relative;font-family:var(--font-display);font-size:26px;
+    font-weight:400;text-align:center;letter-spacing:.01em;line-height:1.1;transition:color .2s}
   .pack-card:hover .name{color:var(--accent)}
   .select-msg{grid-column:1/-1;color:var(--muted);font-size:14px;margin:8px 2px}
 
@@ -150,9 +155,9 @@
   .save-error .btn:hover{background:var(--bad);color:var(--paper)}
 
   @media (max-width:640px){
-    #select{padding:24px 18px 40px}
+    .site-head{padding:16px 18px;gap:12px;flex-wrap:wrap}
+    .select-body{padding:20px 18px 40px}
     #select .select-head{margin-bottom:20px}
-    #select .back-to-games{margin-bottom:16px}
     #select h1{font-size:2rem}
     #play main{padding:20px 16px 56px}
   }
@@ -161,17 +166,20 @@
 <body>
 
 <section id="select">
-  <div class="select-head">
-    <a class="btn back-to-games" href="/games/">&larr; Games</a>
-    <div class="select-bar">
-      <div>
-        <h1>Guess the Price</h1>
-        <p class="sub">Pick a pack and see how sharp your price instincts really are.</p>
-      </div>
+  <header class="site-head">
+    <a class="logo gradient-text" href="/">Penta Projects</a>
+    <nav class="nav">
+      <a class="btn" href="/games" aria-current="page">Games</a>
+      <a class="btn" href="/tools">Tools</a>
       <div id="selectProfileMount"></div>
+    </nav>
+  </header>
+  <div class="select-body">
+    <div class="select-head">
+      <h1>Guess the Price</h1>
     </div>
+    <div class="pack-grid" id="packGrid"></div>
   </div>
-  <div class="pack-grid" id="packGrid"></div>
 </section>
 
 <div id="play">
