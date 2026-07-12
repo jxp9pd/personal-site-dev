@@ -31,7 +31,7 @@ const GAMES = {
   'guess-the-price': {
     name: 'Guess the Price',
     category: 'Guess the Price',
-    modes: { 'starter-pack': 'Starter Pack', wearables: 'Wearables', groceries: 'Groceries', costco: 'Costco' },
+    modes: { 'starter-pack': 'Starter Pack', costco: 'Costco', wearables: 'Wearables', groceries: 'Groceries' },
   },
 };
 
