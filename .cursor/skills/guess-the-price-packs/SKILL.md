@@ -22,21 +22,25 @@ files. The selector (`fe-artifacts/games/guess-the-price.html` +
 no HTML edit, and the schema already exists (migration `0006_packs.sql`, so a new
 pack **never** needs a migration).
 
-The frontend and scoring are pack-agnostic: the game shuffles whatever items a
-pack has, shows `ITEM n / N`, and scores each with the exponential falloff
-(`K=0.35`). No per-pack config.
+The frontend and scoring are pack-agnostic: each round randomly samples up to
+**10** items (`ROUND_MAX_ITEMS` in `guess-the-price.js`), shows `ITEM n / N`, and
+scores each with the exponential falloff (`K=0.35`). No per-pack config — a pack
+can hold as many items as you like; a big pack just plays a fresh random 10 each
+round.
 
 All commands below run from the repo root.
 
 ## Workflow
 
 ```
-- [ ] 1. Author  data/packs/<slug>.data.json
-- [ ] 2. Register the file in scripts/upload-packs.mjs (PACKS array)
-- [ ] 3. (Recommended) Add the pack label to manifest.js modes; update its test
-- [ ] 4. Publish: node scripts/upload-packs.mjs  (NOT npm run)
-- [ ] 5. Verify live via the anon key
-- [ ] 6. Preview locally / note what ships on merge
+- [ ] 1. Author  data/packs/<slug>.data.json  (incl. each item's image_url)
+- [ ] 2. (Photos) Save one file per item to data/pack-images/<slug>/
+- [ ] 3. Register the file in scripts/upload-packs.mjs (PACKS array)
+- [ ] 4. (Recommended) Add the pack label to manifest.js modes; update its test
+- [ ] 5. (Photos) Publish images: node scripts/upload-pack-images.mjs
+- [ ] 6. Publish content: node scripts/upload-packs.mjs  (NOT npm run)
+- [ ] 7. Verify live via the anon key (rows + image URLs return 200)
+- [ ] 8. Preview locally / note what ships on merge
 ```
 
 ### 1. Author the seed file
@@ -57,15 +61,43 @@ All commands below run from the repo root.
 - `slug` — lowercase-hyphenated, unique, **stable** (it is the recorded play
   `mode`; changing it later orphans past plays).
 - `price` — a number in dollars (stored as `numeric(10,2)`).
-- `image_url` — `null` unless hosting an image; when set, the item frame renders
-  it `object-fit: cover`.
-- `sort_order` — integer controlling selector order; use the next value after the
-  existing packs.
-- Item count is flexible (the game adapts to any N). Match the existing packs
-  (5) unless the user wants otherwise.
+- `image_url` — the item photo. Either `null` (frame shows "No image") or a hosted
+  URL rendered `object-fit: cover`. To host photos see **Item images** below; the
+  Storage URL is deterministic, so fill it in here before the file is uploaded.
+- `sort_order` — integer controlling selector order (`0` = first card). Renumber
+  the other packs' seed files if you need to slot one ahead of them.
+- Item count is flexible and can be large — each round samples 10 (see above), so
+  a big, varied pack plays well. The starter pack ships 19.
 
-Seed files under `data/packs/` are **git-ignored** (like `data/quizzes/`) — they
-are upload source, not served assets. Keep them on disk locally.
+Seed files under `data/packs/` **and** photos under `data/pack-images/` are
+**git-ignored** (like `data/quizzes/`) — they are upload source, not served or
+tracked assets. Keep them on disk locally.
+
+### Item images
+Photos live in the public Supabase Storage bucket `pack-images`, **not** in git.
+`scripts/upload-pack-images.mjs` creates the bucket (idempotent) and uploads
+everything under `data/pack-images/<slug>/`.
+
+1. Save one file per item to `data/pack-images/<slug>/<name>.<ext>`. Keep the
+   extension matching the actual bytes (`file <img>` to check) — some CDNs serve
+   JPEG at a `.png` URL, and the uploader sets the Storage content-type from the
+   extension.
+2. Set each `image_url` to the deterministic public URL:
+   `https://iveomuwigelmyjbxpykx.supabase.co/storage/v1/object/public/pack-images/<slug>/<file>`
+3. Publish with `node scripts/upload-pack-images.mjs` (same service-role key +
+   `node`-not-`npm` caveat as step 6). Re-runnable: every object is upserted.
+
+Sourcing a photo from a product link:
+- `curl` the page — `og:image` / JSON-LD `image` is often right there. But many
+  retailers (Nike, Ray-Ban, Levi's, Le Creuset, Nintendo…) hard-block bots and
+  return a tiny challenge shell.
+- For those, drive the in-IDE browser (`cursor-ide-browser`): `browser_navigate`,
+  then `browser_cdp` → `Runtime.evaluate` to read `og:image`, JSON-LD `image`, or
+  the largest `<img>`. A real browser clears the challenge.
+- Amazon (search or product page) is a reliable fallback for a clean white-bg
+  product shot when the brand site is blocked or the link is a category/news page.
+- Download the chosen CDN URL with `curl` (image CDNs are usually not bot-gated
+  even when their HTML is) and eyeball each file before publishing.
 
 ### 2. Register in the uploader
 Add the file to the `PACKS` array in `scripts/upload-packs.mjs`:
@@ -105,8 +137,13 @@ the `personal-dev-setup` skill.
 export SUPABASE_SERVICE_ROLE_KEY="$(supabase projects api-keys \
   --project-ref iveomuwigelmyjbxpykx --reveal --output-format json 2>/dev/null \
   | jq -r '.keys[] | select(.name=="service_role" and .type=="legacy") | .api_key')"
+node scripts/upload-pack-images.mjs   # only if the pack has photos; run FIRST
 node scripts/upload-packs.mjs
 ```
+
+Publish images **before** content so every `image_url` resolves the moment the
+pack goes live. Both scripts share the same key and the same `node`-not-`npm`
+caveat.
 
 The service-role key is the secret one (never the `sb_publishable_...` anon key in
 `config.js`); it is re-fetchable and never stored at rest.
@@ -120,11 +157,18 @@ ANON="sb_publishable_Y8HLbe2M_uxK_hjq6WOr3g_XEspZPne"
 BASE="https://iveomuwigelmyjbxpykx.supabase.co/rest/v1"
 curl -sS "$BASE/packs?select=slug,name,sort_order&order=sort_order" \
   -H "apikey: $ANON" -H "Authorization: Bearer $ANON"
-curl -sS "$BASE/pack_items?pack_slug=eq.<slug>&select=name,price,sort_order&order=sort_order" \
+curl -sS "$BASE/pack_items?pack_slug=eq.<slug>&select=name,price,image_url,sort_order&order=sort_order" \
   -H "apikey: $ANON" -H "Authorization: Bearer $ANON"
 ```
 
-Expect the new pack in the list and its items in `sort_order`.
+Expect the new pack in the list and its items in `sort_order`. If the pack has
+photos, confirm one `image_url` actually serves an image:
+
+```bash
+curl -s -o /dev/null -w "%{http_code} %{content_type}\n" \
+  "https://iveomuwigelmyjbxpykx.supabase.co/storage/v1/object/public/pack-images/<slug>/<file>"
+# expect: 200 image/jpeg (or image/png)
+```
 
 ### 6. Preview / go live
 - The selector is DB-driven, so the pack **appears immediately** after upload —
@@ -133,6 +177,8 @@ Expect the new pack in the list and its items in `sort_order`.
   python3 -m http.server 8000 --directory fe-artifacts
   # http://localhost:8000/games/guess-the-price.html
   ```
+  A server may already be running on :8000 (`Address already in use` just means
+  it's up — check `lsof -nP -iTCP:8000 -sTCP:LISTEN` before starting another).
 - Public site (`jpentakalos.com`) serves frontend code from `origin/main` only.
   Pack **content** is already live via the DB regardless of branch; a
   `manifest.js` label change only ships once merged to `main` (see
@@ -140,5 +186,7 @@ Expect the new pack in the list and its items in `sort_order`.
 
 ## Editing an existing pack
 Same flow: edit `data/packs/<slug>.data.json` (change prices, add/remove/reorder
-items), keep the `slug` unchanged, and re-run step 4. The wholesale item replace
-makes removals and reorders take effect cleanly.
+items), keep the `slug` unchanged, and re-run the publish step. The wholesale item
+replace makes removals and reorders take effect cleanly. If you added or swapped a
+photo, drop the file in `data/pack-images/<slug>/` and re-run
+`node scripts/upload-pack-images.mjs` too (objects are upserted).
