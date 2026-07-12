@@ -28,6 +28,11 @@ const GAMES = {
     category: 'Neighborhoods',
     modes: NEIGHBORHOOD_MODES,
   },
+  'manhattan-neighborhoods': {
+    name: 'Neighborhoods of Manhattan',
+    category: 'Neighborhoods',
+    modes: NEIGHBORHOOD_MODES,
+  },
   'guess-the-price': {
     name: 'Guess the Price',
     category: 'Guess the Price',

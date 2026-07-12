@@ -63,6 +63,15 @@ const QUIZZES = [
     file: 'fairfax-neighborhoods.data.json',
     art: 'fairfax-neighborhoods.svg',
   },
+  {
+    slug: 'manhattan-neighborhoods',
+    name: 'Manhattan',
+    description: 'SoHo to Harlem, Tribeca to Inwood — how well do you know Manhattan?',
+    center: [40.7894, -73.963],
+    zoom: 12,
+    file: 'manhattan-neighborhoods.data.json',
+    art: 'manhattan-neighborhoods.svg',
+  },
 ];
 
 const SUPABASE_URL = process.env.SUPABASE_URL || CONFIG_URL;
