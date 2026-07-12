@@ -5,3 +5,7 @@ node_modules/
 # Quiz seed data — source for scripts/upload-quizzes.mjs, published to the
 # Supabase `quizzes` table. Not served and not tracked; kept on disk locally.
 data/quizzes/
+
+# Pack seed data — source for scripts/upload-packs.mjs, published to the
+# Supabase `packs`/`pack_items` tables. Not served and not tracked; kept on disk locally.
+data/packs/

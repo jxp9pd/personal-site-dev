@@ -24,6 +24,9 @@ const PROFILE_COLUMNS = 'user_id, username, bio, created_at, avatar_url';
 // on demand so listing all cities stays cheap.
 const QUIZ_LIST_COLUMNS = 'slug, name, description, center_lat, center_lng, zoom, art_svg';
 
+// Pack selector needs only display metadata; items are fetched per-pack on play.
+const PACK_LIST_COLUMNS = 'slug, name, description, art_svg';
+
 // One client instance for the whole app.
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -184,6 +187,47 @@ export async function fetchQuiz(slug) {
     .maybeSingle();
   if (error) throw error;
   return data ? toQuiz(data) : null;
+}
+
+// Normalizes a `packs` row into the display shape the selector speaks.
+function toPack(row) {
+  return {
+    slug: row.slug,
+    name: row.name,
+    description: row.description,
+    artSvg: row.art_svg ?? null,
+  };
+}
+
+// Lists every pack for the Guess the Price selector, ordered as configured at
+// publish time, then by name as a stable tiebreaker. Omits items — see
+// PACK_LIST_COLUMNS. Returns [] when no packs exist.
+export async function fetchPackList() {
+  const { data, error } = await supabase
+    .from('packs')
+    .select(PACK_LIST_COLUMNS)
+    .order('sort_order', { ascending: true })
+    .order('name', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(toPack);
+}
+
+// Loads a single pack plus its items (ordered by sort_order) by slug. Prices are
+// coerced to numbers (PostgREST can serialize numeric as a string). Returns null
+// when the slug is unknown, so callers can fall back to the selector.
+export async function fetchPack(slug) {
+  const { data, error } = await supabase
+    .from('packs')
+    .select(`${PACK_LIST_COLUMNS}, pack_items(name, price, image_url, sort_order)`)
+    .eq('slug', slug)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const items = (data.pack_items ?? [])
+    .slice()
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((it) => ({ name: it.name, price: Number(it.price), imageUrl: it.image_url ?? null }));
+  return { ...toPack(data), items };
 }
 
 // Wraps the SDK subscription so the recorder/UI layer can drive capture-then-save

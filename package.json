@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "upload-quizzes": "node scripts/upload-quizzes.mjs"
+    "upload-quizzes": "node scripts/upload-quizzes.mjs",
+    "upload-packs": "node scripts/upload-packs.mjs"
   },
   "devDependencies": {
     "jsdom": "^29.1.1",
