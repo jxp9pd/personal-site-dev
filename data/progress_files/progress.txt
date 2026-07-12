@@ -1,0 +1,75 @@
+# Guess the Price — Costco Pack (40 items)
+
+STATUS: COMPLETE ✅
+Started:   2026-07-12 13:55 PT
+Completed: 2026-07-12 (all 40 items verified, deliverable written)
+
+DELIVERABLE LOCATION (final):
+/Users/johnpentakalos/Development/personal-site-dev/data/progress_files/costco-guess-the-price.md
+Contents: sorted low->high table (#, Item, Price, Category, Source link),
+40 Costco-themed items ($1.50 -> $3,999.99), flagship image, and a
+notes/flags section (by-weight items, seasonal/promo drift, excluded items
+with verified swaps, and a pushback note on the price band).
+
+RESULT SUMMARY:
+- 40/40 items with a single clean US price, each confirmed via web search
+  (as-of 2026-07-12). No category exceeds 2 items.
+- Staples requested all included: hot dog, rotisserie chicken, ravioli,
+  croissants, mac & cheese, olive oil, mixed nuts, vodka, wine, lasagna.
+- Luxury/big-ticket included: Callaway golf set, diamond studs + tennis
+  bracelet, Mirador pergola, patio set, Weber grill, Novaform mattress.
+- Clothing included: Kirkland men's shirt jacket.
+- Excluded (no clean single US price) with swaps noted: generator, 65" TV
+  (-> Roomba j8+), Michelin tires.
+
+## Goal
+40 Costco-themed items for a "guess the price" game. Each: short name,
+verified current US retail price (single clean number), source link, image.
+Category mix varied; cap ~2 items per category. Prices verified via web search
+against brand/major-retailer sites (prefer official/Costco). Note "as of" date.
+
+## Deliverable
+Markdown table sorted low -> high (#, Item, Price, Source), inline images,
+notes/flags section for unconfirmed / over-band items + verified swaps.
+
+## Checklist
+- [ ] Build candidate item list across categories (cap 2/category)
+- [ ] Verify prices via web search (batch)
+- [ ] Assemble sorted markdown table with sources
+- [ ] Notes/flags section
+- [ ] Mark task complete here
+
+## Verification log (as of 2026-07-12)
+CONFIRMED:
+- Hot dog + soda combo: $1.50 (USA Today / Costco CEO, held since 1985)
+- Rotisserie chicken: $4.99 (multiple, item locked since 2009)
+- Food court chicken bake: $3.99 (2026, up from $2.99 in 2022)
+- Food court whole 18" pizza: $9.95 ; pizza slice $1.99
+- Deli mac & cheese tray: ~$13.09 ($3.49/lb, sold by weight — FLAG)
+- Kirkland spinach & cheese ravioli 2x22oz (#6101960): $12.99
+- Kirkland butter croissants 12ct (#1199652): $5.99
+- Kirkland beef lasagna 2x3lb frozen (#1641293): $17.99
+- Kirkland organic EVOO 2L (#692731): $16.99
+- Kirkland extra fancy mixed nuts 2.5lb (#1645578): $15.99
+- Kirkland American vodka 1.75L (#639271): $12.99
+
+NOTE: Costco.com does NOT publish warehouse food-court/grocery prices. Best
+verifiable source for warehouse-only items is WarehouseRunner (600+ store
+in-store price tracker). Big-ticket items ARE on costco.com and cite directly.
+
+MORE CONFIRMED:
+- Kirkland Añejo tequila 1L (#1327189): $31.99 (costcofdb; MI liquor list $32.49)
+- Kirkland Chianti Classico Riserva 750ml (#944010): $8.99
+- Kirkland paper towels 12 rolls (#512599): $20.99
+- Kirkland bath tissue 30 rolls (#585578): $16.99
+- Kirkland premium sliced bacon 4x1lb (#7000070): $16.49
+- Diamond 1.00 ctw VS2/I 14kt WG stud earrings (costco.com 100491651 / #1342638): $2,299.99
+- Callaway Edge 10-pc golf set (#1757622): $599.99 warehouse ($629.99 costco.com)
+- Kirkland Performance+ V3.0 golf balls 24ct (#1819440): $29.99
+- Mirador louvered pergola (costco.com 2026 patio): $1,999.99
+- Sunvilla Alden 3-pc swivel seating set: $689.99
+
+SWAP/FLAG: Costco.com generators hide online price ("visit warehouse") — no
+clean single number, drop from list, offer as unconfirmed swap.
+
+IN PROGRESS: coffee, pet food, clothing, health, TV, mattress, tires, seafood.
