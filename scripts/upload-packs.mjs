@@ -30,6 +30,7 @@ const PACKS = [
   { file: 'wearables.data.json', art: 'wearables.svg' },
   { file: 'groceries.data.json', art: 'groceries.svg' },
   { file: 'starter-pack.data.json', art: 'starter-pack.svg' },
+  { file: 'costco.data.json', art: 'costco.svg' },
 ];
 
 const SUPABASE_URL = process.env.SUPABASE_URL || CONFIG_URL;
