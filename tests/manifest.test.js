@@ -12,6 +12,7 @@ const NEIGHBORHOOD_SLUGS = [
   "seattle-neighborhoods",
   "dc-neighborhoods",
   "fairfax-neighborhoods",
+  "manhattan-neighborhoods",
 ];
 
 describe("categoryOf", () => {
