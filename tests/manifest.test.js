@@ -89,6 +89,7 @@ describe("existing helpers stay intact", () => {
     });
     expect(getModeLabel("guess-the-price", "wearables")).toBe("Wearables");
     expect(getModeLabel("guess-the-price", "groceries")).toBe("Groceries");
+    expect(getModeLabel("guess-the-price", "starter-pack")).toBe("Starter Pack");
     expect(getModeLabel("guess-the-price", "nope")).toBe(null);
   });
 });

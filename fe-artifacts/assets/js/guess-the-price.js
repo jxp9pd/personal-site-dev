@@ -16,6 +16,10 @@ const el = id => document.getElementById(id);
 
 // Seconds allowed per item; the timer bar tracks secondsLeft / ROUND_SECONDS.
 const ROUND_SECONDS = 20;
+// A round is capped at this many items. Packs with more are randomly sampled
+// down to this each round (via the shuffle below), so a pack can hold any number
+// of items and each playthrough stays a quick, varied 10.
+const ROUND_MAX_ITEMS = 10;
 // Below this relative error the "off by" figure reads as good rather than warn.
 const OFF_GOOD = 0.15;
 // Above this relative error a summary item is flagged as notably poor (warn bar).
@@ -290,7 +294,7 @@ function boot(pack) {
 
   function startRound() {
     stopTimer();
-    roundItems = shuffle(pack.items);
+    roundItems = shuffle(pack.items).slice(0, ROUND_MAX_ITEMS);
     currentIndex = 0;
     results = [];
     showItem();

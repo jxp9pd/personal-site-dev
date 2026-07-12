@@ -14,6 +14,11 @@ const fixture = JSON.parse(
 );
 const HOOD_NAMES = fixture.geo.features.map(f => f.properties.name);
 const N = HOOD_NAMES.length;
+// A find/name round is capped at 10 sampled hoods (see ROUND_MAX in the game).
+const ROUND = Math.min(10, N);
+// The game sorts hood names; a stubbed identity shuffle makes a round the first
+// ROUND of this sorted list, in order — used where a test needs a known round.
+const SORTED = [...HOOD_NAMES].sort();
 
 function sfQuiz() {
   return {
@@ -102,13 +107,13 @@ describe("neighborhoods quiz — find mode (perfect round)", () => {
 
     expect(doneShown()).toBe(true);
     expect(document.getElementById("doneTitle").textContent.trim()).not.toBe("");
-    expect(document.getElementById("doneScore").textContent).toContain(`${N}/${N}`);
+    expect(document.getElementById("doneScore").textContent).toContain(`${ROUND}/${ROUND}`);
 
     expect(Profiles.recordPlay).toHaveBeenCalledWith({
       gameId: "sf-neighborhoods",
       mode: "find",
-      score: N,
-      total: N,
+      score: ROUND,
+      total: ROUND,
     });
   });
 });
@@ -130,28 +135,36 @@ describe("neighborhoods quiz — find mode wrong-pick handling", () => {
   });
 
   it("still presents the wrongly-clicked hood as its own unrevealed target later", async () => {
-    const L = await bootQuiz();
-    const first = el("pTarget").textContent;
-    const w = HOOD_NAMES.find(n => n !== first);
+    // Pin the round so a specific in-round hood is guaranteed to come back:
+    // an identity shuffle makes the round SORTED[0..ROUND-1] in order.
+    const rnd = vi.spyOn(Math, "random").mockReturnValue(0.999999);
+    try {
+      const L = await bootQuiz();
+      const first = el("pTarget").textContent;
+      const w = SORTED[3]; // in-round (index < ROUND) and not yet asked
+      expect(first).toBe(SORTED[0]);
 
-    // Round 0: answer wrong (click w instead of the actual target).
-    L.fireClick(w);
-    await vi.advanceTimersByTimeAsync(700);
-
-    // Play correctly until w itself becomes the target.
-    let reached = false;
-    for (let i = 0; i < N + 5; i++) {
-      if (doneShown()) break;
-      if (el("pTarget").textContent === w) { reached = true; break; }
-      L.fireClick(el("pTarget").textContent);
+      // Round 0: misclick w while the target is `first`.
+      L.fireClick(w);
       await vi.advanceTimersByTimeAsync(700);
-    }
 
-    expect(reached).toBe(true);
-    expect(el("pTarget").textContent).toBe(w);
-    expect(L.layerFor(w)._locked).toBe(false);
-    expect(L.layerFor(w)._revealed).toBe(false);
-    expect(L.layerFor(w)._tooltip).toBe(null);
+      // Play correctly until w itself becomes the target.
+      let reached = false;
+      for (let i = 0; i < ROUND + 5; i++) {
+        if (doneShown()) break;
+        if (el("pTarget").textContent === w) { reached = true; break; }
+        L.fireClick(el("pTarget").textContent);
+        await vi.advanceTimersByTimeAsync(700);
+      }
+
+      expect(reached).toBe(true);
+      expect(el("pTarget").textContent).toBe(w);
+      expect(L.layerFor(w)._locked).toBe(false);
+      expect(L.layerFor(w)._revealed).toBe(false);
+      expect(L.layerFor(w)._tooltip).toBe(null);
+    } finally {
+      rnd.mockRestore();
+    }
   });
 
   it("shows a running accuracy that is 50% after one correct then one wrong", async () => {
@@ -293,8 +306,8 @@ describe("neighborhoods quiz — save/auth outcomes", () => {
     expect(Profiles.recordPlay).toHaveBeenCalledWith({
       gameId: "sf-neighborhoods",
       mode: "find",
-      score: N,
-      total: N,
+      score: ROUND,
+      total: ROUND,
     });
   });
 
@@ -338,8 +351,8 @@ describe("neighborhoods quiz — save/auth outcomes", () => {
     expect(Profiles.recordPlay).toHaveBeenCalledWith({
       gameId: "sf-neighborhoods",
       mode: "find",
-      score: N,
-      total: N,
+      score: ROUND,
+      total: ROUND,
     });
 
     el("saveLogin").click();
