@@ -14,8 +14,8 @@ const fixture = JSON.parse(
 );
 const HOOD_NAMES = fixture.geo.features.map(f => f.properties.name);
 const N = HOOD_NAMES.length;
-// A find/name round is capped at 10 sampled hoods (see ROUND_MAX in the game).
-const ROUND = Math.min(10, N);
+// A find/name round plays every neighborhood in the city.
+const ROUND = N;
 // The game sorts hood names; a stubbed identity shuffle makes a round the first
 // ROUND of this sorted list, in order — used where a test needs a known round.
 const SORTED = [...HOOD_NAMES].sort();

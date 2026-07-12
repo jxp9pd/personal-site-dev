@@ -10,10 +10,6 @@ import { fetchQuiz, fetchQuizList } from './dataClient.js';
 
 const el = id => document.getElementById(id);
 
-// A find/name round is capped at this many neighborhoods. Cities with more are
-// randomly sampled down to this each round, so a round stays a quick, varied 10.
-const ROUND_MAX = 10;
-
 function currentSlug() {
   return new URLSearchParams(location.search).get('city');
 }
@@ -125,8 +121,7 @@ function boot(quiz) {
 
   // ---- state ----
   let mode = 'find', queue = [], current = null,
-    correct = 0, answered = 0, choiceWrap = null,
-    roundTotal = 0;
+    correct = 0, answered = 0, choiceWrap = null;
   function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0;[a[i], a[j]] = [a[j], a[i]]; } return a; }
   function clearChoices() { if (choiceWrap) { choiceWrap.remove(); choiceWrap = null; } }
 
@@ -150,8 +145,7 @@ function boot(quiz) {
       return;
     }
     el('prompt').style.display = 'block';
-    queue = shuffle(HOOD_NAMES).slice(0, ROUND_MAX);
-    roundTotal = queue.length;
+    queue = shuffle(HOOD_NAMES);
     el('pLabel').textContent = mode === 'find' ? 'Find on the map' : 'Name this neighborhood';
     next();
   }
@@ -176,7 +170,7 @@ function boot(quiz) {
   }
 
   function updateStat() {
-    const total = roundTotal;
+    const total = HOOD_NAMES.length;
     // Segments are spans so the mobile breakpoint can drop "left"/"accuracy"
     // and show only the count. The leading " · " lives inside each optional
     // span so hiding it removes its separator too. textContent is unchanged.
@@ -256,7 +250,7 @@ function boot(quiz) {
 
     let outcome;
     try {
-      outcome = await Profiles.recordPlay({ gameId, mode, score: correct, total: roundTotal });
+      outcome = await Profiles.recordPlay({ gameId, mode, score: correct, total: HOOD_NAMES.length });
     } catch (err) {
       console.error('recordPlay failed', err);
       outcome = { status: 'failed', error: err };
@@ -279,7 +273,7 @@ function boot(quiz) {
     el('done').style.display = 'flex';
     const pct = answered ? Math.round(correct / answered * 100) : 0;
     el('doneTitle').textContent = pct >= 90 ? 'Local legend' : pct >= 70 ? 'Solid' : pct >= 50 ? 'Getting there' : 'Keep at it';
-    el('doneScore').textContent = `${correct}/${roundTotal} correct · ${pct}% accuracy`;
+    el('doneScore').textContent = `${correct}/${HOOD_NAMES.length} correct · ${pct}% accuracy`;
 
     el('saveNudge').hidden = true;
     el('savedNote').hidden = true;
@@ -293,7 +287,7 @@ function boot(quiz) {
 
     if (!loggedIn) {
       // Guest: capture holds the play so it flushes on later login; nudge to it.
-      try { Profiles.recordPlay({ gameId, mode, score: correct, total: roundTotal }); }
+      try { Profiles.recordPlay({ gameId, mode, score: correct, total: HOOD_NAMES.length }); }
       catch (err) { console.error('recordPlay failed', err); }
       el('saveNudge').hidden = false;
       return;
