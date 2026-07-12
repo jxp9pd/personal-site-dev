@@ -27,6 +27,7 @@ const DATA_DIR = resolve(HERE, '../data/packs');
 const PACKS = [
   { file: 'wearables.data.json' },
   { file: 'groceries.data.json' },
+  { file: 'starter-pack.data.json' },
 ];
 
 const SUPABASE_URL = process.env.SUPABASE_URL || CONFIG_URL;
