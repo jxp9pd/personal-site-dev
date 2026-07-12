@@ -21,13 +21,15 @@ import { SUPABASE_URL as CONFIG_URL } from '../fe-artifacts/assets/js/config.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = resolve(HERE, '../data/packs');
+const ART_DIR = resolve(DATA_DIR, 'art');
 
-// Each entry names a data file in data/packs/. Everything else (metadata + the
-// item list) is read from that file.
+// Each entry names a data file in data/packs/ (metadata + item list) and an
+// optional `art` SVG in data/packs/art/ rendered behind the pack name on the
+// selector — mirroring how upload-quizzes.mjs handles landmark art.
 const PACKS = [
-  { file: 'wearables.data.json' },
-  { file: 'groceries.data.json' },
-  { file: 'starter-pack.data.json' },
+  { file: 'wearables.data.json', art: 'wearables.svg' },
+  { file: 'groceries.data.json', art: 'groceries.svg' },
+  { file: 'starter-pack.data.json', art: 'starter-pack.svg' },
 ];
 
 const SUPABASE_URL = process.env.SUPABASE_URL || CONFIG_URL;
@@ -48,11 +50,21 @@ const AUTH_HEADERS = {
   'Content-Type': 'application/json',
 };
 
-async function readPack(file) {
-  const raw = await readFile(resolve(DATA_DIR, file), 'utf8');
+async function readPack(entry) {
+  const raw = await readFile(resolve(DATA_DIR, entry.file), 'utf8');
   const pack = JSON.parse(raw);
   if (!Array.isArray(pack.items) || pack.items.length === 0) {
-    throw new Error(`${file} has no items`);
+    throw new Error(`${entry.file} has no items`);
+  }
+  // Pack art is optional: a missing file leaves art_svg null and the card falls
+  // back to the plain centered name.
+  if (entry.art) {
+    try {
+      pack.art_svg = (await readFile(resolve(ART_DIR, entry.art), 'utf8')).trim();
+    } catch (err) {
+      if (err.code !== 'ENOENT') throw err;
+      console.warn(`  ! ${pack.slug}: art file ${entry.art} not found, skipping art_svg`);
+    }
   }
   return pack;
 }
@@ -110,7 +122,7 @@ async function publishPack(pack, index) {
 async function main() {
   let itemTotal = 0;
   for (const [i, entry] of PACKS.entries()) {
-    const pack = await readPack(entry.file);
+    const pack = await readPack(entry);
     await publishPack(pack, i);
     itemTotal += pack.items.length;
     console.log(`  published ${pack.slug.padEnd(12)} ${pack.items.length} items`);

@@ -56,16 +56,14 @@
   #select h1{font-family:var(--font-display);font-size:clamp(2.4rem,6vw,3.2rem);
     margin:0 0 4px;font-weight:400;line-height:1}
   .pack-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
-  .pack-card{position:relative;display:flex;align-items:flex-end;min-height:150px;
-    background:var(--paper-2);overflow:hidden;border:1px solid var(--line);
+  .pack-card{position:relative;display:flex;align-items:center;justify-content:center;
+    min-height:150px;background:var(--paper-2);overflow:hidden;border:1px solid var(--line);
     border-radius:16px;padding:18px;text-decoration:none;color:var(--ink)}
   .pack-card .art{position:absolute;inset:0;color:var(--ink);opacity:.12;
     pointer-events:none;display:block}
   .pack-card .art svg{width:100%;height:100%;display:block}
-  .pack-card .pack-body{position:relative;display:flex;flex-direction:column;gap:4px}
-  .pack-card .name{font-family:var(--font-display);font-size:26px;font-weight:400;
-    letter-spacing:.01em;line-height:1.05;transition:color .2s}
-  .pack-card .desc{font-size:12px;color:var(--muted);line-height:1.4}
+  .pack-card .name{position:relative;font-family:var(--font-display);font-size:26px;
+    font-weight:400;text-align:center;letter-spacing:.01em;line-height:1.1;transition:color .2s}
   .pack-card:hover .name{color:var(--accent)}
   .select-msg{grid-column:1/-1;color:var(--muted);font-size:14px;margin:8px 2px}
 
