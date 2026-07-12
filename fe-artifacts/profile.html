@@ -47,6 +47,12 @@
   .topnav .home:hover{color:var(--ink)}
   .topnav .nav-title{font-family:var(--font-display);color:var(--ink);font-size:22px;
     font-weight:400;letter-spacing:.01em}
+  .topnav .logout{background:transparent;border:1px solid var(--line-strong);color:var(--muted);
+    font-family:var(--font-mono);font-size:11px;font-weight:500;text-transform:uppercase;
+    letter-spacing:.14em;padding:8px 16px;border-radius:999px;cursor:pointer;
+    transition:color .2s,border-color .2s}
+  .topnav .logout:hover{border-color:var(--ink);color:var(--ink)}
+  .topnav .logout[hidden]{display:none}
 
   .body{padding:28px 24px 36px}
 
@@ -148,7 +154,7 @@
           <a class="home" href="/games">&larr; Home</a>
           <span class="nav-title" id="navTitle">Your Profile</span>
         </div>
-        <div id="profileMount"></div>
+        <button class="logout" id="logoutBtn" type="button" hidden>Log out</button>
       </nav>
       <div class="body" id="content"></div>
     </div>
@@ -170,10 +176,14 @@ const LOG_PAGE_SIZE = 10;
 const content = document.getElementById("content");
 const navTitle = document.getElementById("navTitle");
 
-// Header account button + shared login modal + logged-out auto-prompt come from
-// the facade; this page owns the card body below the nav.
-Profiles.init({ headerMount: document.getElementById("profileMount") })
+// The shared login modal + logged-out auto-prompt come from the facade, but this
+// page opts out of the header profile button (headerMount: null) — linking to
+// the profile from the profile itself is a no-op. Logout lives in its own button.
+Profiles.init({ headerMount: null })
   .catch(err => console.error("Profiles init failed", err));
+
+const logoutBtn = document.getElementById("logoutBtn");
+logoutBtn.addEventListener("click", () => Profiles.logout());
 
 function esc(value) {
   return String(value)
@@ -441,10 +451,11 @@ function renderContent() {
 
   const header = personHtml(profile, session, isOwnProfile);
 
-  // Public profiles surface the bio read-only under the header; own profiles
-  // edit it in the Profile tab instead (mirroring the mockup).
-  const publicBio = !isOwnProfile && (profile.bio ?? "").trim()
-    ? `<div class="bio-public">${esc((profile.bio ?? "").trim())}</div>`
+  // Bio reads directly under the header (i.e. beneath the email/joined meta) on
+  // both own and public profiles. Own profiles still edit it in the Profile tab.
+  const bioText = (profile.bio ?? "").trim();
+  const bioBlock = bioText
+    ? `<div class="bio-public">${esc(bioText)}</div>`
     : "";
 
   const tabs = isOwnProfile ? `
@@ -457,7 +468,7 @@ function renderContent() {
     ? profilePanelHtml(profile)
     : gamesPanelHtml();
 
-  content.innerHTML = `${header}${publicBio}${tabs}${panel}`;
+  content.innerHTML = `${header}${bioBlock}${tabs}${panel}`;
 
   wireTabs();
   wireRecordToggles();
@@ -526,7 +537,25 @@ function wireProfileForm() {
     cancelBtn.disabled = false;
     note.className = "note ok";
     note.textContent = "Saved";
+    syncHeaderBio();
   });
+}
+
+// Reflects a bio edit in the read-only block under the header without a full
+// re-render, so the "Saved" note below the form is preserved.
+function syncHeaderBio() {
+  const text = (viewCtx.profile.bio ?? "").trim();
+  let block = content.querySelector(".bio-public");
+  if (text) {
+    if (!block) {
+      block = document.createElement("div");
+      block.className = "bio-public";
+      content.querySelector(".person")?.insertAdjacentElement("afterend", block);
+    }
+    block.textContent = text;
+  } else if (block) {
+    block.remove();
+  }
 }
 
 function fallbackProfile(session) {
@@ -567,6 +596,10 @@ async function refresh(sessionArg) {
     }
     if (seq !== renderSeq) return;
   }
+
+  // Logout only makes sense while signed in; the logged-out body has its own
+  // login prompt, so the top-right stays empty then.
+  logoutBtn.hidden = !session;
 
   const requested = requestedUsername();
 

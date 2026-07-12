@@ -131,4 +131,8 @@ function promptLogin() {
   authUI?.openModal();
 }
 
-export const Profiles = { init, recordPlay, isLoggedIn, promptLogin };
+function logout() {
+  return dataClient.signOut();
+}
+
+export const Profiles = { init, recordPlay, isLoggedIn, promptLogin, logout };
