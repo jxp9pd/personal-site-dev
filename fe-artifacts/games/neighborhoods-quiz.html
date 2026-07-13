@@ -85,25 +85,28 @@
   .prompt .target{font-family:var(--font-display);font-size:26px;font-weight:400;
     margin-top:2px;line-height:1.1}
   .prompt .fb{font-size:13px;margin-top:4px;min-height:17px}
-  /* NAME-mode multiple-choice buttons live inside the prompt; keep proper-noun
-     casing readable rather than the chrome buttons' uppercase pill treatment. */
-  .prompt .btn{text-transform:none;letter-spacing:.01em;font-weight:500;
-    padding:8px 10px;justify-content:center}
   .fb.good{color:var(--good)} .fb.bad{color:var(--bad)}
-  .done{position:absolute;inset:0;z-index:600;background:rgba(253,252,243,.92);
-    display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
-  .done h2{font-family:var(--font-display);margin:0;font-size:34px;font-weight:400}
-  .done .score{font-size:14px;color:var(--muted)}
-  .save-nudge{display:flex;flex-direction:column;align-items:center;gap:8px;
-    color:var(--muted);font-size:13px}
-  .save-nudge[hidden]{display:none}
-  .saved-note{font-size:13px;color:var(--good)}
-  .saved-note[hidden]{display:none}
-  .save-error{display:flex;flex-direction:column;align-items:center;gap:8px;
-    color:var(--bad);font-size:13px}
-  .save-error[hidden]{display:none}
-  .save-error .btn{border-color:var(--bad);color:var(--bad)}
-  .save-error .btn:hover{background:var(--bad);color:var(--paper)}
+
+  /* NAME mode (timed type-to-recall). Pre-game panel reuses the .prompt card;
+     the play input is a centered pill floating over the map. */
+  .name-pregame .name-pregame-sub{font-size:12px;color:var(--muted);
+    margin:8px 0 12px;line-height:1.4}
+  .name-pregame[hidden]{display:none}
+  .name-play{position:absolute;top:14px;left:50%;transform:translateX(-50%);
+    z-index:500;width:min(340px,calc(100% - 24px))}
+  .name-play[hidden]{display:none}
+  #nameInput{width:100%;background:var(--paper);border:1px solid var(--line);
+    border-radius:14px;padding:12px 18px;font-family:var(--font-mono);font-size:16px;
+    color:var(--ink);text-align:center;
+    box-shadow:0 10px 30px -12px rgba(20,19,15,.35);
+    transition:border-color .15s,box-shadow .15s}
+  #nameInput:focus{outline:none;border-color:var(--accent)}
+  /* Miss cue on Enter: color only, no movement. */
+  #nameInput.flash-bad{border-color:var(--bad);
+    box-shadow:0 0 0 2px var(--bad),0 10px 30px -12px rgba(20,19,15,.35)}
+  #nameGiveUp{margin-top:8px;width:100%;justify-content:center}
+  /* Low-time countdown turns red at ≤60s (color only, no pulse). */
+  #stat .time.low{color:var(--bad);font-weight:500}
   .leaflet-interactive{transition:fill .25s,fill-opacity .25s}
   .answer-tip{background:var(--paper);border:1px solid var(--line);color:var(--ink);
     font-family:var(--font-mono);font-size:12px;padding:2px 7px;border-radius:6px;
@@ -164,13 +167,11 @@
       box-shadow:0 -6px 20px -12px rgba(20,19,15,.4)}
     #modeTabs button{flex:1;padding:12px 8px;border-radius:12px;font-size:11px}
 
-    /* Prompt near full-width, pinned top; Name choices stay a tappable 2×2. */
+    /* Prompt near full-width, pinned top; Name-it controls match its width. */
     .prompt{left:12px;right:12px;transform:none;min-width:0;width:auto;padding:10px 14px}
     .prompt .target{font-size:22px}
     .prompt .btn{padding:12px 10px;min-height:44px}
-
-    /* Done screen clears the fixed bottom bar. */
-    .done{padding-bottom:76px}
+    .name-play{left:12px;right:12px;transform:none;width:auto}
 
     /* Selector polish: slimmer top bar, less padding, full-width heading. */
     .site-head{padding:16px 18px;gap:12px;flex-wrap:wrap}
@@ -204,8 +205,8 @@
     <a class="back" href="?">&larr; Home</a>
     <h1 id="title">Neighborhoods</h1>
     <div class="mode-tabs" id="modeTabs">
-      <button data-mode="find" class="active">Find it</button>
-      <button data-mode="name">Name it</button>
+      <button data-mode="name" class="active">Name it</button>
+      <button data-mode="find">Find it</button>
       <button data-mode="learn">Learn</button>
     </div>
     <div class="spacer"></div>
@@ -221,19 +222,16 @@
       <div class="target" id="pTarget">—</div>
       <div class="fb" id="pFb"></div>
     </div>
-    <div class="done" id="done">
-      <h2 id="doneTitle">Done</h2>
-      <div class="score" id="doneScore"></div>
-      <div class="save-nudge" id="saveNudge" hidden>
-        <span id="saveNudgeText">Log in to save this score to your profile.</span>
-        <button class="btn" id="saveLogin">Log in to save</button>
-      </div>
-      <div class="saved-note" id="savedNote" hidden>Saved to your profile</div>
-      <div class="save-error" id="saveError" hidden>
-        <span>Couldn’t save this score — check your connection.</span>
-        <button class="btn" id="saveRetry">Retry</button>
-      </div>
-      <button class="btn" id="doneRestart">Go again</button>
+    <div class="prompt name-pregame" id="namePregame" hidden>
+      <div class="label">Name it</div>
+      <div class="target" id="namePregameCount">— neighborhoods</div>
+      <p class="name-pregame-sub">Type as many as you can before the 10:00 clock runs out.</p>
+      <button class="btn" id="nameStart">Start</button>
+    </div>
+    <div class="name-play" id="namePlay" hidden>
+      <input type="text" id="nameInput" placeholder="Type a neighborhood…"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <button class="btn" id="nameGiveUp">Give up</button>
     </div>
   </main>
 </div>

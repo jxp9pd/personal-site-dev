@@ -8,6 +8,7 @@
 import { Profiles } from './profiles.js';
 import { fetchQuiz, fetchQuizList } from './dataClient.js';
 import { Leaderboard } from './leaderboard.js';
+import { createNameIndex } from './nameMatch.js';
 
 const el = id => document.getElementById(id);
 
@@ -96,6 +97,9 @@ function boot(quiz) {
   const GEO = quiz.geo;
   const HOOD_NAMES = GEO.features.map(f => f.properties.name).sort();
   const CENTER = quiz.center, ZOOM = quiz.zoom;
+  // Forgiving name matcher for the timed type-to-recall mode (aliases included).
+  const NAME_INDEX = createNameIndex(GEO.features);
+  const NAME_SECONDS = 600; // 10-minute countdown
 
   // single source of truth for semantic colors: the CSS :root tokens
   const cssVar = (() => { const s = getComputedStyle(document.documentElement); return n => s.getPropertyValue(n).trim(); })();
@@ -137,10 +141,18 @@ function boot(quiz) {
   function revealName(l, name) { l._revealed = true; l.bindTooltip(name, { className: 'answer-tip', direction: 'top' }); }
 
   // ---- state ----
-  let mode = 'find', queue = [], current = null,
-    correct = 0, answered = 0, choiceWrap = null;
+  // Name it (timed recall) is the default mode for neighborhood games.
+  let mode = 'name', queue = [], current = null,
+    correct = 0, answered = 0;
+  // name-mode (timed type-to-recall) state
+  let found = new Set(), nameTimer = null, timeLeft = 0;
   function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0;[a[i], a[j]] = [a[j], a[i]]; } return a; }
-  function clearChoices() { if (choiceWrap) { choiceWrap.remove(); choiceWrap = null; } }
+
+  // The countdown interval must die whenever a round ends so it can't leak into
+  // the next round.
+  function clearNameTimers() {
+    if (nameTimer) { clearInterval(nameTimer); nameTimer = null; }
+  }
 
   function setMode(m) {
     mode = m;
@@ -150,41 +162,39 @@ function boot(quiz) {
   }
 
   function startRound() {
+    clearNameTimers();
     hoodReset();
     el('app').dataset.mode = mode;
     correct = 0; answered = 0; current = null;
-    el('done').style.display = 'none';
+    found = new Set();
     el('pFb').textContent = ''; el('pFb').className = 'fb';
-    clearChoices();
     if (mode === 'learn') {
       el('prompt').style.display = 'none';
+      el('namePregame').hidden = true;
+      el('namePlay').hidden = true;
       el('stat').textContent = 'Hover a neighborhood to reveal its name · ' + HOOD_NAMES.length + ' total';
       map.setView(CENTER, ZOOM);
       return;
     }
+    if (mode === 'name') {
+      startNameRound();
+      return;
+    }
     el('prompt').style.display = 'block';
+    el('namePregame').hidden = true;
+    el('namePlay').hidden = true;
     queue = shuffle(HOOD_NAMES);
-    el('pLabel').textContent = mode === 'find' ? 'Find on the map' : 'Name this neighborhood';
+    el('pLabel').textContent = 'Find on the map';
     next();
   }
 
+  // FIND only: one target at a time, pulled from a shuffled queue.
   function next() {
     el('pFb').textContent = ''; el('pFb').className = 'fb';
-    clearChoices();
     if (queue.length === 0) { return finish(); }
     current = queue.shift();
     updateStat();
-    if (mode === 'find') {
-      el('pTarget').textContent = current;
-    } else { // name
-      hoodLayer.eachLayer(l => { l._locked = false; styleIdle(l); });
-      const l = hoodByName[current];
-      l._locked = true;
-      emphasize(l);
-      el('pTarget').textContent = '???';
-      map.fitBounds(l.getBounds(), { padding: [60, 60], maxZoom: 14 });
-      buildChoices();
-    }
+    el('pTarget').textContent = current;
   }
 
   function updateStat() {
@@ -218,36 +228,109 @@ function boot(quiz) {
     setTimeout(next, 700);
   }
 
-  // NAME: multiple choice
-  function buildChoices() {
-    clearChoices();
-    const pool = shuffle(HOOD_NAMES.filter(n => n !== current)).slice(0, 3);
-    const opts = shuffle(pool.concat(current));
-    choiceWrap = document.createElement('div');
-    choiceWrap.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px';
-    opts.forEach(o => {
-      const b = document.createElement('button');
-      b.className = 'btn'; b.textContent = o; b.style.fontSize = '12px';
-      b.onclick = () => chooseName(o, b);
-      choiceWrap.appendChild(b);
-    });
-    el('prompt').appendChild(choiceWrap);
+  // NAME: timed type-to-recall. A pre-game panel gates the clock; nothing runs
+  // until the player hits Start (unlike find, which auto-starts a round).
+  function startNameRound() {
+    el('prompt').style.display = 'none';
+    el('namePlay').hidden = true;
+    el('nameInput').value = '';
+    el('nameInput').classList.remove('flash-bad');
+    el('namePregameCount').textContent = `${HOOD_NAMES.length} neighborhoods`;
+    el('namePregame').hidden = false;
+    el('stat').textContent = '';
+    map.setView(CENTER, ZOOM);
   }
-  function chooseName(o, b) {
-    answered++;
-    if (o === current) {
-      correct++;
-      b.style.background = C.goodFill; b.style.borderColor = C.good;
-      el('pFb').textContent = 'Correct'; el('pFb').className = 'fb good';
-    } else {
-      b.style.background = C.badFill; b.style.borderColor = C.bad;
-      el('pFb').textContent = 'Nope — ' + current; el('pFb').className = 'fb bad';
-      [...choiceWrap.children].forEach(c => { if (c.textContent === current) { c.style.background = C.goodFill; c.style.borderColor = C.good; } });
+
+  function nameStart() {
+    if (mode !== 'name') return;
+    clearNameTimers();
+    found = new Set();
+    timeLeft = NAME_SECONDS;
+    el('namePregame').hidden = true;
+    el('namePlay').hidden = false;
+    renderNameStat();
+    el('nameInput').value = '';
+    el('nameInput').focus();
+    nameTimer = setInterval(nameTick, 1000);
+  }
+
+  function nameTick() {
+    timeLeft = Math.max(0, timeLeft - 1);
+    renderNameStat();
+    if (timeLeft <= 0) endNameRound();
+  }
+
+  function fmtTime(s) {
+    const m = Math.floor(s / 60);
+    return `${m}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  function renderNameStat() {
+    const total = HOOD_NAMES.length;
+    const low = timeLeft <= 60 ? ' low' : '';
+    el('stat').innerHTML =
+      `<span class="s-correct"><b>${found.size}</b>/${total} found</span>` +
+      `<span class="s-left"> · <span class="time${low}">${fmtTime(timeLeft)}</span> left</span>`;
+  }
+
+  function flashInput() {
+    const input = el('nameInput');
+    input.classList.remove('flash-bad');
+    // reflow so re-adding the class always restarts the color cue
+    void input.offsetWidth;
+    input.classList.add('flash-bad');
+  }
+
+  // A guess is only checked on Enter (no live auto-submit). A miss flashes the
+  // box; a hit credits the hood and clears the box.
+  function checkName() {
+    if (mode !== 'name' || !nameTimer) return;
+    const input = el('nameInput');
+    const canonical = NAME_INDEX.match(input.value);
+    if (!canonical) { flashInput(); return; }
+    if (found.has(canonical)) return; // already found: no-op, keep the text
+    found.add(canonical);
+    const l = hoodByName[canonical];
+    if (l) {
+      l._locked = true;
+      styleOk(l);
+      // Green fill marks a hood as found; its name shows on hover/tap (not a
+      // permanent label) so accumulating labels don't bury the map mid-round.
+      revealName(l, canonical);
     }
-    el('pTarget').textContent = current;
-    [...choiceWrap.children].forEach(c => c.disabled = true);
-    updateStat();
-    setTimeout(() => { clearChoices(); next(); }, 700);
+    input.value = '';
+    correct = found.size;
+    renderNameStat();
+    if (found.size >= HOOD_NAMES.length) endNameRound();
+  }
+
+  function onNameKeydown(e) {
+    if (mode !== 'name' || !nameTimer) return;
+    if (e.key === 'Enter') checkName();
+  }
+
+  // Both end conditions (all found, timer expiry) route through the shared
+  // finish() path; correct/answered are set so the accuracy title + save shape
+  // match find mode exactly (score = found count, all N treated as answered).
+  function endNameRound() {
+    clearNameTimers();
+    correct = found.size;
+    answered = HOOD_NAMES.length;
+    finish();
+  }
+
+  // End-of-round map reveal (both modes): the hoods the player got stay green;
+  // every other one turns red. Names show on hover/tap. This, with the
+  // leaderboard, replaces the old score screen — the misses live on the map.
+  function revealResults() {
+    hoodLayer.eachLayer(l => {
+      const name = l.feature.properties.name;
+      const gotIt = mode === 'name' ? found.has(name) : !!l._revealed;
+      if (gotIt) return;
+      l._locked = true;
+      styleWrong(l);
+      revealName(l, name);
+    });
   }
 
   // LEARN: hover reveals name
@@ -257,79 +340,49 @@ function boot(quiz) {
     l.on('mouseout', () => { styleIdle(l); }, { once: true });
   }
 
-  // Persists the just-finished play and reflects the ACTUAL outcome: "Saved to
-  // your profile" appears only once the row truly lands. A failed write shows a
-  // retry affordance instead of a false success, and the recorder keeps the play
-  // so the retry (or a later auth event) can still flush it.
-  async function saveResult() {
-    const nudge = el('saveNudge'), note = el('savedNote'), error = el('saveError');
-    nudge.hidden = true; error.hidden = true;
-    note.hidden = false; note.textContent = 'Saving…';
-
-    let outcome;
-    try {
-      outcome = await Profiles.recordPlay({ gameId, mode, score: correct, total: HOOD_NAMES.length });
-    } catch (err) {
-      console.error('recordPlay failed', err);
-      outcome = { status: 'failed', error: err };
-    }
-
-    const status = outcome?.status;
-    if (status === 'saved') {
-      note.textContent = 'Saved to your profile';
-    } else if (status === 'pending') {
-      // Auth was lost between the check and the write; fall back to the nudge.
-      note.hidden = true;
-      nudge.hidden = false;
-    } else {
-      note.hidden = true;
-      error.hidden = false;
-    }
-  }
-
+  // End of a scored round: reveal the map, record the play, and open the
+  // leaderboard as the end screen. There is no separate score page — the board
+  // carries the standings and the map carries the answers. Closing the board
+  // (×, Esc, backdrop) leaves the revealed map so the player can explore it.
   async function finish() {
-    el('done').style.display = 'flex';
-    const pct = answered ? Math.round(correct / answered * 100) : 0;
-    el('doneTitle').textContent = pct >= 90 ? 'Local legend' : pct >= 70 ? 'Solid' : pct >= 50 ? 'Getting there' : 'Keep at it';
-    el('doneScore').textContent = `${correct}/${HOOD_NAMES.length} correct · ${pct}% accuracy`;
-
-    el('saveNudge').hidden = true;
-    el('savedNote').hidden = true;
-    el('saveError').hidden = true;
-
-    // Only tracked modes count as a completed play; learn never reaches finish().
+    clearNameTimers();
+    // Only find/name are scored/finishable; learn never reaches finish().
     if (mode !== 'find' && mode !== 'name') return;
 
-    let loggedInNow = false;
-    try { loggedInNow = Profiles.isLoggedIn(); } catch { }
+    revealResults();
+    // Clear the play controls so the map is unobstructed once the board closes.
+    el('prompt').style.display = 'none';
+    el('namePlay').hidden = true;
+    el('namePregame').hidden = true;
 
-    if (!loggedInNow) {
-      // Guest: capture holds the play so it flushes on later login; nudge to it.
-      try { Profiles.recordPlay({ gameId, mode, score: correct, total: HOOD_NAMES.length }); }
-      catch (err) { console.error('recordPlay failed', err); }
-      el('saveNudge').hidden = false;
-      return;
-    }
+    const total = HOOD_NAMES.length;
+    const pct = total ? Math.round(correct / total * 100) : 0;
+    const title = pct >= 90 ? 'Local legend' : pct >= 70 ? 'Solid' : pct >= 50 ? 'Getting there' : 'Keep at it';
+    const subline = mode === 'name'
+      ? `${correct} of ${total} found · ${fmtTime(NAME_SECONDS - timeLeft)}`
+      : `${correct} of ${total} correct`;
 
-    // Land the row first so the board (and the viewer's placement) reflects this
-    // round, then celebrate with the leaderboard modal over the done overlay.
-    await saveResult();
+    // Guest → the recorder holds the play and flushes on a later login; logged
+    // in → it persists now (awaited so the board reflects this round's row).
+    try { await Profiles.recordPlay({ gameId, mode, score: correct, total }); }
+    catch (err) { console.error('recordPlay failed', err); }
+
     Leaderboard.open({
       gameId,
       mode,
       variant: 'round',
       eyebrow: boardEyebrow(),
-      title: el('doneTitle').textContent,
-      subline: `${correct} of ${HOOD_NAMES.length} correct`,
+      title,
+      subline,
       onAgain: () => startRound(),
     });
   }
 
   document.querySelectorAll('#modeTabs button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  el('nameStart').onclick = nameStart;
+  el('nameGiveUp').onclick = () => { if (nameTimer) endNameRound(); };
+  el('nameInput').addEventListener('keydown', onNameKeydown);
   el('restart').onclick = startRound;
-  el('doneRestart').onclick = startRound;
-  el('saveLogin').onclick = () => { try { Profiles.promptLogin(); } catch (err) { console.error('promptLogin failed', err); } };
-  el('saveRetry').onclick = () => { saveResult().catch(err => console.error('retry save failed', err)); };
 
   startRound();
 }
