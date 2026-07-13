@@ -326,6 +326,99 @@ describe("neighborhoods quiz — name mode (timed type-to-recall)", () => {
   });
 });
 
+describe("neighborhoods quiz — name mode finish (give up, missed reveal, time used)", () => {
+  it("give up during a round ends it and shows the done screen", async () => {
+    await bootQuiz();
+    switchMode("name");
+    el("nameStart").click();
+
+    el("nameGiveUp").click();
+
+    expect(doneShown()).toBe(true);
+  });
+
+  it("lists + reveals the missed hoods while leaving the found ones off the list", async () => {
+    const L = await bootQuiz();
+    switchMode("name");
+    el("nameStart").click();
+
+    await typeName("Chinatown");
+    await typeName("Nob Hill");
+    el("nameGiveUp").click();
+
+    const missedText = el("doneMissed").textContent;
+    // Found hoods are not in the missed list.
+    expect(missedText).not.toContain("Chinatown");
+    expect(missedText).not.toContain("Nob Hill");
+
+    // Two specific known misses are listed and revealed on the map.
+    const missedNames = HOOD_NAMES.filter(n => n !== "Chinatown" && n !== "Nob Hill");
+    for (const name of missedNames.slice(0, 2)) {
+      expect(missedText).toContain(name);
+      const tip = L.layerFor(name)._tooltip;
+      expect(tip).not.toBe(null);
+      expect(tip.content).toBe(name);
+      expect(tip.opts.permanent).toBe(true);
+    }
+
+    // A found layer keeps its own label and is not part of the missed reveal.
+    expect(L.layerFor("Chinatown")._tooltip.content).toBe("Chinatown");
+  });
+
+  it("shows the full time used when the timer expires", async () => {
+    await bootQuiz();
+    switchMode("name");
+    el("nameStart").click();
+
+    await vi.advanceTimersByTimeAsync(600 * 1000);
+
+    expect(el("doneScore").textContent).toContain("Time used 10:00");
+  });
+
+  it("shows the elapsed time used when giving up mid-round", async () => {
+    await bootQuiz();
+    switchMode("name");
+    el("nameStart").click();
+
+    await vi.advanceTimersByTimeAsync(5 * 1000);
+    el("nameGiveUp").click();
+
+    expect(el("doneScore").textContent).toContain("Time used 0:05");
+  });
+
+  it("records the play as mode:'name' with score = found count when giving up", async () => {
+    await bootQuiz();
+    switchMode("name");
+    el("nameStart").click();
+
+    await typeName("Chinatown");
+    await typeName("Nob Hill");
+    el("nameGiveUp").click();
+    await flush();
+
+    expect(Profiles.recordPlay).toHaveBeenCalledWith({
+      gameId: "sf-neighborhoods",
+      mode: "name",
+      score: 2,
+      total: N,
+    });
+  });
+
+  it("clears the missed list when starting a new round", async () => {
+    await bootQuiz();
+    switchMode("name");
+    el("nameStart").click();
+    await typeName("Chinatown");
+    el("nameGiveUp").click();
+    expect(el("doneMissed").hidden).toBe(false);
+
+    el("doneRestart").click();
+
+    expect(el("doneMissed").hidden).toBe(true);
+    expect(el("doneMissed").innerHTML).toBe("");
+  });
+});
+
 // ---- T4 ---------------------------------------------------------------------
 describe("neighborhoods quiz — learn mode hover reveal", () => {
   it("hides the prompt and shows the hover instructions with the total", async () => {

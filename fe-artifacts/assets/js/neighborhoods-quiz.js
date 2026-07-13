@@ -168,6 +168,7 @@ function boot(quiz) {
     correct = 0; answered = 0; current = null;
     found = new Set();
     el('done').style.display = 'none';
+    el('doneMissed').hidden = true; el('doneMissed').innerHTML = '';
     el('pFb').textContent = ''; el('pFb').className = 'fb';
     if (mode === 'learn') {
       el('prompt').style.display = 'none';
@@ -330,6 +331,33 @@ function boot(quiz) {
     finish();
   }
 
+  // Finish-screen enrichment for name mode: reveal every unfound polygon in red
+  // with a permanent label (mirroring the found layers), list the misses, and
+  // show elapsed time. Cosmetic only — the save shape is unchanged.
+  function nameFinishReveal() {
+    const missed = [];
+    hoodLayer.eachLayer(l => {
+      const name = l.feature.properties.name;
+      if (found.has(name)) return;
+      missed.push(name);
+      styleWrong(l);
+      l.bindTooltip(name, { className: 'answer-tip', permanent: true, direction: 'top' });
+    });
+    const box = el('doneMissed');
+    if (missed.length) {
+      box.hidden = false;
+      box.innerHTML =
+        `<div class="missed-label">Missed</div>` +
+        `<div class="missed-names">${missed.map(esc).join(', ')}</div>`;
+    } else {
+      box.hidden = true;
+      box.innerHTML = '';
+    }
+    const used = NAME_SECONDS - timeLeft;
+    el('doneScore').textContent =
+      `${found.size}/${HOOD_NAMES.length} found · Time used ${fmtTime(used)}`;
+  }
+
   // LEARN: hover reveals name
   function revealHover(name, l) {
     emphasize(l);
@@ -372,6 +400,7 @@ function boot(quiz) {
     const pct = answered ? Math.round(correct / answered * 100) : 0;
     el('doneTitle').textContent = pct >= 90 ? 'Local legend' : pct >= 70 ? 'Solid' : pct >= 50 ? 'Getting there' : 'Keep at it';
     el('doneScore').textContent = `${correct}/${HOOD_NAMES.length} correct · ${pct}% accuracy`;
+    if (mode === 'name') nameFinishReveal();
 
     el('saveNudge').hidden = true;
     el('savedNote').hidden = true;
@@ -407,6 +436,7 @@ function boot(quiz) {
 
   document.querySelectorAll('#modeTabs button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
   el('nameStart').onclick = nameStart;
+  el('nameGiveUp').onclick = () => { if (nameTimer) endNameRound(); };
   el('nameInput').addEventListener('input', onNameInput);
   el('nameInput').addEventListener('keydown', onNameKeydown);
   el('restart').onclick = startRound;
