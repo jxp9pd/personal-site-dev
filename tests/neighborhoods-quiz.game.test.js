@@ -45,11 +45,21 @@ vi.mock("../fe-artifacts/assets/js/profiles.js", () => ({
   },
 }));
 
+// The leaderboard modal is the end screen. Stub it so tests assert it opened
+// (and with what) without pulling in its DOM + data-client calls.
+vi.mock("../fe-artifacts/assets/js/leaderboard.js", () => ({
+  Leaderboard: { open: vi.fn(), close: vi.fn() },
+}));
+
 import { fetchQuiz } from "../fe-artifacts/assets/js/dataClient.js";
 import { Profiles } from "../fe-artifacts/assets/js/profiles.js";
+import { Leaderboard } from "../fe-artifacts/assets/js/leaderboard.js";
 import { start } from "../fe-artifacts/assets/js/neighborhoods-quiz.js";
 
-const doneShown = () => document.getElementById("done").style.display === "flex";
+// A finished round opens the leaderboard as its end screen (there is no separate
+// score page). These read that signal.
+const boardOpened = () => Leaderboard.open.mock.calls.length > 0;
+const lastBoard = () => Leaderboard.open.mock.calls.at(-1)?.[0];
 
 async function bootQuiz() {
   fetchQuiz.mockResolvedValue(sfQuiz());
@@ -61,15 +71,17 @@ async function bootQuiz() {
 }
 
 // Drives a perfect FIND round: click whatever #pTarget asks for, skip the
-// 700ms gap, until the done screen appears. Never assumes question order.
+// 700ms gap, until the leaderboard opens. Never assumes question order.
 async function playFindPerfect(L, cap = N + 5) {
   for (let i = 0; i < cap; i++) {
-    if (doneShown()) return;
+    if (boardOpened()) return;
     const target = document.getElementById("pTarget").textContent;
     L.fireClick(target);
     await vi.advanceTimersByTimeAsync(700);
   }
-  throw new Error("FIND round did not reach the done screen within the cap");
+  await flush();
+  if (boardOpened()) return;
+  throw new Error("FIND round did not open the leaderboard within the cap");
 }
 
 // setup.js clears CALL HISTORY (clearAllMocks) but not implementations, so a
@@ -85,29 +97,28 @@ const el = id => document.getElementById(id);
 const flush = () => vi.advanceTimersByTimeAsync(0);
 const switchMode = m => document.querySelector(`#modeTabs button[data-mode="${m}"]`).click();
 
-// Name mode (timed type-to-recall) driver: set the box, fire an `input` event
-// (live-typing path), optionally submit with Enter, then advance the ~400ms
-// debounce so any live check runs.
-async function typeName(text, { enter = false } = {}) {
+// Name mode (timed type-to-recall): a guess is only checked on Enter — there is
+// no live auto-submit — so this sets the box and presses Enter.
+async function typeName(text) {
   const input = el("nameInput");
   input.value = text;
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  if (enter) {
-    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-  }
-  await vi.advanceTimersByTimeAsync(400);
+  input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  await flush();
 }
 
 describe("neighborhoods quiz — find mode (perfect round)", () => {
-  it("drives a full perfect FIND round to a saved done screen", async () => {
+  it("drives a full perfect FIND round to the leaderboard end screen", async () => {
     const L = await bootQuiz();
+    switchMode("find");
 
     expect(document.getElementById("pTarget").textContent).not.toBe("");
     await playFindPerfect(L);
 
-    expect(doneShown()).toBe(true);
-    expect(document.getElementById("doneTitle").textContent.trim()).not.toBe("");
-    expect(document.getElementById("doneScore").textContent).toContain(`${ROUND}/${ROUND}`);
+    expect(boardOpened()).toBe(true);
+    expect(lastBoard().mode).toBe("find");
+    expect(lastBoard().subline).toContain(`${ROUND} of ${ROUND}`);
+    // The map is revealed for exploration: a played hood carries its label.
+    expect(L.layerFor(SORTED[0])._tooltip).not.toBe(null);
 
     expect(Profiles.recordPlay).toHaveBeenCalledWith({
       gameId: "sf-neighborhoods",
@@ -122,6 +133,7 @@ describe("neighborhoods quiz — find mode (perfect round)", () => {
 describe("neighborhoods quiz — find mode wrong-pick handling", () => {
   it("leaves a wrongly-clicked hood untouched and updates feedback", async () => {
     const L = await bootQuiz();
+    switchMode("find");
     const target = el("pTarget").textContent;
     const w = HOOD_NAMES.find(n => n !== target);
 
@@ -140,6 +152,7 @@ describe("neighborhoods quiz — find mode wrong-pick handling", () => {
     const rnd = vi.spyOn(Math, "random").mockReturnValue(0.999999);
     try {
       const L = await bootQuiz();
+      switchMode("find");
       const first = el("pTarget").textContent;
       const w = SORTED[3]; // in-round (index < ROUND) and not yet asked
       expect(first).toBe(SORTED[0]);
@@ -151,7 +164,7 @@ describe("neighborhoods quiz — find mode wrong-pick handling", () => {
       // Play correctly until w itself becomes the target.
       let reached = false;
       for (let i = 0; i < ROUND + 5; i++) {
-        if (doneShown()) break;
+        if (boardOpened()) break;
         if (el("pTarget").textContent === w) { reached = true; break; }
         L.fireClick(el("pTarget").textContent);
         await vi.advanceTimersByTimeAsync(700);
@@ -169,6 +182,7 @@ describe("neighborhoods quiz — find mode wrong-pick handling", () => {
 
   it("shows a running accuracy that is 50% after one correct then one wrong", async () => {
     const L = await bootQuiz();
+    switchMode("find");
 
     // One correct.
     L.fireClick(el("pTarget").textContent);
@@ -187,6 +201,15 @@ describe("neighborhoods quiz — find mode wrong-pick handling", () => {
 
 // ---- T3 ---------------------------------------------------------------------
 describe("neighborhoods quiz — name mode (timed type-to-recall)", () => {
+  it("defaults to Name it on boot: the tab is active and the pre-game panel shows", async () => {
+    await bootQuiz();
+
+    expect(el("app").dataset.mode).toBe("name");
+    expect(document.querySelector('#modeTabs button[data-mode="name"]').classList.contains("active")).toBe(true);
+    expect(el("namePregame").hidden).toBe(false);
+    expect(el("prompt").style.display).toBe("none");
+  });
+
   it("shows the pre-game panel with the total and a Start button; clock/input inactive", async () => {
     await bootQuiz();
     switchMode("name");
@@ -210,7 +233,7 @@ describe("neighborhoods quiz — name mode (timed type-to-recall)", () => {
     expect(el("stat").textContent).toMatch(/\d+:\d{2}/);
   });
 
-  it("credits a correct dataset name: counter ticks, box clears, layer gets a permanent label", async () => {
+  it("credits a correct dataset name: counter ticks, box clears, layer gets a hover-reveal label", async () => {
     const L = await bootQuiz();
     switchMode("name");
     el("nameStart").click();
@@ -222,7 +245,8 @@ describe("neighborhoods quiz — name mode (timed type-to-recall)", () => {
     const tip = L.layerFor("Chinatown")._tooltip;
     expect(tip).not.toBe(null);
     expect(tip.content).toBe("Chinatown");
-    expect(tip.opts.permanent).toBe(true);
+    // Found labels reveal on hover/tap, not permanently, so they don't bury the map.
+    expect(tip.opts.permanent).toBeFalsy();
   });
 
   it("credits an alias guess (PH → Pacific Heights)", async () => {
@@ -277,23 +301,40 @@ describe("neighborhoods quiz — name mode (timed type-to-recall)", () => {
     switchMode("name");
     el("nameStart").click();
 
-    await typeName("zzz not a neighborhood", { enter: true });
+    await typeName("zzz not a neighborhood");
 
     expect(el("stat").textContent).toContain(`0/${N} found`);
     expect(el("nameInput").classList.contains("flash-bad")).toBe(true);
   });
 
-  it("finding all N shows the done screen", async () => {
+  it("live typing does not auto-submit — only Enter credits a guess", async () => {
+    await bootQuiz();
+    switchMode("name");
+    el("nameStart").click();
+
+    // Type a valid name and fire the input event (no Enter); wait well past the
+    // old debounce window. Nothing should be credited and the text stays.
+    const input = el("nameInput");
+    input.value = "Chinatown";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(el("stat").textContent).toContain(`0/${N} found`);
+    expect(input.value).toBe("Chinatown");
+  });
+
+  it("finding all N opens the leaderboard end screen", async () => {
     await bootQuiz();
     switchMode("name");
     el("nameStart").click();
 
     for (const name of HOOD_NAMES) {
-      if (doneShown()) break;
+      if (boardOpened()) break;
       await typeName(name);
     }
+    await flush();
 
-    expect(doneShown()).toBe(true);
+    expect(boardOpened()).toBe(true);
   });
 
   it("the 10-minute timer expiring ends the round", async () => {
@@ -302,8 +343,9 @@ describe("neighborhoods quiz — name mode (timed type-to-recall)", () => {
     el("nameStart").click();
 
     await vi.advanceTimersByTimeAsync(600 * 1000);
+    await flush();
 
-    expect(doneShown()).toBe(true);
+    expect(boardOpened()).toBe(true);
   });
 
   it("finishing records the play as mode:'name' with score = found count", async () => {
@@ -312,7 +354,7 @@ describe("neighborhoods quiz — name mode (timed type-to-recall)", () => {
     el("nameStart").click();
 
     for (const name of HOOD_NAMES) {
-      if (doneShown()) break;
+      if (boardOpened()) break;
       await typeName(name);
     }
     await flush();
@@ -327,17 +369,19 @@ describe("neighborhoods quiz — name mode (timed type-to-recall)", () => {
 });
 
 describe("neighborhoods quiz — name mode finish (give up, missed reveal, time used)", () => {
-  it("give up during a round ends it and shows the done screen", async () => {
+  it("give up during a round opens the leaderboard end screen", async () => {
     await bootQuiz();
     switchMode("name");
     el("nameStart").click();
 
+    await typeName("Chinatown");
     el("nameGiveUp").click();
+    await flush();
 
-    expect(doneShown()).toBe(true);
+    expect(boardOpened()).toBe(true);
   });
 
-  it("lists + reveals the missed hoods while leaving the found ones off the list", async () => {
+  it("reveals the full map on finish: found and missed hoods all carry a label", async () => {
     const L = await bootQuiz();
     switchMode("name");
     el("nameStart").click();
@@ -345,45 +389,40 @@ describe("neighborhoods quiz — name mode finish (give up, missed reveal, time 
     await typeName("Chinatown");
     await typeName("Nob Hill");
     el("nameGiveUp").click();
+    await flush();
 
-    const missedText = el("doneMissed").textContent;
-    // Found hoods are not in the missed list.
-    expect(missedText).not.toContain("Chinatown");
-    expect(missedText).not.toContain("Nob Hill");
-
-    // Two specific known misses are listed and revealed on the map.
-    const missedNames = HOOD_NAMES.filter(n => n !== "Chinatown" && n !== "Nob Hill");
-    for (const name of missedNames.slice(0, 2)) {
-      expect(missedText).toContain(name);
+    // A found hood keeps its own label.
+    expect(L.layerFor("Chinatown")._tooltip.content).toBe("Chinatown");
+    // A hood never typed is now revealed on the map (missed → red + hover label).
+    const missed = HOOD_NAMES.filter(n => n !== "Chinatown" && n !== "Nob Hill");
+    for (const name of missed.slice(0, 2)) {
       const tip = L.layerFor(name)._tooltip;
       expect(tip).not.toBe(null);
       expect(tip.content).toBe(name);
-      expect(tip.opts.permanent).toBe(true);
     }
-
-    // A found layer keeps its own label and is not part of the missed reveal.
-    expect(L.layerFor("Chinatown")._tooltip.content).toBe("Chinatown");
   });
 
-  it("shows the full time used when the timer expires", async () => {
+  it("puts the full time used in the leaderboard subline on timer expiry", async () => {
     await bootQuiz();
     switchMode("name");
     el("nameStart").click();
 
     await vi.advanceTimersByTimeAsync(600 * 1000);
+    await flush();
 
-    expect(el("doneScore").textContent).toContain("Time used 10:00");
+    expect(lastBoard().subline).toContain("10:00");
   });
 
-  it("shows the elapsed time used when giving up mid-round", async () => {
+  it("puts the elapsed time used in the subline when giving up mid-round", async () => {
     await bootQuiz();
     switchMode("name");
     el("nameStart").click();
 
     await vi.advanceTimersByTimeAsync(5 * 1000);
     el("nameGiveUp").click();
+    await flush();
 
-    expect(el("doneScore").textContent).toContain("Time used 0:05");
+    expect(lastBoard().subline).toContain("0:05");
   });
 
   it("records the play as mode:'name' with score = found count when giving up", async () => {
@@ -404,18 +443,18 @@ describe("neighborhoods quiz — name mode finish (give up, missed reveal, time 
     });
   });
 
-  it("clears the missed list when starting a new round", async () => {
+  it("Go again from the board returns name mode to the pre-game panel", async () => {
     await bootQuiz();
     switchMode("name");
     el("nameStart").click();
     await typeName("Chinatown");
     el("nameGiveUp").click();
-    expect(el("doneMissed").hidden).toBe(false);
+    await flush();
 
-    el("doneRestart").click();
+    lastBoard().onAgain();
 
-    expect(el("doneMissed").hidden).toBe(true);
-    expect(el("doneMissed").innerHTML).toBe("");
+    expect(el("namePregame").hidden).toBe(false);
+    expect(el("namePlay").hidden).toBe(true);
   });
 });
 
@@ -458,84 +497,55 @@ describe("neighborhoods quiz — learn mode hover reveal", () => {
     expect(tip.open).toBe(true);
   });
 
-  it("never finishes: no done screen and recordPlay is never called", async () => {
+  it("never finishes: the leaderboard never opens and recordPlay is never called", async () => {
     const L = await bootQuiz();
     switchMode("learn");
 
     HOOD_NAMES.slice(0, 5).forEach(n => L.fireHover(n));
     await vi.advanceTimersByTimeAsync(2000);
 
-    expect(el("done").style.display).not.toBe("flex");
+    expect(boardOpened()).toBe(false);
     expect(Profiles.recordPlay).not.toHaveBeenCalled();
   });
 });
 
 // ---- T5 ---------------------------------------------------------------------
-describe("neighborhoods quiz — save/auth outcomes", () => {
-  it("logged-in + saved shows the saved note", async () => {
+describe("neighborhoods quiz — finish records + opens the leaderboard", () => {
+  it("a logged-in finish records the play and opens the round leaderboard", async () => {
     const L = await bootQuiz();
+    switchMode("find");
     Profiles.isLoggedIn.mockReturnValue(true);
     Profiles.recordPlay.mockResolvedValue({ status: "saved" });
 
     await playFindPerfect(L);
     await flush();
 
-    expect(el("savedNote").hidden).toBe(false);
-    expect(el("savedNote").textContent).toBe("Saved to your profile");
     expect(Profiles.recordPlay).toHaveBeenCalledWith({
       gameId: "sf-neighborhoods",
       mode: "find",
       score: ROUND,
       total: ROUND,
     });
+    expect(boardOpened()).toBe(true);
+    expect(lastBoard().variant).toBe("round");
   });
 
-  it("logged-in + pending falls back to the save nudge", async () => {
+  it("a guest finish still records (captured for later login) and opens the board", async () => {
     const L = await bootQuiz();
-    Profiles.isLoggedIn.mockReturnValue(true);
-    Profiles.recordPlay.mockResolvedValue({ status: "pending" });
-
-    await playFindPerfect(L);
-    await flush();
-
-    expect(el("saveNudge").hidden).toBe(false);
-    expect(el("savedNote").hidden).toBe(true);
-  });
-
-  it("a failed save shows the error and retry re-invokes recordPlay", async () => {
-    const L = await bootQuiz();
-    Profiles.isLoggedIn.mockReturnValue(true);
-    Profiles.recordPlay.mockRejectedValue(new Error("network"));
-
-    await playFindPerfect(L);
-    await flush();
-
-    expect(el("saveError").hidden).toBe(false);
-
-    const before = Profiles.recordPlay.mock.calls.length;
-    el("saveRetry").click();
-    await flush();
-
-    expect(Profiles.recordPlay.mock.calls.length).toBe(before + 1);
-  });
-
-  it("guest sees the nudge and login button prompts login", async () => {
-    const L = await bootQuiz();
+    switchMode("find");
     Profiles.isLoggedIn.mockReturnValue(false);
+    Profiles.recordPlay.mockReturnValue({ status: "pending" });
 
     await playFindPerfect(L);
     await flush();
 
-    expect(el("saveNudge").hidden).toBe(false);
     expect(Profiles.recordPlay).toHaveBeenCalledWith({
       gameId: "sf-neighborhoods",
       mode: "find",
       score: ROUND,
       total: ROUND,
     });
-
-    el("saveLogin").click();
-    expect(Profiles.promptLogin).toHaveBeenCalled();
+    expect(boardOpened()).toBe(true);
   });
 });
 
@@ -543,6 +553,7 @@ describe("neighborhoods quiz — save/auth outcomes", () => {
 describe("neighborhoods quiz — chrome (tabs, restart, mount)", () => {
   it("activates the clicked mode tab and clears the others, resetting the round", async () => {
     const L = await bootQuiz();
+    switchMode("find");
 
     // Bump the correct count so we can prove the round resets on tab switch.
     L.fireClick(el("pTarget").textContent);
@@ -562,27 +573,29 @@ describe("neighborhoods quiz — chrome (tabs, restart, mount)", () => {
 
   it("#restart resets the round state", async () => {
     const L = await bootQuiz();
+    switchMode("find");
     L.fireClick(el("pTarget").textContent);
     expect(el("stat").querySelector("b").textContent).toBe("1");
 
     el("restart").click();
 
-    expect(el("done").style.display).toBe("none");
     expect(el("pFb").textContent).toBe("");
     expect(el("stat").querySelector("b").textContent).toBe("0");
   });
 
-  it("#doneRestart resets state after finishing a round", async () => {
+  it("the leaderboard's Go again restarts the round after finishing", async () => {
     const L = await bootQuiz();
+    switchMode("find");
     await playFindPerfect(L);
-    await flush();
-    expect(doneShown()).toBe(true);
+    expect(boardOpened()).toBe(true);
 
-    el("doneRestart").click();
+    const again = lastBoard().onAgain;
+    expect(typeof again).toBe("function");
+    again();
 
-    expect(el("done").style.display).toBe("none");
     expect(el("pFb").textContent).toBe("");
     expect(el("stat").querySelector("b").textContent).toBe("0");
+    expect(el("pTarget").textContent).not.toBe("");
   });
 
   it("mounts the profile header inside #app", async () => {

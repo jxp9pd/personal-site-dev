@@ -141,17 +141,17 @@ function boot(quiz) {
   function revealName(l, name) { l._revealed = true; l.bindTooltip(name, { className: 'answer-tip', direction: 'top' }); }
 
   // ---- state ----
-  let mode = 'find', queue = [], current = null,
+  // Name it (timed recall) is the default mode for neighborhood games.
+  let mode = 'name', queue = [], current = null,
     correct = 0, answered = 0;
   // name-mode (timed type-to-recall) state
-  let found = new Set(), nameTimer = null, nameDebounce = null, timeLeft = 0;
+  let found = new Set(), nameTimer = null, timeLeft = 0;
   function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0;[a[i], a[j]] = [a[j], a[i]]; } return a; }
 
-  // A single interval drives the countdown; the debounce backs the live check.
-  // Both must die whenever a round ends so nothing leaks into the next round.
+  // The countdown interval must die whenever a round ends so it can't leak into
+  // the next round.
   function clearNameTimers() {
     if (nameTimer) { clearInterval(nameTimer); nameTimer = null; }
-    if (nameDebounce) { clearTimeout(nameDebounce); nameDebounce = null; }
   }
 
   function setMode(m) {
@@ -167,8 +167,6 @@ function boot(quiz) {
     el('app').dataset.mode = mode;
     correct = 0; answered = 0; current = null;
     found = new Set();
-    el('done').style.display = 'none';
-    el('doneMissed').hidden = true; el('doneMissed').innerHTML = '';
     el('pFb').textContent = ''; el('pFb').className = 'fb';
     if (mode === 'learn') {
       el('prompt').style.display = 'none';
@@ -283,23 +281,22 @@ function boot(quiz) {
     input.classList.add('flash-bad');
   }
 
-  // fromEnter distinguishes a submit (Enter) from live typing: only a submit
-  // flashes on a miss; live typing that matches nothing does nothing.
-  function checkName(fromEnter) {
+  // A guess is only checked on Enter (no live auto-submit). A miss flashes the
+  // box; a hit credits the hood and clears the box.
+  function checkName() {
     if (mode !== 'name' || !nameTimer) return;
     const input = el('nameInput');
     const canonical = NAME_INDEX.match(input.value);
-    if (!canonical) {
-      if (fromEnter) flashInput();
-      return;
-    }
+    if (!canonical) { flashInput(); return; }
     if (found.has(canonical)) return; // already found: no-op, keep the text
     found.add(canonical);
     const l = hoodByName[canonical];
     if (l) {
       l._locked = true;
       styleOk(l);
-      l.bindTooltip(canonical, { className: 'answer-tip', permanent: true, direction: 'top' });
+      // Green fill marks a hood as found; its name shows on hover/tap (not a
+      // permanent label) so accumulating labels don't bury the map mid-round.
+      revealName(l, canonical);
     }
     input.value = '';
     correct = found.size;
@@ -307,18 +304,9 @@ function boot(quiz) {
     if (found.size >= HOOD_NAMES.length) endNameRound();
   }
 
-  function onNameInput() {
-    if (mode !== 'name' || !nameTimer) return;
-    if (nameDebounce) clearTimeout(nameDebounce);
-    nameDebounce = setTimeout(() => { nameDebounce = null; checkName(false); }, 400);
-  }
-
   function onNameKeydown(e) {
     if (mode !== 'name' || !nameTimer) return;
-    if (e.key === 'Enter') {
-      if (nameDebounce) { clearTimeout(nameDebounce); nameDebounce = null; }
-      checkName(true);
-    }
+    if (e.key === 'Enter') checkName();
   }
 
   // Both end conditions (all found, timer expiry) route through the shared
@@ -331,31 +319,18 @@ function boot(quiz) {
     finish();
   }
 
-  // Finish-screen enrichment for name mode: reveal every unfound polygon in red
-  // with a permanent label (mirroring the found layers), list the misses, and
-  // show elapsed time. Cosmetic only — the save shape is unchanged.
-  function nameFinishReveal() {
-    const missed = [];
+  // End-of-round map reveal (both modes): the hoods the player got stay green;
+  // every other one turns red. Names show on hover/tap. This, with the
+  // leaderboard, replaces the old score screen — the misses live on the map.
+  function revealResults() {
     hoodLayer.eachLayer(l => {
       const name = l.feature.properties.name;
-      if (found.has(name)) return;
-      missed.push(name);
+      const gotIt = mode === 'name' ? found.has(name) : !!l._revealed;
+      if (gotIt) return;
+      l._locked = true;
       styleWrong(l);
-      l.bindTooltip(name, { className: 'answer-tip', permanent: true, direction: 'top' });
+      revealName(l, name);
     });
-    const box = el('doneMissed');
-    if (missed.length) {
-      box.hidden = false;
-      box.innerHTML =
-        `<div class="missed-label">Missed</div>` +
-        `<div class="missed-names">${missed.map(esc).join(', ')}</div>`;
-    } else {
-      box.hidden = true;
-      box.innerHTML = '';
-    }
-    const used = NAME_SECONDS - timeLeft;
-    el('doneScore').textContent =
-      `${found.size}/${HOOD_NAMES.length} found · Time used ${fmtTime(used)}`;
   }
 
   // LEARN: hover reveals name
@@ -365,71 +340,40 @@ function boot(quiz) {
     l.on('mouseout', () => { styleIdle(l); }, { once: true });
   }
 
-  // Persists the just-finished play and reflects the ACTUAL outcome: "Saved to
-  // your profile" appears only once the row truly lands. A failed write shows a
-  // retry affordance instead of a false success, and the recorder keeps the play
-  // so the retry (or a later auth event) can still flush it.
-  async function saveResult() {
-    const nudge = el('saveNudge'), note = el('savedNote'), error = el('saveError');
-    nudge.hidden = true; error.hidden = true;
-    note.hidden = false; note.textContent = 'Saving…';
-
-    let outcome;
-    try {
-      outcome = await Profiles.recordPlay({ gameId, mode, score: correct, total: HOOD_NAMES.length });
-    } catch (err) {
-      console.error('recordPlay failed', err);
-      outcome = { status: 'failed', error: err };
-    }
-
-    const status = outcome?.status;
-    if (status === 'saved') {
-      note.textContent = 'Saved to your profile';
-    } else if (status === 'pending') {
-      // Auth was lost between the check and the write; fall back to the nudge.
-      note.hidden = true;
-      nudge.hidden = false;
-    } else {
-      note.hidden = true;
-      error.hidden = false;
-    }
-  }
-
+  // End of a scored round: reveal the map, record the play, and open the
+  // leaderboard as the end screen. There is no separate score page — the board
+  // carries the standings and the map carries the answers. Closing the board
+  // (×, Esc, backdrop) leaves the revealed map so the player can explore it.
   async function finish() {
-    el('done').style.display = 'flex';
-    const pct = answered ? Math.round(correct / answered * 100) : 0;
-    el('doneTitle').textContent = pct >= 90 ? 'Local legend' : pct >= 70 ? 'Solid' : pct >= 50 ? 'Getting there' : 'Keep at it';
-    el('doneScore').textContent = `${correct}/${HOOD_NAMES.length} correct · ${pct}% accuracy`;
-    if (mode === 'name') nameFinishReveal();
-
-    el('saveNudge').hidden = true;
-    el('savedNote').hidden = true;
-    el('saveError').hidden = true;
-
-    // Only tracked modes count as a completed play; learn never reaches finish().
+    clearNameTimers();
+    // Only find/name are scored/finishable; learn never reaches finish().
     if (mode !== 'find' && mode !== 'name') return;
 
-    let loggedInNow = false;
-    try { loggedInNow = Profiles.isLoggedIn(); } catch { }
+    revealResults();
+    // Clear the play controls so the map is unobstructed once the board closes.
+    el('prompt').style.display = 'none';
+    el('namePlay').hidden = true;
+    el('namePregame').hidden = true;
 
-    if (!loggedInNow) {
-      // Guest: capture holds the play so it flushes on later login; nudge to it.
-      try { Profiles.recordPlay({ gameId, mode, score: correct, total: HOOD_NAMES.length }); }
-      catch (err) { console.error('recordPlay failed', err); }
-      el('saveNudge').hidden = false;
-      return;
-    }
+    const total = HOOD_NAMES.length;
+    const pct = total ? Math.round(correct / total * 100) : 0;
+    const title = pct >= 90 ? 'Local legend' : pct >= 70 ? 'Solid' : pct >= 50 ? 'Getting there' : 'Keep at it';
+    const subline = mode === 'name'
+      ? `${correct} of ${total} found · ${fmtTime(NAME_SECONDS - timeLeft)}`
+      : `${correct} of ${total} correct`;
 
-    // Land the row first so the board (and the viewer's placement) reflects this
-    // round, then celebrate with the leaderboard modal over the done overlay.
-    await saveResult();
+    // Guest → the recorder holds the play and flushes on a later login; logged
+    // in → it persists now (awaited so the board reflects this round's row).
+    try { await Profiles.recordPlay({ gameId, mode, score: correct, total }); }
+    catch (err) { console.error('recordPlay failed', err); }
+
     Leaderboard.open({
       gameId,
       mode,
       variant: 'round',
       eyebrow: boardEyebrow(),
-      title: el('doneTitle').textContent,
-      subline: `${correct} of ${HOOD_NAMES.length} correct`,
+      title,
+      subline,
       onAgain: () => startRound(),
     });
   }
@@ -437,12 +381,8 @@ function boot(quiz) {
   document.querySelectorAll('#modeTabs button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
   el('nameStart').onclick = nameStart;
   el('nameGiveUp').onclick = () => { if (nameTimer) endNameRound(); };
-  el('nameInput').addEventListener('input', onNameInput);
   el('nameInput').addEventListener('keydown', onNameKeydown);
   el('restart').onclick = startRound;
-  el('doneRestart').onclick = startRound;
-  el('saveLogin').onclick = () => { try { Profiles.promptLogin(); } catch (err) { console.error('promptLogin failed', err); } };
-  el('saveRetry').onclick = () => { saveResult().catch(err => console.error('retry save failed', err)); };
 
   startRound();
 }
