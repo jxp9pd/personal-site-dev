@@ -7,6 +7,7 @@
 
 import { Profiles } from './profiles.js';
 import { fetchQuiz, fetchQuizList } from './dataClient.js';
+import { Leaderboard } from './leaderboard.js';
 
 const el = id => document.getElementById(id);
 
@@ -73,8 +74,24 @@ function boot(quiz) {
 
   // Auth/profile layer runs independently of the game bootstrap: an init failure
   // (e.g. network) must never stop the quiz from starting or being played.
-  Profiles.init({ gameSlug: gameId, headerMount: el('profileMount') })
-    .catch(err => console.error('Profiles init failed', err));
+  // onAuthChange keeps the Leaderboard button in sync — it's shown only to
+  // logged-in players in a scored mode (find/name, never learn).
+  let loggedIn = false;
+  const modeLabel = () => (mode === 'find' ? 'Find it' : mode === 'name' ? 'Name it' : '');
+  const boardEyebrow = () => `${quiz.name} · ${modeLabel()}`;
+  function updateLbBtn() {
+    el('leaderboardBtn').hidden = !(loggedIn && (mode === 'find' || mode === 'name'));
+  }
+  Profiles.init({
+    gameSlug: gameId,
+    headerMount: el('profileMount'),
+    onAuthChange: (li) => { loggedIn = li; updateLbBtn(); },
+  }).catch(err => console.error('Profiles init failed', err));
+
+  el('leaderboardBtn').onclick = () => {
+    if (mode !== 'find' && mode !== 'name') return;
+    Leaderboard.open({ gameId, mode, variant: 'full', eyebrow: boardEyebrow() });
+  };
 
   const GEO = quiz.geo;
   const HOOD_NAMES = GEO.features.map(f => f.properties.name).sort();
@@ -128,6 +145,7 @@ function boot(quiz) {
   function setMode(m) {
     mode = m;
     document.querySelectorAll('#modeTabs button').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+    updateLbBtn();
     startRound();
   }
 
@@ -282,10 +300,10 @@ function boot(quiz) {
     // Only tracked modes count as a completed play; learn never reaches finish().
     if (mode !== 'find' && mode !== 'name') return;
 
-    let loggedIn = false;
-    try { loggedIn = Profiles.isLoggedIn(); } catch { }
+    let loggedInNow = false;
+    try { loggedInNow = Profiles.isLoggedIn(); } catch { }
 
-    if (!loggedIn) {
+    if (!loggedInNow) {
       // Guest: capture holds the play so it flushes on later login; nudge to it.
       try { Profiles.recordPlay({ gameId, mode, score: correct, total: HOOD_NAMES.length }); }
       catch (err) { console.error('recordPlay failed', err); }
@@ -293,7 +311,18 @@ function boot(quiz) {
       return;
     }
 
+    // Land the row first so the board (and the viewer's placement) reflects this
+    // round, then celebrate with the leaderboard modal over the done overlay.
     await saveResult();
+    Leaderboard.open({
+      gameId,
+      mode,
+      variant: 'round',
+      eyebrow: boardEyebrow(),
+      title: el('doneTitle').textContent,
+      subline: `${correct} of ${HOOD_NAMES.length} correct`,
+      onAgain: () => startRound(),
+    });
   }
 
   document.querySelectorAll('#modeTabs button').forEach(b => b.onclick = () => setMode(b.dataset.mode));

@@ -13,6 +13,9 @@ import { createAuthUI } from './ui.js';
 let currentSession = null;
 let authUI = null;
 let initialized = false;
+// Optional per-page listener notified of the logged-in state on init and on
+// every later auth transition (e.g. to show/hide a leaderboard button).
+let authChangeCb = null;
 
 const recorder = createRecorder({
   persist: (result) => dataClient.recordPlay(result),
@@ -67,11 +70,14 @@ function applyAuthState() {
     loggedIn: currentSession != null,
     username: usernameOf(currentSession),
   });
+  try { authChangeCb?.(currentSession != null); }
+  catch (err) { console.error('onAuthChange handler failed', err); }
 }
 
-async function init({ gameSlug, headerMount } = {}) {
+async function init({ gameSlug, headerMount, onAuthChange } = {}) {
   if (initialized) return;
   initialized = true;
+  authChangeCb = typeof onAuthChange === 'function' ? onAuthChange : null;
 
   try {
     currentSession = await dataClient.getSession();

@@ -129,6 +129,44 @@ export async function fetchPlays(userId) {
   return data;
 }
 
+// Columns the leaderboard view exposes for rendering. game_id/mode are used
+// only as filters, so they don't need to be selected.
+const LEADERBOARD_COLUMNS = 'user_id, username, score, total, achieved_at, rank';
+
+// Top `limit` entries for one board (game_id + mode), already ranked in SQL.
+// Ties share a rank (competition ranking); within a tie the earliest achiever
+// is listed first, then username for a stable order. Returns [] when the board
+// has no scores yet.
+export async function fetchLeaderboard(gameId, mode, limit = 100) {
+  const { data, error } = await supabase
+    .from('leaderboard')
+    .select(LEADERBOARD_COLUMNS)
+    .eq('game_id', gameId)
+    .eq('mode', mode)
+    .order('rank', { ascending: true })
+    .order('achieved_at', { ascending: true })
+    .order('username', { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return data ?? [];
+}
+
+// One player's standing on a board (their best row + global rank), or null when
+// they have no score for it yet. `userId` is required — the leaderboard never
+// infers "me" so a caller can look up any player.
+export async function fetchViewerRank(gameId, mode, userId) {
+  if (!userId) return null;
+  const { data, error } = await supabase
+    .from('leaderboard')
+    .select(LEADERBOARD_COLUMNS)
+    .eq('game_id', gameId)
+    .eq('mode', mode)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ?? null;
+}
+
 // ILIKE treats `_` and `%` as wildcards, but usernames legitimately contain
 // underscores, so escape them to force a literal (case-insensitive) match.
 function escapeLike(value) {

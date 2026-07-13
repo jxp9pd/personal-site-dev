@@ -11,6 +11,7 @@
 import { Profiles } from './profiles.js';
 import { fetchPackList, fetchPack } from './dataClient.js';
 import { errorPct, scorePoints, aggregateRound } from './guess-the-price-scoring.js';
+import { Leaderboard } from './leaderboard.js';
 
 const el = id => document.getElementById(id);
 
@@ -96,9 +97,18 @@ function boot(pack) {
   el('play').style.display = 'flex';
 
   // Auth/profile layer runs independently of the game: an init failure must
-  // never stop the game from starting or being played.
-  Profiles.init({ gameSlug: 'guess-the-price', headerMount: el('playProfileMount') })
-    .catch(err => console.error('Profiles init failed', err));
+  // never stop the game from starting or being played. onAuthChange toggles the
+  // Leaderboard button, which is logged-in only (one board per pack).
+  function updateLbBtn(loggedIn) { el('leaderboardBtn').hidden = !loggedIn; }
+  Profiles.init({
+    gameSlug: 'guess-the-price',
+    headerMount: el('playProfileMount'),
+    onAuthChange: updateLbBtn,
+  }).catch(err => console.error('Profiles init failed', err));
+
+  el('leaderboardBtn').onclick = () => {
+    Leaderboard.open({ gameId: 'guess-the-price', mode: pack.slug, variant: 'full', eyebrow: pack.name });
+  };
 
   const guessInput = el('guessInput');
   const lockIn = el('lockIn');
@@ -275,7 +285,21 @@ function boot(pack) {
       return;
     }
 
-    saveResult().catch((err) => console.error('save failed', err));
+    // Land the row first so the board (and the viewer's placement) reflects this
+    // round, then open the leaderboard modal over the summary stage.
+    saveResult()
+      .then(() => {
+        Leaderboard.open({
+          gameId: 'guess-the-price',
+          mode: pack.slug,
+          variant: 'round',
+          eyebrow: pack.name,
+          title: 'Round complete',
+          subline: `${lastAgg.totalPoints} of ${lastAgg.maxPoints} pts`,
+          onAgain: () => startRound(),
+        });
+      })
+      .catch((err) => console.error('save failed', err));
   }
 
   function enterSummary() {

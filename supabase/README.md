@@ -5,6 +5,34 @@ history backend (hosted Postgres + Auth + Row-Level Security).
 
 - `migrations/0001_profiles_and_plays.sql` — `profiles` and `plays` tables, RLS
   policies, and the `auth.users` → `profiles` creation trigger.
+- `migrations/0007_leaderboard.sql` — the read-only `leaderboard` view (best
+  score per user per game+mode, joined to `profiles`, ranked with competition
+  `rank()`), a supporting index on `plays`, and a public `select` grant.
+
+## Leaderboard view (0007)
+
+The `leaderboard` view powers the in-game leaderboards. It is a pure read-model
+over `plays` — no new writable table — so the client just SELECTs:
+
+```
+GET /rest/v1/leaderboard?game_id=eq.<slug>&mode=eq.<mode>&order=rank.asc,achieved_at.asc&limit=100
+```
+
+Notes:
+- **Board identity is `(game_id, mode)`** — e.g. `sf-neighborhoods/find` and
+  `sf-neighborhoods/name` are separate boards; each city is separate again.
+- **Best-per-user:** one row per user (their highest score); a user's own tie
+  resolves to the first time they hit it (`achieved_at`).
+- **Ranking:** competition `rank()` — tied players share a rank with a gap after
+  (1,1,3). Within a tie, order display by `achieved_at` then `username`.
+- **`security_invoker = on`:** the view runs as the querying role, so the
+  existing public-read RLS on `plays`/`profiles` applies. No PII is exposed
+  (`profiles` has no email). The explicit `grant select ... to anon,
+  authenticated` is required because new entities are not auto-exposed to the
+  Data API roles.
+
+Applied to the remote project via `supabase db push` and verified with an anon
+PostgREST read that returned ranked rows across multiple boards.
 
 ## How to apply & verify (HITL)
 
