@@ -84,18 +84,18 @@ beforeEach(() => {
 const el = id => document.getElementById(id);
 const flush = () => vi.advanceTimersByTimeAsync(0);
 const switchMode = m => document.querySelector(`#modeTabs button[data-mode="${m}"]`).click();
-const nameButtons = () => [...document.querySelectorAll("#prompt button")];
-const nameCorrectBtn = L => nameButtons().find(b => b.textContent === L.currentTarget());
-const nameWrongBtn = L => nameButtons().find(b => b.textContent !== L.currentTarget());
 
-// Drives a perfect NAME round by picking the button matching the locked answer.
-async function playNamePerfect(L, cap = N + 5) {
-  for (let i = 0; i < cap; i++) {
-    if (doneShown()) return;
-    nameCorrectBtn(L).click();
-    await vi.advanceTimersByTimeAsync(700);
+// Name mode (timed type-to-recall) driver: set the box, fire an `input` event
+// (live-typing path), optionally submit with Enter, then advance the ~400ms
+// debounce so any live check runs.
+async function typeName(text, { enter = false } = {}) {
+  const input = el("nameInput");
+  input.value = text;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  if (enter) {
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
   }
-  throw new Error("NAME round did not reach the done screen within the cap");
+  await vi.advanceTimersByTimeAsync(400);
 }
 
 describe("neighborhoods quiz — find mode (perfect round)", () => {
@@ -186,57 +186,143 @@ describe("neighborhoods quiz — find mode wrong-pick handling", () => {
 });
 
 // ---- T3 ---------------------------------------------------------------------
-describe("neighborhoods quiz — name mode multiple choice", () => {
-  it("renders exactly 4 choices including the answer", async () => {
-    const L = await bootQuiz();
+describe("neighborhoods quiz — name mode (timed type-to-recall)", () => {
+  it("shows the pre-game panel with the total and a Start button; clock/input inactive", async () => {
+    await bootQuiz();
     switchMode("name");
 
-    const btns = nameButtons();
-    expect(btns).toHaveLength(4);
-    expect(btns.map(b => b.textContent)).toContain(L.currentTarget());
-    expect(el("pTarget").textContent).toBe("???");
+    expect(el("namePregame").hidden).toBe(false);
+    expect(el("namePregameCount").textContent).toContain(String(N));
+    expect(el("nameStart")).toBeTruthy();
+    // Input + clock are not active yet.
+    expect(el("namePlay").hidden).toBe(true);
+    expect(el("stat").textContent).toBe("");
   });
 
-  it("marks a correct choice and reveals the name", async () => {
-    const L = await bootQuiz();
+  it("Start reveals the text input and starts the clock", async () => {
+    await bootQuiz();
     switchMode("name");
-    const answer = L.currentTarget();
+    el("nameStart").click();
 
-    nameCorrectBtn(L).click();
-
-    expect(el("pFb").textContent).toBe("Correct");
-    expect(el("pFb").className).toBe("fb good");
-    expect(el("pTarget").textContent).toBe(answer);
-    expect(el("pTarget").textContent).not.toBe("???");
+    expect(el("namePregame").hidden).toBe(true);
+    expect(el("namePlay").hidden).toBe(false);
+    expect(el("stat").textContent).toContain(`0/${N} found`);
+    expect(el("stat").textContent).toMatch(/\d+:\d{2}/);
   });
 
-  it("marks a wrong choice with the answer and disables all buttons", async () => {
+  it("credits a correct dataset name: counter ticks, box clears, layer gets a permanent label", async () => {
     const L = await bootQuiz();
     switchMode("name");
-    const answer = L.currentTarget();
-    const btns = nameButtons();
-    const correctBtn = btns.find(b => b.textContent === answer);
+    el("nameStart").click();
 
-    nameWrongBtn(L).click();
+    await typeName("chinatown");
 
-    expect(el("pFb").textContent).toBe(`Nope — ${answer}`);
-    expect(el("pFb").className).toBe("fb bad");
-    // The correct button is the one the wrong-branch re-styles. Color-based
-    // highlighting isn't observable here (the page's :root CSS vars live in the
-    // stripped <head><style>, so getComputedStyle → '' and style assignments are
-    // no-ops); assert instead that the correct choice is identifiable + revealed.
-    expect(correctBtn.textContent).toBe(answer);
-    expect(el("pTarget").textContent).toBe(answer);
-    expect(btns.every(b => b.disabled)).toBe(true);
+    expect(el("stat").textContent).toContain(`1/${N} found`);
+    expect(el("nameInput").value).toBe("");
+    const tip = L.layerFor("Chinatown")._tooltip;
+    expect(tip).not.toBe(null);
+    expect(tip.content).toBe("Chinatown");
+    expect(tip.opts.permanent).toBe(true);
   });
 
-  it("completes a full NAME round to the done screen", async () => {
+  it("credits an alias guess (PH → Pacific Heights)", async () => {
     const L = await bootQuiz();
     switchMode("name");
+    el("nameStart").click();
 
-    await playNamePerfect(L);
+    await typeName("PH");
+
+    expect(el("stat").textContent).toContain(`1/${N} found`);
+    expect(L.layerFor("Pacific Heights")._tooltip.content).toBe("Pacific Heights");
+  });
+
+  it("credits a space-removed alias guess (NobHill → Nob Hill)", async () => {
+    const L = await bootQuiz();
+    switchMode("name");
+    el("nameStart").click();
+
+    await typeName("NobHill");
+
+    expect(el("stat").textContent).toContain(`1/${N} found`);
+    expect(L.layerFor("Nob Hill")._tooltip.content).toBe("Nob Hill");
+  });
+
+  it("credits a punctuation/case-insensitive guess (castro upper market → Castro/Upper Market)", async () => {
+    const L = await bootQuiz();
+    switchMode("name");
+    el("nameStart").click();
+
+    await typeName("castro upper market");
+
+    expect(el("stat").textContent).toContain(`1/${N} found`);
+    expect(L.layerFor("Castro/Upper Market")._tooltip.content).toBe("Castro/Upper Market");
+  });
+
+  it("a duplicate already-found guess is a no-op and leaves the text in the box", async () => {
+    await bootQuiz();
+    switchMode("name");
+    el("nameStart").click();
+
+    await typeName("Chinatown");
+    expect(el("stat").textContent).toContain(`1/${N} found`);
+
+    await typeName("Chinatown");
+
+    expect(el("stat").textContent).toContain(`1/${N} found`);
+    expect(el("nameInput").value).toBe("Chinatown");
+  });
+
+  it("Enter on a non-match does not credit and flashes the input", async () => {
+    await bootQuiz();
+    switchMode("name");
+    el("nameStart").click();
+
+    await typeName("zzz not a neighborhood", { enter: true });
+
+    expect(el("stat").textContent).toContain(`0/${N} found`);
+    expect(el("nameInput").classList.contains("flash-bad")).toBe(true);
+  });
+
+  it("finding all N shows the done screen", async () => {
+    await bootQuiz();
+    switchMode("name");
+    el("nameStart").click();
+
+    for (const name of HOOD_NAMES) {
+      if (doneShown()) break;
+      await typeName(name);
+    }
 
     expect(doneShown()).toBe(true);
+  });
+
+  it("the 10-minute timer expiring ends the round", async () => {
+    await bootQuiz();
+    switchMode("name");
+    el("nameStart").click();
+
+    await vi.advanceTimersByTimeAsync(600 * 1000);
+
+    expect(doneShown()).toBe(true);
+  });
+
+  it("finishing records the play as mode:'name' with score = found count", async () => {
+    await bootQuiz();
+    switchMode("name");
+    el("nameStart").click();
+
+    for (const name of HOOD_NAMES) {
+      if (doneShown()) break;
+      await typeName(name);
+    }
+    await flush();
+
+    expect(Profiles.recordPlay).toHaveBeenCalledWith({
+      gameId: "sf-neighborhoods",
+      mode: "name",
+      score: N,
+      total: N,
+    });
   });
 });
 
