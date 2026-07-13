@@ -35,6 +35,11 @@
     box-shadow:0 12px 30px -14px rgba(20,19,15,.55)}
   .btn[aria-current="page"]{color:var(--paper);background:var(--brand);border-color:transparent}
   .btn[aria-current="page"]:hover{background:var(--brand);box-shadow:0 14px 34px -14px rgba(34,184,255,.6)}
+  /* In-game "Leaderboard" trigger: brand-gradient pill, shown only to logged-in
+     players (toggled from guess-the-price.js). */
+  .btn.lb{color:var(--paper);background:var(--brand);border-color:transparent}
+  .btn.lb:hover{background:var(--brand);box-shadow:0 14px 34px -14px rgba(34,184,255,.6)}
+  .btn.lb[hidden]{display:none}
   .eyebrow{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.18em}
 
   /* Shared top bar — mirrors the homepage (/assets/site.css) so every portal
@@ -187,6 +192,7 @@
     <a class="back" href="?">&larr; Packs</a>
     <div class="eyebrow" id="playEyebrow"></div>
     <div class="spacer"></div>
+    <button class="btn lb" id="leaderboardBtn" hidden>Leaderboard</button>
     <div id="playProfileMount"></div>
   </header>
   <main>

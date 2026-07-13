@@ -59,6 +59,11 @@
     box-shadow:0 12px 30px -14px rgba(20,19,15,.55)}
   .btn[aria-current="page"]{color:var(--paper);background:var(--brand);border-color:transparent}
   .btn[aria-current="page"]:hover{background:var(--brand);box-shadow:0 14px 34px -14px rgba(34,184,255,.6)}
+  /* In-game "Leaderboard" trigger: brand-gradient pill, shown only to logged-in
+     players in a scored mode (toggled from neighborhoods-quiz.js). */
+  .btn.lb{color:var(--paper);background:var(--brand);border-color:transparent}
+  .btn.lb:hover{background:var(--brand);box-shadow:0 14px 34px -14px rgba(34,184,255,.6)}
+  .btn.lb[hidden]{display:none}
   .gradient-text{background:var(--brand);-webkit-background-clip:text;background-clip:text;
     -webkit-text-fill-color:transparent;color:transparent}
 
@@ -205,6 +210,7 @@
     </div>
     <div class="spacer"></div>
     <div class="stat" id="stat"></div>
+    <button class="btn lb" id="leaderboardBtn" hidden>Leaderboard</button>
     <button class="btn" id="restart" aria-label="Restart"><span class="restart-label">Restart</span><span class="restart-icon" aria-hidden="true">↻</span></button>
     <div id="profileMount"></div>
   </header>
