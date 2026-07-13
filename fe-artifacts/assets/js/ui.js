@@ -5,70 +5,61 @@
 // Everything is scoped under a `pp-` prefix and ships its own stylesheet so it
 // renders correctly on any page without depending on the host's CSS.
 
+import { FONT_MONO, FONT_DISPLAY, palette, injectStyleOnce } from './ui-theme.js';
+
 const STYLE_ID = 'pp-auth-style';
 const DISMISS_KEY = 'pp-auth-dismissed';
 const PROFILE_URL = '/profile.html';
 
-// Homepage "paper" palette (mirrors /assets/site.css) so the widget matches the
-// light theme on every host page. Fonts fall back gracefully if a page hasn't
-// loaded the Google Fonts.
-const FONT_MONO = '"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace';
-const FONT_DISPLAY = '"Instrument Serif","Iowan Old Style",Georgia,serif';
+const { paper, paper2, ink, muted, accent, danger } = palette;
+
 const CSS = `
 .pp-profile{position:relative;display:inline-flex}
-.pp-profile-btn{background:transparent;border:1px solid #14130f;color:#14130f;
+.pp-profile-btn{background:transparent;border:1px solid ${ink};color:${ink};
   padding:8px 16px;border-radius:999px;cursor:pointer;
   font:500 11px/1 ${FONT_MONO};text-transform:uppercase;letter-spacing:.14em;
   max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   transition:color .25s,background .25s,box-shadow .25s}
-.pp-profile-btn:hover{color:#fdfcf3;background:#14130f;box-shadow:0 12px 30px -14px rgba(20,19,15,.55)}
+.pp-profile-btn:hover{color:${paper};background:${ink};box-shadow:0 12px 30px -14px rgba(20,19,15,.55)}
 .pp-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:1000;min-width:160px;
-  background:#fdfcf3;border:1px solid rgba(20,19,15,.14);border-radius:12px;padding:5px;
+  background:${paper};border:1px solid ${palette.line};border-radius:12px;padding:5px;
   box-shadow:0 18px 44px -20px rgba(20,19,15,.4)}
 .pp-menu[hidden]{display:none}
 .pp-menu-item{display:block;width:100%;text-align:left;background:none;border:0;
-  color:#14130f;padding:9px 12px;border-radius:8px;cursor:pointer;
+  color:${ink};padding:9px 12px;border-radius:8px;cursor:pointer;
   font:500 11px/1 ${FONT_MONO};text-transform:uppercase;letter-spacing:.1em}
-.pp-menu-item:hover{background:#f7f5ea}
+.pp-menu-item:hover{background:${paper2}}
 
 .pp-overlay{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;
   justify-content:center;background:rgba(20,19,15,.4);padding:16px}
 .pp-overlay[hidden]{display:none}
-.pp-modal{position:relative;width:100%;max-width:360px;background:#fdfcf3;
-  border:1px solid rgba(20,19,15,.14);border-radius:18px;padding:26px;color:#14130f;
+.pp-modal{position:relative;width:100%;max-width:360px;background:${paper};
+  border:1px solid ${palette.line};border-radius:18px;padding:26px;color:${ink};
   box-shadow:0 30px 70px -30px rgba(20,19,15,.5);font:15px/1.45 ${FONT_MONO}}
 .pp-close{position:absolute;top:12px;right:14px;background:none;border:0;
-  color:#6b675e;font-size:22px;line-height:1;cursor:pointer}
-.pp-close:hover{color:#14130f}
+  color:${muted};font-size:22px;line-height:1;cursor:pointer}
+.pp-close:hover{color:${ink}}
 .pp-title{margin:0 0 18px;font-family:${FONT_DISPLAY};font-size:26px;font-weight:400;letter-spacing:.01em}
 .pp-field{margin-bottom:12px}
 .pp-field[hidden]{display:none}
-.pp-field label{display:block;font-size:10px;color:#6b675e;margin-bottom:6px;
+.pp-field label{display:block;font-size:10px;color:${muted};margin-bottom:6px;
   text-transform:uppercase;letter-spacing:.12em}
-.pp-field input{width:100%;background:#f7f5ea;border:1px solid rgba(20,19,15,.22);color:#14130f;
+.pp-field input{width:100%;background:${paper2};border:1px solid rgba(20,19,15,.22);color:${ink};
   border-radius:10px;padding:10px 12px;font:14px/1.4 ${FONT_MONO}}
-.pp-field input:focus{outline:none;border-color:#22b8ff;box-shadow:0 0 0 3px rgba(34,184,255,.15)}
-.pp-msg{min-height:18px;font-size:13px;margin:2px 0 12px;color:#d64541}
+.pp-field input:focus{outline:none;border-color:${accent};box-shadow:0 0 0 3px rgba(34,184,255,.15)}
+.pp-msg{min-height:18px;font-size:13px;margin:2px 0 12px;color:${danger}}
 .pp-msg[hidden]{display:none}
-.pp-submit{width:100%;background:#14130f;border:1px solid #14130f;color:#fdfcf3;
+.pp-submit{width:100%;background:${ink};border:1px solid ${ink};color:${paper};
   padding:11px;border-radius:999px;cursor:pointer;
   font:500 11px/1 ${FONT_MONO};text-transform:uppercase;letter-spacing:.14em;
   transition:background .25s,color .25s,box-shadow .25s}
-.pp-submit:hover{background:transparent;color:#14130f;box-shadow:0 12px 30px -14px rgba(20,19,15,.55)}
+.pp-submit:hover{background:transparent;color:${ink};box-shadow:0 12px 30px -14px rgba(20,19,15,.55)}
 .pp-submit:disabled{opacity:.5;cursor:default}
-.pp-toggle{margin-top:16px;text-align:center;font-size:12px;color:#6b675e}
-.pp-toggle-btn{background:none;border:0;color:#14130f;cursor:pointer;
+.pp-toggle{margin-top:16px;text-align:center;font-size:12px;color:${muted}}
+.pp-toggle-btn{background:none;border:0;color:${ink};cursor:pointer;
   font:500 12px/1 ${FONT_MONO};padding:0 0 2px 5px;border-bottom:1px solid rgba(20,19,15,.28)}
-.pp-toggle-btn:hover{border-bottom-color:#14130f}
+.pp-toggle-btn:hover{border-bottom-color:${ink}}
 `;
-
-function injectStyleOnce() {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = CSS;
-  document.head.appendChild(style);
-}
 
 export function createAuthUI({
   mountButtonInto,
@@ -77,7 +68,7 @@ export function createAuthUI({
   onLogout,
   onOpenProfile,
 } = {}) {
-  injectStyleOnce();
+  injectStyleOnce(STYLE_ID, CSS);
 
   let loggedIn = false;
   let signupMode = false;

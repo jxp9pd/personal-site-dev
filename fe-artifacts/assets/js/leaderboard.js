@@ -12,85 +12,77 @@
 
 import * as dataClient from './dataClient.js';
 import { buildCompactRows, formatScore, formatDate } from './leaderboard-view.js';
+import { FONT_MONO, FONT_DISPLAY, palette, injectStyleOnce } from './ui-theme.js';
 
 const STYLE_ID = 'lb-style';
 const COMPACT_TOP = 5;
 const FULL_LIMIT = 100;
 
-const FONT_MONO = '"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace';
-const FONT_DISPLAY = '"Instrument Serif","Iowan Old Style",Georgia,serif';
+const { paper, ink, muted, faint, line, accent, accentInk } = palette;
 
-// Same paper palette as the host pages, inlined (the module can't rely on a
-// page's :root tokens being present). --accent (#22b8ff) marks the viewer.
+// Scoped `lb-`-prefixed styles shipped with the module (it can't rely on a
+// page's :root tokens). `accent` marks the viewer's row.
 const CSS = `
 .lb-overlay{position:fixed;inset:0;z-index:2100;display:flex;align-items:center;
   justify-content:center;background:rgba(20,19,15,.42);padding:16px}
 .lb-overlay[hidden]{display:none}
 .lb-modal{position:relative;width:100%;max-width:420px;max-height:88vh;
-  display:flex;flex-direction:column;background:#fdfcf3;
-  border:1px solid rgba(20,19,15,.14);border-radius:18px;padding:24px 24px 22px;
-  color:#14130f;box-shadow:0 30px 70px -30px rgba(20,19,15,.5);
+  display:flex;flex-direction:column;background:${paper};
+  border:1px solid ${line};border-radius:18px;padding:24px 24px 22px;
+  color:${ink};box-shadow:0 30px 70px -30px rgba(20,19,15,.5);
   font:14px/1.45 ${FONT_MONO}}
 .lb-close{position:absolute;top:12px;right:14px;background:none;border:0;
-  color:#6b675e;font-size:22px;line-height:1;cursor:pointer}
-.lb-close:hover{color:#14130f}
-.lb-eyebrow{font:500 10px/1.3 ${FONT_MONO};color:#6b675e;text-transform:uppercase;
+  color:${muted};font-size:22px;line-height:1;cursor:pointer}
+.lb-close:hover{color:${ink}}
+.lb-eyebrow{font:500 10px/1.3 ${FONT_MONO};color:${muted};text-transform:uppercase;
   letter-spacing:.18em;padding-right:20px}
 .lb-title{margin:6px 0 0;font-family:${FONT_DISPLAY};font-size:27px;font-weight:400;
   letter-spacing:.01em;line-height:1.1}
-.lb-sub{color:#6b675e;font-size:13px;margin:4px 0 0}
+.lb-sub{color:${muted};font-size:13px;margin:4px 0 0}
 .lb-sub[hidden]{display:none}
 .lb-body{margin-top:16px;display:flex;flex-direction:column;min-height:0}
 .lb-head,.lb-row{display:grid;grid-template-columns:26px 1fr auto 64px;
   align-items:center;gap:10px}
-.lb-head{font:500 9px/1 ${FONT_MONO};color:#9a968c;text-transform:uppercase;
-  letter-spacing:.14em;padding:0 2px 8px;border-bottom:1px solid rgba(20,19,15,.14)}
+.lb-head{font:500 9px/1 ${FONT_MONO};color:${faint};text-transform:uppercase;
+  letter-spacing:.14em;padding:0 2px 8px;border-bottom:1px solid ${line}}
 .lb-head .lb-date,.lb-head .lb-score{text-align:right}
 .lb-rows{display:flex;flex-direction:column;overflow-y:auto;min-height:0}
 .lb-row{padding:9px 2px;border-bottom:1px solid rgba(20,19,15,.08)}
 .lb-row:last-child{border-bottom:0}
-.lb-rank{color:#9a968c;font-variant-numeric:tabular-nums;font-size:12px}
+.lb-rank{color:${faint};font-variant-numeric:tabular-nums;font-size:12px}
 .lb-name{font-family:${FONT_DISPLAY};font-size:16px;line-height:1.1;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.lb-you{margin-left:7px;font:500 8px/1 ${FONT_MONO};color:#9a968c;
+.lb-you{margin-left:7px;font:500 8px/1 ${FONT_MONO};color:${faint};
   text-transform:uppercase;letter-spacing:.14em;vertical-align:middle}
-.lb-date{text-align:right;font-size:11px;color:#9a968c;font-variant-numeric:tabular-nums}
+.lb-date{text-align:right;font-size:11px;color:${faint};font-variant-numeric:tabular-nums}
 .lb-score{text-align:right;font-weight:500;font-variant-numeric:tabular-nums;font-size:13px}
 .lb-row.me{background:rgba(34,184,255,.09);border-radius:8px;
-  box-shadow:inset 3px 0 0 #22b8ff}
-.lb-row.me .lb-score{color:#1499d6}
+  box-shadow:inset 3px 0 0 ${accent}}
+.lb-row.me .lb-score{color:${accentInk}}
 .lb-pinned{margin-top:2px}
-.lb-divider{text-align:center;color:#9a968c;font-size:10px;letter-spacing:.08em;
+.lb-divider{text-align:center;color:${faint};font-size:10px;letter-spacing:.08em;
   text-transform:uppercase;padding:12px 0 8px}
-.lb-hint,.lb-empty,.lb-error,.lb-loading{color:#6b675e;font-size:13px;
+.lb-hint,.lb-empty,.lb-error,.lb-loading{color:${muted};font-size:13px;
   text-align:center;padding:18px 4px}
-.lb-footer{margin-top:14px;padding-top:12px;border-top:1px solid rgba(20,19,15,.14);
-  color:#6b675e;font-size:12px}
+.lb-footer{margin-top:14px;padding-top:12px;border-top:1px solid ${line};
+  color:${muted};font-size:12px}
 .lb-footer[hidden]{display:none}
-.lb-footer b{color:#14130f}
+.lb-footer b{color:${ink}}
 .lb-actions{display:flex;gap:10px;justify-content:center;margin-top:18px}
 .lb-actions[hidden]{display:none}
-.lb-btn{background:transparent;border:1px solid #14130f;color:#14130f;
+.lb-btn{background:transparent;border:1px solid ${ink};color:${ink};
   padding:10px 18px;border-radius:999px;cursor:pointer;
   font:500 11px/1 ${FONT_MONO};text-transform:uppercase;letter-spacing:.12em;
   transition:color .25s,background .25s,box-shadow .25s}
-.lb-btn:hover{color:#fdfcf3;background:#14130f;box-shadow:0 12px 30px -14px rgba(20,19,15,.55)}
-.lb-btn.primary{color:#fdfcf3;background:#14130f}
-.lb-btn.primary:hover{color:#14130f;background:transparent}
+.lb-btn:hover{color:${paper};background:${ink};box-shadow:0 12px 30px -14px rgba(20,19,15,.55)}
+.lb-btn.primary{color:${paper};background:${ink}}
+.lb-btn.primary:hover{color:${ink};background:transparent}
 `;
 
 function esc(s) {
   return String(s ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-function injectStyleOnce() {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = CSS;
-  document.head.appendChild(style);
 }
 
 let overlay = null;
@@ -102,7 +94,7 @@ let state = null;
 
 function build() {
   if (overlay) return;
-  injectStyleOnce();
+  injectStyleOnce(STYLE_ID, CSS);
   overlay = document.createElement('div');
   overlay.className = 'lb-overlay';
   overlay.hidden = true;
