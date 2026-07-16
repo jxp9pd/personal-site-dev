@@ -1,0 +1,22 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "node/10",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -122.4,
+          37.79
+        ]
+      },
+      "properties": {
+        "name": "Curated landmark",
+        "layer": "landmarks",
+        "start_date": "1900",
+        "end_date": "1950"
+      }
+    }
+  ]
+}
