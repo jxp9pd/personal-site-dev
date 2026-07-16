@@ -1,0 +1,66 @@
+{
+  "version": 0.6,
+  "generator": "OpenHistoricalMap fixture",
+  "elements": [
+    {
+      "type": "way",
+      "id": 22,
+      "tags": {
+        "building": "civic",
+        "name": "Old City Hall",
+        "start_date": "1899-12"
+      },
+      "geometry": [
+        { "lat": 37.7790, "lon": -122.4190 },
+        { "lat": 37.7790, "lon": -122.4180 },
+        { "lat": 37.7780, "lon": -122.4180 },
+        { "lat": 37.7780, "lon": -122.4190 },
+        { "lat": 37.7790, "lon": -122.4190 }
+      ]
+    },
+    {
+      "type": "relation",
+      "id": 31,
+      "tags": {
+        "name": "South of Market",
+        "place": "neighbourhood",
+        "start_date": "1847~",
+        "type": "boundary"
+      },
+      "members": [
+        {
+          "type": "way",
+          "ref": 3101,
+          "role": "outer",
+          "geometry": [
+            { "lat": 37.7900, "lon": -122.4100 },
+            { "lat": 37.7900, "lon": -122.3900 },
+            { "lat": 37.7700, "lon": -122.3900 }
+          ]
+        },
+        {
+          "type": "way",
+          "ref": 3102,
+          "role": "outer",
+          "geometry": [
+            { "lat": 37.7700, "lon": -122.3900 },
+            { "lat": 37.7700, "lon": -122.4100 },
+            { "lat": 37.7900, "lon": -122.4100 }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "node",
+      "id": 7,
+      "lat": 37.7955,
+      "lon": -122.3937,
+      "tags": {
+        "end_date": "1906-04-18",
+        "historic": "memorial",
+        "name": "Market Street Monument",
+        "start_date": "1850"
+      }
+    }
+  ]
+}
