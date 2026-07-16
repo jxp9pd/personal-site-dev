@@ -1,0 +1,156 @@
+:root {
+  --atlas-ink: #27231f;
+  --atlas-paper: #f4efe5;
+  --atlas-accent: #8c3f25;
+}
+
+body {
+  background: var(--atlas-paper);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.atlas-page {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto 48px;
+}
+
+.atlas-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 32px 0 18px;
+}
+
+.atlas-heading h1 {
+  margin: 0;
+  color: var(--atlas-ink);
+  font-family: "Instrument Serif", serif;
+  font-size: clamp(2.3rem, 6vw, 4.5rem);
+  font-weight: 400;
+  line-height: 0.95;
+}
+
+.atlas-heading p {
+  max-width: 430px;
+  margin: 0;
+  color: #625a52;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.atlas-shell {
+  position: relative;
+  min-height: 620px;
+  overflow: hidden;
+  border: 1px solid rgba(39, 35, 31, 0.18);
+  border-radius: 18px;
+  background: #ddd8ce;
+  box-shadow: 0 22px 55px rgba(54, 45, 35, 0.12);
+}
+
+.atlas-map {
+  position: absolute;
+  inset: 0;
+}
+
+.atlas-state {
+  position: absolute;
+  z-index: 2;
+  top: 24px;
+  left: 50%;
+  width: min(430px, calc(100% - 32px));
+  padding: 16px 18px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(39, 35, 31, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 252, 245, 0.94);
+  color: var(--atlas-ink);
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(39, 35, 31, 0.12);
+}
+
+.atlas-state p {
+  margin: 0;
+}
+
+.atlas-retry {
+  margin-top: 12px;
+  padding: 8px 14px;
+  border: 1px solid var(--atlas-accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--atlas-accent);
+  cursor: pointer;
+  font: 500 0.78rem "IBM Plex Mono", monospace;
+}
+
+.atlas-timeline {
+  position: absolute;
+  z-index: 2;
+  right: 24px;
+  bottom: 24px;
+  left: 24px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 20px;
+  align-items: center;
+  padding: 16px 20px;
+  border: 1px solid rgba(39, 35, 31, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 252, 245, 0.94);
+  box-shadow: 0 10px 30px rgba(39, 35, 31, 0.14);
+}
+
+.atlas-timeline label {
+  color: #625a52;
+  font: 500 0.7rem "IBM Plex Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.atlas-checkpoint-label {
+  grid-row: 2;
+  color: var(--atlas-ink);
+  font-family: "Instrument Serif", serif;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.atlas-timeline input {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: 100%;
+  accent-color: var(--atlas-accent);
+}
+
+@media (max-width: 700px) {
+  .atlas-heading {
+    display: block;
+  }
+
+  .atlas-heading p {
+    margin-top: 12px;
+  }
+
+  .atlas-shell {
+    min-height: 68vh;
+  }
+
+  .atlas-timeline {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    grid-template-columns: 1fr;
+  }
+
+  .atlas-checkpoint-label,
+  .atlas-timeline input {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
