@@ -1,0 +1,16 @@
+{
+  "bounds": [
+    37.707,
+    -122.515,
+    37.833,
+    -122.349
+  ],
+  "city": "sf",
+  "counts": {
+    "landmarks": 2972,
+    "neighborhoods": 6,
+    "total": 2978
+  },
+  "query": "[out:json][timeout:180];\n(\n  nwr[\"place\"~\"^(neighbourhood|neighborhood|quarter|suburb)$\"](37.707,-122.515,37.833,-122.349);\n  nwr[\"historic\"](37.707,-122.515,37.833,-122.349);\n  nwr[\"tourism\"](37.707,-122.515,37.833,-122.349);\n  nwr[\"amenity\"][\"start_date\"](37.707,-122.515,37.833,-122.349);\n  nwr[\"building\"][\"start_date\"](37.707,-122.515,37.833,-122.349);\n  nwr[\"man_made\"][\"start_date\"](37.707,-122.515,37.833,-122.349);\n  nwr[\"memorial\"](37.707,-122.515,37.833,-122.349);\n);\nout body geom;",
+  "source": "OpenHistoricalMap"
+}

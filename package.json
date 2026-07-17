@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "atlas:import": "node scripts/import-ohm.mjs",
+    "atlas:audit": "node scripts/audit-atlas.mjs",
     "atlas:publish": "node scripts/publish-atlas.mjs",
     "test": "vitest run",
     "test:atlas-db": "supabase start -x edge-runtime,gotrue,imgproxy,kong,logflare,mailpit,postgres-meta,postgrest,realtime,storage-api,studio,supavisor,vector && supabase db reset --local --no-seed && supabase test db --local tests/database/atlas.test.sql",

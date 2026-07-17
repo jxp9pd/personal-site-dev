@@ -91,10 +91,35 @@ export async function publishAtlas({
     },
   );
   if (!response.ok) {
-    throw new Error(`Atlas publication request failed with HTTP ${response.status}`);
+    const summary = await summarizeErrorResponse(response, serviceRoleKey);
+    const detail = summary ? `: ${summary}` : "";
+    throw new Error(`Atlas publication request failed with HTTP ${response.status}${detail}`);
   }
 
   return { ...publication, published: true };
+}
+
+async function summarizeErrorResponse(response, secret) {
+  if (typeof response.text !== "function") return "";
+  let body;
+  try {
+    body = await response.text();
+  } catch {
+    return "";
+  }
+
+  let summary;
+  try {
+    const parsed = JSON.parse(body);
+    summary = ["code", "message", "details", "hint"]
+      .filter(key => parsed?.[key] !== undefined && parsed[key] !== null)
+      .map(key => `${key}=${String(parsed[key])}`)
+      .join("; ");
+  } catch {
+    summary = String(body).replace(/\s+/g, " ").trim();
+  }
+  if (secret) summary = summary.split(secret).join("[redacted]");
+  return summary.slice(0, 500);
 }
 
 function publicationPaths({ city, fixture, dataRoot }) {

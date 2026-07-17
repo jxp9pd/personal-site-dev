@@ -155,4 +155,36 @@ describe("atlas publication requests", () => {
     expect(failure?.message).toBe("Atlas publication request failed with HTTP 409");
     expect(failure?.message).not.toContain(secret);
   });
+
+  it("summarizes structured PostgREST failures without exposing secrets", async () => {
+    const secret = "do-not-print-this-secret";
+    const fetchImpl = vi.fn(async () => ({
+      ok: false,
+      status: 400,
+      text: async () => JSON.stringify({
+        code: "23514",
+        message: "new row violates check constraint",
+        details: "Failing row contains ohm:way/199596913",
+        hint: `authorization ${secret}`,
+        ignored: "x".repeat(1000),
+      }),
+    }));
+
+    await expect(
+      publishAtlas({
+        city: "sf",
+        fixture,
+        env: {
+          SUPABASE_SERVICE_ROLE_KEY: secret,
+          SUPABASE_URL: "https://example.supabase.co",
+        },
+        fetchImpl,
+      }),
+    ).rejects.toThrow(
+      "Atlas publication request failed with HTTP 400: code=23514; " +
+        "message=new row violates check constraint; " +
+        "details=Failing row contains ohm:way/199596913; " +
+        "hint=authorization [redacted]",
+    );
+  });
 });

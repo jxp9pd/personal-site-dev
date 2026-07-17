@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import process from "node:process";
@@ -16,17 +17,33 @@ export async function importOhm({
   city,
   fixture,
   output,
+  overrides,
+  exclusions,
   fetchImpl = globalThis.fetch,
 } = {}) {
   const config = CITY_CONFIG[city];
   if (!config) throw new Error(`Unsupported city "${city}"`);
 
   const query = buildQuery(config.bounds);
-  const payload = fixture
-    ? JSON.parse(await readFile(fixture, "utf8"))
-    : await fetchOhm(query, fetchImpl);
+  const [payload, overrideEntries, exclusionEntries] = await Promise.all([
+    fixture
+      ? JSON.parse(await readFile(fixture, "utf8"))
+      : fetchOhm(query, fetchImpl),
+    readOptionalJson(
+      overrides ?? path.join("data", "time-atlas", "curated", city, "overrides.json"),
+      {},
+    ),
+    readOptionalJson(
+      exclusions ?? path.join("data", "time-atlas", "curated", city, "exclusions.json"),
+      [],
+    ),
+  ]);
   const sourceRecords = convertElements(payload?.elements);
-  const features = normalizeAtlasFeatures({ imported: sourceRecords });
+  const features = normalizeAtlasFeatures({
+    imported: sourceRecords,
+    overrides: overrideEntries,
+    exclusions: exclusionEntries,
+  });
   const counts = countLayers(features);
   const outputDirectory = output ?? path.join("data", "time-atlas", "imported", city);
 
@@ -67,21 +84,57 @@ export function buildQuery(bounds) {
     `  nwr["man_made"]["start_date"](${bbox});`,
     `  nwr["memorial"](${bbox});`,
     ");",
-    "out tags geom;",
+    "out body geom;",
   ].join("\n");
 }
 
 async function fetchOhm(query, fetchImpl) {
   if (typeof fetchImpl !== "function") throw new Error("No fetch implementation is available");
-  const response = await fetchImpl(OVERPASS_URL, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded;charset=UTF-8" },
-    body: new URLSearchParams({ data: query }),
-  });
-  if (!response.ok) {
-    throw new Error(`OpenHistoricalMap request failed with HTTP ${response.status}`);
+  const maximumRetries = 5;
+  const requestNonce = randomUUID();
+  for (let attempt = 0; attempt <= maximumRetries; attempt += 1) {
+    const requestQuery =
+      `${query}\n// time-atlas-request-${requestNonce}-attempt-${attempt}`;
+    const response = await fetchImpl(OVERPASS_URL, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: new URLSearchParams({ data: requestQuery }),
+    });
+    if (!response.ok) {
+      throw new Error(`OpenHistoricalMap request failed with HTTP ${response.status}`);
+    }
+
+    const body = await response.text();
+    try {
+      return JSON.parse(body);
+    } catch {
+      if (body.includes("duplicate_query")) {
+        if (attempt < maximumRetries) continue;
+        throw new Error("OpenHistoricalMap duplicate query retries exhausted");
+      }
+      throw new Error(`OpenHistoricalMap returned non-JSON: ${summarizeServerError(body)}`);
+    }
   }
-  return response.json();
+  throw new Error("OpenHistoricalMap duplicate query retries exhausted");
+}
+
+function summarizeServerError(body) {
+  const text = String(body)
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return (text || "empty response").slice(0, 240);
+}
+
+async function readOptionalJson(file, fallback) {
+  try {
+    return JSON.parse(await readFile(file, "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT") return structuredClone(fallback);
+    throw error;
+  }
 }
 
 function convertElements(elements) {

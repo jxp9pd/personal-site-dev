@@ -1,0 +1,223 @@
+{
+  "ohm:node/2096330437": {
+    "citation": "https://sfpl.org/locations/bayview/library-history",
+    "reason": "SFPL states the new Bayview Library opened February 23, 2013; the OHM value 1900-02-29 is not a valid calendar date.",
+    "start_date": "2013-02-23"
+  },
+  "ohm:node/2108838779": {
+    "citation": "https://en.wikipedia.org/wiki/Mission_District,_San_Francisco",
+    "end_date": null,
+    "reason": "The district takes its historical origin from Mission San Francisco de Asís, founded in 1776; the OHM record links this provenance but supplies no date.",
+    "start_date": "1776"
+  },
+  "ohm:way/199889378": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889381": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889382": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889383": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889384": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889385": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889386": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889387": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889388": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889389": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889391": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889392": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889393": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889394": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889395": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199889396": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199963245": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199963246": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199963247": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199963248": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199963249": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199963250": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199963251": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:way/199963252": {
+    "citation": "High Points on Four Great High Ways to the California Expositions (1915)",
+    "end_date": "1916",
+    "reason": "Treat the sourced 1915 exposition record as a one-year interval."
+  },
+  "ohm:node/2118171774": {
+    "citation": "Negro Motorist Green Book (1941)",
+    "end_date": "1942",
+    "reason": "Treat the sourced 1941 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118171830": {
+    "citation": "Negro Motorist Green Book (1941)",
+    "end_date": "1942",
+    "reason": "Treat the sourced 1941 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118172271": {
+    "citation": "Negro Motorist Green Book (1941)",
+    "end_date": "1942",
+    "reason": "Treat the sourced 1941 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118172464": {
+    "citation": "Negro Motorist Green Book (1941)",
+    "end_date": "1942",
+    "reason": "Treat the sourced 1941 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118172712": {
+    "citation": "Negro Motorist Green Book (1941)",
+    "end_date": "1942",
+    "reason": "Treat the sourced 1941 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118172904": {
+    "citation": "Negro Motorist Green Book (1941)",
+    "end_date": "1942",
+    "reason": "Treat the sourced 1941 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118173343": {
+    "citation": "Negro Motorist Green Book (1941)",
+    "end_date": "1942",
+    "reason": "Treat the sourced 1941 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118141137": {
+    "citation": "Negro Motorist Green Book (1947)",
+    "end_date": "1948",
+    "reason": "Treat the sourced 1947 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118141139": {
+    "citation": "Negro Motorist Green Book (1947)",
+    "end_date": "1948",
+    "reason": "Treat the sourced 1947 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118141165": {
+    "citation": "Negro Motorist Green Book (1947)",
+    "end_date": "1948",
+    "reason": "Treat the sourced 1947 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118141232": {
+    "citation": "Negro Motorist Green Book (1947)",
+    "end_date": "1948",
+    "reason": "Treat the sourced 1947 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118141258": {
+    "citation": "Negro Motorist Green Book (1947)",
+    "end_date": "1948",
+    "reason": "Treat the sourced 1947 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118141307": {
+    "citation": "Negro Motorist Green Book (1947)",
+    "end_date": "1948",
+    "reason": "Treat the sourced 1947 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118141506": {
+    "citation": "Negro Motorist Green Book (1947)",
+    "end_date": "1948",
+    "reason": "Treat the sourced 1947 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118141612": {
+    "citation": "Negro Motorist Green Book (1947)",
+    "end_date": "1948",
+    "reason": "Treat the sourced 1947 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118141708": {
+    "citation": "Negro Motorist Green Book (1947)",
+    "end_date": "1948",
+    "reason": "Treat the sourced 1947 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118141782": {
+    "citation": "Negro Motorist Green Book (1947)",
+    "end_date": "1948",
+    "reason": "Treat the sourced 1947 Green Book record as a one-year interval."
+  },
+  "ohm:node/2118141810": {
+    "citation": "Negro Motorist Green Book (1947)",
+    "end_date": "1948",
+    "reason": "Treat the sourced 1947 Green Book record as a one-year interval."
+  }
+}
