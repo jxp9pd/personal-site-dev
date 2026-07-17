@@ -4,7 +4,10 @@ vi.mock('../fe-artifacts/assets/js/dataClient.js', () => ({
   fetchAtlasCity: vi.fn(),
 }));
 
-import { startTimeAtlas } from '../fe-artifacts/assets/js/time-atlas.js';
+import {
+  createCollapsiblePanel,
+  startTimeAtlas,
+} from '../fe-artifacts/assets/js/time-atlas.js';
 import { discoverAtlasLayers } from '../fe-artifacts/assets/js/time-atlas-layers.js';
 import { createTimeAtlasMap } from '../fe-artifacts/assets/js/time-atlas-map.js';
 import { createCheckpointTransition } from '../fe-artifacts/assets/js/time-atlas-transitions.js';
@@ -176,6 +179,39 @@ describe('Time Atlas feature interactions', () => {
     expect(details.textContent).toContain('ohm:way/42');
     expect(fetchCity).toHaveBeenCalledTimes(1);
     expect(harness.createRenderer).toHaveBeenCalledTimes(1);
+  });
+
+  it('provides a keyboard-reachable path to selected feature details', async () => {
+    const fetchCity = vi.fn().mockResolvedValue(cityResult());
+    const harness = rendererHarness();
+    await startTimeAtlas({ fetchCity, createRenderer: harness.createRenderer });
+
+    const picker = document.getElementById('atlasFeaturePicker');
+    picker.value = [...picker.options].find((option) => option.textContent.includes('Ferry Building')).value;
+    picker.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const details = document.getElementById('atlasHoverDetails');
+    expect(details.hidden).toBe(false);
+    expect(details.textContent).toContain('Ferry Building');
+    expect(document.activeElement).toBe(details);
+    expect(fetchCity).toHaveBeenCalledTimes(1);
+  });
+
+  it('collapses map controls on narrow screens and toggles them by button', () => {
+    const button = document.getElementById('atlasLayerToggle');
+    const content = document.getElementById('atlasLayerPanelBody');
+
+    createCollapsiblePanel({
+      button,
+      content,
+      narrowScreen: { matches: true, addEventListener: vi.fn() },
+    });
+
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(content.hidden).toBe(true);
+    button.click();
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(content.hidden).toBe(false);
   });
 });
 

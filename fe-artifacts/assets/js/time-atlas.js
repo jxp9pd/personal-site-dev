@@ -12,6 +12,30 @@ const STATE_MESSAGES = {
   failure: 'Time Atlas could not load this city.',
 };
 
+export function createCollapsiblePanel({
+  button,
+  content,
+  narrowScreen = window.matchMedia?.('(max-width: 640px)'),
+}) {
+  function setExpanded(expanded) {
+    button.setAttribute('aria-expanded', String(expanded));
+    button.textContent = expanded ? 'Hide controls' : 'Show controls';
+    content.hidden = !expanded;
+  }
+
+  button.addEventListener('click', () => {
+    setExpanded(button.getAttribute('aria-expanded') !== 'true');
+  });
+
+  if (narrowScreen) {
+    const syncToViewport = ({ matches }) => setExpanded(!matches);
+    syncToViewport(narrowScreen);
+    narrowScreen.addEventListener?.('change', syncToViewport);
+  }
+
+  return { setExpanded };
+}
+
 export async function startTimeAtlas({
   citySlug = new URLSearchParams(window.location.search).get('city') ?? 'sf',
   fetchCity = fetchAtlasCity,
@@ -27,6 +51,9 @@ export async function startTimeAtlas({
   const timelineOutput = document.getElementById('atlasCheckpointLabel');
   const layerPanel = document.getElementById('atlasLayers');
   const layerControls = document.getElementById('atlasLayerControls');
+  const layerToggle = document.getElementById('atlasLayerToggle');
+  const layerPanelBody = document.getElementById('atlasLayerPanelBody');
+  const featurePicker = document.getElementById('atlasFeaturePicker');
   const featureDetails = document.getElementById('atlasFeatureDetails')
     ?? document.getElementById('atlasHoverDetails');
 
@@ -36,6 +63,12 @@ export async function startTimeAtlas({
   let timeline = null;
   let transitions = null;
   let selectedFeature = null;
+  let featuresByPickerValue = new Map();
+
+  createCollapsiblePanel({
+    button: layerToggle,
+    content: layerPanelBody,
+  });
 
   function showState(state, message = STATE_MESSAGES[state]) {
     app.dataset.state = state;
@@ -47,9 +80,11 @@ export async function startTimeAtlas({
   }
 
   function renderCheckpoint(checkpoint) {
-    transitions.transitionTo(featuresAtCheckpoint(featureCollection, checkpoint));
+    const visibleFeatures = featuresAtCheckpoint(featureCollection, checkpoint);
+    transitions.transitionTo(visibleFeatures);
     selectedFeature = null;
     showFeatureDetails(null);
+    updateFeaturePicker(visibleFeatures);
   }
 
   function showFeatureDetails(feature, { selected = false } = {}) {
@@ -81,6 +116,34 @@ export async function startTimeAtlas({
   function selectFeature(feature) {
     selectedFeature = feature;
     showFeatureDetails(feature, { selected: true });
+    const matchingValue = [...featuresByPickerValue.entries()]
+      .find(([, candidate]) => String(candidate.id) === String(feature.id))?.[0];
+    featurePicker.value = matchingValue ?? '';
+  }
+
+  function updateFeaturePicker(visibleFeatures) {
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Choose a visible feature';
+    featurePicker.replaceChildren(placeholder);
+    featuresByPickerValue = new Map();
+
+    const features = [...visibleFeatures.features].sort((left, right) => (
+      (left.properties?.name || 'Unnamed feature').localeCompare(
+        right.properties?.name || 'Unnamed feature',
+      )
+      || String(left.id).localeCompare(String(right.id))
+    ));
+    features.forEach((feature, index) => {
+      const option = document.createElement('option');
+      const value = `${feature.id ?? 'feature'}:${index}`;
+      option.value = value;
+      option.textContent = `${feature.properties?.name || 'Unnamed feature'}`
+        + ` — ${feature.properties?.layer || 'uncategorized'}`;
+      featuresByPickerValue.set(value, feature);
+      featurePicker.append(option);
+    });
+    featurePicker.value = '';
   }
 
   async function load() {
@@ -133,7 +196,9 @@ export async function startTimeAtlas({
         output: timelineOutput,
         onChange: renderCheckpoint,
       });
-      transitions.settle(featuresAtCheckpoint(featureCollection, timeline.getCheckpoint()));
+      const initialFeatures = featuresAtCheckpoint(featureCollection, timeline.getCheckpoint());
+      transitions.settle(initialFeatures);
+      updateFeaturePicker(initialFeatures);
       showState('ready');
     } catch {
       showState('failure');
@@ -141,6 +206,16 @@ export async function startTimeAtlas({
   }
 
   retryButton.addEventListener('click', load);
+  featurePicker.addEventListener('change', () => {
+    const feature = featuresByPickerValue.get(featurePicker.value);
+    if (!feature) {
+      selectedFeature = null;
+      showFeatureDetails(null);
+      return;
+    }
+    selectFeature(feature);
+    featureDetails.focus();
+  });
   await load();
 
   return {
