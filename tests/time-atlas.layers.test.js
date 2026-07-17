@@ -175,5 +175,16 @@ describe('Time Atlas layer controller', () => {
     expect(added.slice(0, 3).every(({ type }) => type === 'fill')).toBe(true);
     expect(added.slice(-2).every(({ type }) => type === 'circle')).toBe(true);
 
+    renderer.setCheckpointStates([
+      { featureCollection: features, opacity: 1 },
+      { featureCollection: features, opacity: 0 },
+    ]);
+    const transitionCalls = map.addLayer.mock.calls.slice(added.length);
+    for (const [layer, beforeId] of transitionCalls) {
+      if (layer.type === 'fill') expect(beforeId).toContain('-outline');
+      if (layer.id.includes('-outline-transition')) expect(beforeId).toContain('-line');
+      if (layer.id.includes('-line-transition')) expect(beforeId).toContain('-point');
+      if (layer.type === 'circle') expect(beforeId).toBeUndefined();
+    }
   });
 });

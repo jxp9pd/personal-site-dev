@@ -10,7 +10,7 @@ function geometryFamily(geometry) {
   return 'Point';
 }
 
-function layerDefinitions(layers) {
+function layerDefinitions(layers, { source = 'atlas-features', suffix = '' } = {}) {
   const definitions = [];
   for (const layer of layers) {
     const families = new Set(layer.geometries.map(geometryFamily));
@@ -28,12 +28,17 @@ function layerDefinitions(layers) {
         opacityProperty: 'fill-opacity',
         baseOpacity: layer.style.fillOpacity,
         mapLayer: {
-          id: `${id}-fill`,
+          id: `${id}-fill${suffix}`,
           type: 'fill',
-          source: 'atlas-features',
+          source,
           filter: filterFor('Polygon'),
           paint: {
-            'fill-color': layer.style.color,
+            'fill-color': [
+              'case',
+              ['boolean', ['feature-state', 'hover'], false],
+              '#d99745',
+              layer.style.color,
+            ],
             'fill-opacity': layer.style.fillOpacity,
           },
         },
@@ -44,14 +49,19 @@ function layerDefinitions(layers) {
         opacityProperty: 'line-opacity',
         baseOpacity: layer.style.lineOpacity,
         mapLayer: {
-          id: `${id}-outline`,
+          id: `${id}-outline${suffix}`,
           type: 'line',
-          source: 'atlas-features',
+          source,
           filter: filterFor('Polygon'),
           paint: {
             'line-color': layer.style.color,
             'line-opacity': layer.style.lineOpacity,
-            'line-width': 1.25,
+            'line-width': [
+              'case',
+              ['boolean', ['feature-state', 'hover'], false],
+              3,
+              1.25,
+            ],
           },
         },
       });
@@ -63,14 +73,19 @@ function layerDefinitions(layers) {
         opacityProperty: 'line-opacity',
         baseOpacity: layer.style.lineOpacity,
         mapLayer: {
-          id: `${id}-line`,
+          id: `${id}-line${suffix}`,
           type: 'line',
-          source: 'atlas-features',
+          source,
           filter: filterFor('LineString'),
           paint: {
             'line-color': layer.style.color,
             'line-opacity': layer.style.lineOpacity,
-            'line-width': 2,
+            'line-width': [
+              'case',
+              ['boolean', ['feature-state', 'hover'], false],
+              4,
+              2,
+            ],
           },
         },
       });
@@ -82,14 +97,19 @@ function layerDefinitions(layers) {
         opacityProperty: 'circle-opacity',
         baseOpacity: layer.style.pointOpacity,
         mapLayer: {
-          id: `${id}-point`,
+          id: `${id}-point${suffix}`,
           type: 'circle',
-          source: 'atlas-features',
+          source,
           filter: filterFor('Point'),
           paint: {
             'circle-color': layer.style.color,
             'circle-opacity': layer.style.pointOpacity,
-            'circle-radius': 5,
+            'circle-radius': [
+              'case',
+              ['boolean', ['feature-state', 'hover'], false],
+              8,
+              5,
+            ],
             'circle-stroke-color': '#fffaf0',
             'circle-stroke-opacity': layer.style.pointOpacity,
             'circle-stroke-width': 1.5,
@@ -120,6 +140,7 @@ export async function createTimeAtlasMap({
   center,
   zoom,
   onFeatureHover = () => {},
+  onFeatureSelect = () => {},
   mapLibreLoader = loadMapLibre,
 }) {
   const module = await mapLibreLoader();
@@ -137,30 +158,142 @@ export async function createTimeAtlasMap({
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
   });
+  map.addSource('atlas-features-transition', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: [] },
+  });
   let definitions = [];
+  let transitionDefinitions = [];
+  let configuredLayers = [];
+  let hoveredFeature = null;
+  const categoryOpacity = new Map();
+  const categoryVisibility = new Map();
+  const transitionOpacity = [1, 0];
+
+  function setDefinitionOpacity(definition, duration = 0) {
+    const slotOpacity = transitionOpacity[definition.slot];
+    const opacity = categoryOpacity.get(definition.category) ?? 1;
+    map.setPaintProperty(
+      definition.mapLayer.id,
+      `${definition.opacityProperty}-transition`,
+      { duration },
+    );
+    map.setPaintProperty(
+      definition.mapLayer.id,
+      definition.opacityProperty,
+      definition.baseOpacity * opacity * slotOpacity,
+    );
+    if (definition.mapLayer.type === 'circle') {
+      map.setPaintProperty(
+        definition.mapLayer.id,
+        'circle-stroke-opacity-transition',
+        { duration },
+      );
+      map.setPaintProperty(
+        definition.mapLayer.id,
+        'circle-stroke-opacity',
+        definition.baseOpacity * opacity * slotOpacity,
+      );
+    }
+  }
+
+  function clearHover() {
+    if (hoveredFeature && map.setFeatureState) {
+      map.setFeatureState(hoveredFeature, { hover: false });
+    }
+    hoveredFeature = null;
+    map.getCanvas().style.cursor = '';
+    onFeatureHover(null);
+  }
+
+  function allDefinitions() {
+    return [...definitions, ...transitionDefinitions];
+  }
+
+  function ensureTransitionLayers() {
+    if (transitionDefinitions.length > 0) return;
+    transitionDefinitions = layerDefinitions(configuredLayers, {
+      source: 'atlas-features-transition',
+      suffix: '-transition',
+    }).map((definition) => ({ ...definition, slot: 1 }));
+    const addedTransitionDefinitions = [];
+    for (const definition of transitionDefinitions) {
+      const nextDefinition = [...definitions, ...addedTransitionDefinitions]
+        .filter(({ order }) => order > definition.order)
+        .sort((left, right) => (
+          left.order - right.order || left.mapLayer.id.localeCompare(right.mapLayer.id)
+        ))[0];
+      map.addLayer(definition.mapLayer, nextDefinition?.mapLayer.id);
+      addedTransitionDefinitions.push(definition);
+      setDefinitionOpacity(definition);
+      map.setLayoutProperty(
+        definition.mapLayer.id,
+        'visibility',
+        categoryVisibility.get(definition.category) === false ? 'none' : 'visible',
+      );
+    }
+  }
 
   return {
     configureLayers(layers) {
-      definitions = layerDefinitions(layers);
+      configuredLayers = layers;
+      definitions = layerDefinitions(layers).map((definition) => ({
+        ...definition,
+        slot: 0,
+      }));
       for (const definition of definitions) map.addLayer(definition.mapLayer);
 
       const interactiveLayerIds = definitions.map(({ mapLayer }) => mapLayer.id);
       if (interactiveLayerIds.length > 0) {
         map.on('mousemove', interactiveLayerIds, (event) => {
+          const feature = event.features?.[0] ?? null;
+          const nextHovered = feature?.id === undefined ? null : {
+            source: feature.source,
+            id: feature.id,
+          };
+          if (
+            hoveredFeature
+            && (hoveredFeature.source !== nextHovered?.source || hoveredFeature.id !== nextHovered?.id)
+            && map.setFeatureState
+          ) {
+            map.setFeatureState(hoveredFeature, { hover: false });
+          }
+          hoveredFeature = nextHovered;
+          if (hoveredFeature && map.setFeatureState) {
+            map.setFeatureState(hoveredFeature, { hover: true });
+          }
           map.getCanvas().style.cursor = 'pointer';
-          onFeatureHover(event.features?.[0] ?? null);
+          onFeatureHover(feature);
         });
-        map.on('mouseleave', interactiveLayerIds, () => {
-          map.getCanvas().style.cursor = '';
-          onFeatureHover(null);
+        map.on('mouseleave', interactiveLayerIds, clearHover);
+        map.on('click', interactiveLayerIds, (event) => {
+          const feature = event.features?.[0] ?? null;
+          if (feature) onFeatureSelect(feature);
         });
       }
     },
     renderFeatures(featureCollection) {
       map.getSource('atlas-features').setData(featureCollection);
+      map.getSource('atlas-features-transition').setData({
+        type: 'FeatureCollection',
+        features: [],
+      });
+    },
+    setCheckpointStates(states, { duration = 0 } = {}) {
+      clearHover();
+      if (states.length > 1) {
+        ensureTransitionLayers();
+      }
+      const empty = { type: 'FeatureCollection', features: [] };
+      map.getSource('atlas-features').setData(states[0]?.featureCollection ?? empty);
+      map.getSource('atlas-features-transition').setData(states[1]?.featureCollection ?? empty);
+      transitionOpacity[0] = states[0]?.opacity ?? 0;
+      transitionOpacity[1] = states[1]?.opacity ?? 0;
+      for (const definition of allDefinitions()) setDefinitionOpacity(definition, duration);
     },
     setLayerVisibility(category, visible) {
-      for (const definition of definitions.filter((item) => item.category === category)) {
+      categoryVisibility.set(category, visible);
+      for (const definition of allDefinitions().filter((item) => item.category === category)) {
         map.setLayoutProperty(
           definition.mapLayer.id,
           'visibility',
@@ -169,19 +302,9 @@ export async function createTimeAtlasMap({
       }
     },
     setLayerOpacity(category, opacity) {
-      for (const definition of definitions.filter((item) => item.category === category)) {
-        map.setPaintProperty(
-          definition.mapLayer.id,
-          definition.opacityProperty,
-          definition.baseOpacity * opacity,
-        );
-        if (definition.mapLayer.type === 'circle') {
-          map.setPaintProperty(
-            definition.mapLayer.id,
-            'circle-stroke-opacity',
-            definition.baseOpacity * opacity,
-          );
-        }
+      categoryOpacity.set(category, opacity);
+      for (const definition of allDefinitions().filter((item) => item.category === category)) {
+        setDefinitionOpacity(definition);
       }
     },
   };

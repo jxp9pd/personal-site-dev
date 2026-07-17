@@ -258,6 +258,13 @@
   margin: 0;
 }
 
+.atlas-feature-details > strong {
+  display: block;
+  margin-bottom: 7px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
 .atlas-hover-details dt {
   color: #6d6258;
 }
