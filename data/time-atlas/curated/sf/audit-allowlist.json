@@ -1,0 +1,20 @@
+[
+  {
+    "citation": "1853 USGS Coastal Survey of San Francisco",
+    "match": {
+      "source:1": "1853 USGS Coastal Survey of San Francisco",
+      "start_date:confidence": "low",
+      "start_date:source": "arbitrary, proximate to date of geometry source"
+    },
+    "reason": "Acknowledge approximate survey-derived temporal bounds without treating them as exact; retain for explicit human checkpoint review."
+  },
+  {
+    "citation": "http://www.pastmapper.com/map/1853/",
+    "match": {
+      "source:1": "http://www.pastmapper.com/map/1853/",
+      "start_date:confidence": "low",
+      "start_date:source": "arbitrary, proximate to date of geometry source"
+    },
+    "reason": "Acknowledge approximate survey-derived temporal bounds without treating them as exact; retain for explicit human checkpoint review."
+  }
+]

@@ -268,6 +268,23 @@ export async function fetchPack(slug) {
   return { ...toPack(data), items };
 }
 
+export async function fetchAtlasCity(slug) {
+  const { data, error } = await supabase.rpc('atlas_city_geojson', {
+    p_city_slug: slug,
+  });
+  if (error) throw error;
+  if (data === null) {
+    return { status: 'unknown-city', featureCollection: null };
+  }
+  if (data?.type !== 'FeatureCollection' || !Array.isArray(data.features)) {
+    throw new Error('Atlas city API returned invalid GeoJSON');
+  }
+  if (data.features.length === 0) {
+    return { status: 'empty', featureCollection: data };
+  }
+  return { status: 'success', featureCollection: data };
+}
+
 // Wraps the SDK subscription so the recorder/UI layer can drive capture-then-save
 // off auth transitions. Returns the SDK's subscription handle (has .unsubscribe()).
 export function onAuthStateChange(cb) {

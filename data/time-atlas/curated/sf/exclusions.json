@@ -1,0 +1,42 @@
+[
+  {
+    "identity": "way/199444347",
+    "reason": "Source range is inverted (1885–1880) and provides no authoritative source for correction."
+  },
+  {
+    "identity": "way/199444353",
+    "reason": "Source range is inverted (1885–1870) and provides no authoritative source for correction."
+  },
+  {
+    "identity": "way/199444360",
+    "reason": "Source range is inverted (1885–1858) and provides no authoritative source for correction."
+  },
+  {
+    "identity": "way/199444361",
+    "reason": "Source range is inverted (1885–1858) and provides no authoritative source for correction."
+  },
+  {
+    "identity": "way/199444354",
+    "reason": "Same-year 1870 pier range is marked arbitrary and provides no authoritative source for correction."
+  },
+  {
+    "identity": "way/199444362",
+    "reason": "Same-year 1870 pier range is marked arbitrary and provides no authoritative source for correction."
+  },
+  {
+    "identity": "way/199596913",
+    "reason": "Self-intersecting source geometry is rejected by PostGIS; the building is unnamed with low-confidence arbitrary/proximate temporal metadata, so topology is not silently repaired."
+  },
+  {
+    "identity": "way/199597221",
+    "reason": "Self-intersecting source geometry is rejected by PostGIS; the building is unnamed with low-confidence arbitrary/proximate temporal metadata, so topology is not silently repaired."
+  },
+  {
+    "identity": "way/199597253",
+    "reason": "Self-intersecting source geometry is rejected by PostGIS; the building is unnamed with low-confidence arbitrary/proximate temporal metadata, so topology is not silently repaired."
+  },
+  {
+    "identity": "way/199600775",
+    "reason": "Self-intersecting source geometry is rejected by PostGIS; the building is unnamed with low-confidence arbitrary/proximate temporal metadata, so topology is not silently repaired."
+  }
+]

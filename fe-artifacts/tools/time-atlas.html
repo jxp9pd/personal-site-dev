@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Time Atlas — Penta Projects</title>
+  <meta name="description" content="Walk through San Francisco history by decade." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://esm.sh/maplibre-gl@5/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="/assets/site.css?v=3" />
+  <link rel="stylesheet" href="/assets/css/time-atlas.css" />
+</head>
+<body class="atlas-body">
+  <header class="site-head atlas-site-head reveal d1">
+    <a class="logo gradient-text" href="/">Penta Projects</a>
+    <nav class="nav">
+      <a class="btn" href="/games">Games</a>
+      <a class="btn" href="/tools" aria-current="page">Tools</a>
+    </nav>
+  </header>
+
+  <main class="atlas-page atlas-page--viewport" id="timeAtlas" data-state="loading">
+    <section class="atlas-shell" aria-label="Historical map of San Francisco">
+      <div
+        id="atlasMap"
+        class="atlas-map"
+        aria-label="Interactive historical map of San Francisco"
+      ></div>
+
+      <div class="atlas-topbar">
+        <div class="atlas-heading">
+          <h1>Time Atlas</h1>
+          <p>San Francisco through time</p>
+        </div>
+
+        <div id="atlasTimeline" class="atlas-timeline" hidden>
+          <label for="atlasCheckpoint">Historical decade checkpoint</label>
+          <output id="atlasCheckpointLabel" class="atlas-checkpoint-label" for="atlasCheckpoint"></output>
+          <input
+            id="atlasCheckpoint"
+            type="range"
+            aria-label="Historical decade checkpoint"
+          />
+        </div>
+      </div>
+
+      <aside id="atlasLayers" class="atlas-layers" aria-label="Map controls" hidden>
+        <div class="atlas-panel-heading">
+          <strong>Map controls</strong>
+          <button
+            id="atlasLayerToggle"
+            class="atlas-panel-toggle"
+            type="button"
+            aria-expanded="true"
+            aria-controls="atlasLayerPanelBody"
+          >Hide controls</button>
+        </div>
+        <div id="atlasLayerPanelBody" class="atlas-panel-body">
+          <div id="atlasLayerControls"></div>
+          <div class="atlas-feature-picker">
+            <label for="atlasFeaturePicker">Explore feature details</label>
+            <select id="atlasFeaturePicker">
+              <option value="">Choose a visible feature</option>
+            </select>
+          </div>
+        </div>
+      </aside>
+
+      <details class="atlas-legend">
+        <summary>Map key</summary>
+        <div class="atlas-legend-content">
+          <span><i class="atlas-key atlas-key--neighborhood"></i>Large shaded regions: neighborhoods</span>
+          <span><i class="atlas-key atlas-key--landmark"></i>Points and smaller building footprints: landmarks</span>
+        </div>
+      </details>
+
+      <aside
+        id="atlasHoverDetails"
+        class="atlas-hover-details atlas-feature-details"
+        aria-live="polite"
+        tabindex="-1"
+        hidden
+      ></aside>
+
+      <div id="atlasState" class="atlas-state" role="status" aria-live="polite">
+        <p id="atlasStateMessage">Loading San Francisco atlas data…</p>
+        <button id="atlasRetry" class="atlas-retry" type="button" hidden>Try again</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { startTimeAtlas } from '/assets/js/time-atlas.js';
+    startTimeAtlas();
+  </script>
+</body>
+</html>

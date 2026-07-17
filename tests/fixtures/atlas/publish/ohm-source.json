@@ -1,0 +1,38 @@
+{
+  "city": "sf",
+  "records": [
+    {
+      "geometry": {
+        "coordinates": [
+          -122.42,
+          37.77
+        ],
+        "type": "Point"
+      },
+      "id": 10,
+      "tags": {
+        "name": "Imported neighborhood",
+        "place": "neighbourhood",
+        "start_date": "1900"
+      },
+      "type": "node"
+    },
+    {
+      "geometry": {
+        "coordinates": [
+          -122.41,
+          37.78
+        ],
+        "type": "Point"
+      },
+      "id": 20,
+      "tags": {
+        "historic": "memorial",
+        "name": "Excluded landmark",
+        "start_date": "1880"
+      },
+      "type": "node"
+    }
+  ],
+  "source": "OpenHistoricalMap"
+}
