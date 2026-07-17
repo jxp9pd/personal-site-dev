@@ -23,6 +23,7 @@ export async function startTimeAtlas({
   const timelinePanel = document.getElementById('atlasTimeline');
   const timelineControl = document.getElementById('atlasCheckpoint');
   const timelineOutput = document.getElementById('atlasCheckpointLabel');
+  const hoverDetails = document.getElementById('atlasHoverDetails');
 
   const city = getTimeAtlasCityConfig(citySlug);
   let featureCollection = null;
@@ -39,6 +40,24 @@ export async function startTimeAtlas({
 
   function renderCheckpoint(checkpoint) {
     renderer.renderFeatures(featuresAtCheckpoint(featureCollection, checkpoint));
+    showHoverFeature(null);
+  }
+
+  function showHoverFeature(feature) {
+    hoverDetails.replaceChildren();
+    hoverDetails.hidden = !feature;
+    if (!feature) return;
+
+    const details = formatHoverDetails(feature);
+    const list = document.createElement('dl');
+    for (const [label, value] of details) {
+      const term = document.createElement('dt');
+      const description = document.createElement('dd');
+      term.textContent = label;
+      description.textContent = value;
+      list.append(term, description);
+    }
+    hoverDetails.append(list);
   }
 
   async function load() {
@@ -64,6 +83,7 @@ export async function startTimeAtlas({
         container: mapContainer,
         center: city.center,
         zoom: city.zoom,
+        onFeatureHover: showHoverFeature,
       });
 
       timeline = createTimeline({
@@ -87,4 +107,17 @@ export async function startTimeAtlas({
     getCheckpoint: () => timeline?.getCheckpoint() ?? null,
     retry: load,
   };
+}
+
+export function formatHoverDetails(feature) {
+  const properties = feature?.properties ?? {};
+  const start = properties.start_date ?? 'unknown start';
+  const end = properties.end_date ?? 'present';
+  const identity = properties.source_id ?? feature?.id ?? 'unknown identity';
+  return [
+    ['Name', properties.name || 'Unnamed feature'],
+    ['Category', properties.layer || 'uncategorized'],
+    ['Dates', `${start} – ${end}`],
+    ['Source', `${properties.source || 'unknown'}:${identity}`],
+  ];
 }

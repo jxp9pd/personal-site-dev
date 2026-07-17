@@ -1,4 +1,10 @@
 const BASEMAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+const INTERACTIVE_LAYER_IDS = [
+  'atlas-neighborhoods',
+  'atlas-landmark-polygons',
+  'atlas-lines',
+  'atlas-points',
+];
 
 async function loadMapLibre() {
   return import('https://esm.sh/maplibre-gl@5');
@@ -16,6 +22,7 @@ export async function createTimeAtlasMap({
   container,
   center,
   zoom,
+  onFeatureHover = () => {},
   mapLibreLoader = loadMapLibre,
 }) {
   const module = await mapLibreLoader();
@@ -34,24 +41,31 @@ export async function createTimeAtlasMap({
     data: { type: 'FeatureCollection', features: [] },
   });
   map.addLayer({
-    id: 'atlas-polygons',
+    id: 'atlas-neighborhoods',
     type: 'fill',
     source: 'atlas-features',
-    filter: ['==', ['geometry-type'], 'Polygon'],
+    filter: [
+      'all',
+      ['==', ['geometry-type'], 'Polygon'],
+      ['==', ['get', 'layer'], 'neighborhoods'],
+    ],
     paint: {
-      'fill-color': '#b85c38',
-      'fill-opacity': 0.28,
+      'fill-color': '#4f746c',
+      'fill-opacity': 0.24,
     },
   });
   map.addLayer({
-    id: 'atlas-polygon-outlines',
-    type: 'line',
+    id: 'atlas-landmark-polygons',
+    type: 'fill',
     source: 'atlas-features',
-    filter: ['==', ['geometry-type'], 'Polygon'],
+    filter: [
+      'all',
+      ['==', ['geometry-type'], 'Polygon'],
+      ['==', ['get', 'layer'], 'landmarks'],
+    ],
     paint: {
-      'line-color': '#8c3f25',
-      'line-width': 1.4,
-      'line-opacity': 0.8,
+      'fill-color': '#b85c38',
+      'fill-opacity': 0.42,
     },
   });
   map.addLayer({
@@ -75,6 +89,15 @@ export async function createTimeAtlasMap({
       'circle-stroke-color': '#fffaf0',
       'circle-stroke-width': 1.5,
     },
+  });
+
+  map.on('mousemove', INTERACTIVE_LAYER_IDS, (event) => {
+    map.getCanvas().style.cursor = 'pointer';
+    onFeatureHover(event.features?.[0] ?? null);
+  });
+  map.on('mouseleave', INTERACTIVE_LAYER_IDS, () => {
+    map.getCanvas().style.cursor = '';
+    onFeatureHover(null);
   });
 
   return {

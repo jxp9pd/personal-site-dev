@@ -31,9 +31,14 @@ function successfulCity() {
 
 function rendererHarness() {
   const renderer = { renderFeatures: vi.fn() };
+  let options;
   return {
     renderer,
-    createRenderer: vi.fn().mockResolvedValue(renderer),
+    createRenderer: vi.fn().mockImplementation(async (value) => {
+      options = value;
+      return renderer;
+    }),
+    getOptions: () => options,
   };
 }
 
@@ -43,6 +48,17 @@ beforeEach(() => {
 });
 
 describe('Time Atlas bootstrap', () => {
+  it('provides full-viewport layout hooks and an explicit geometry legend', () => {
+    const page = document.getElementById('timeAtlas');
+    const legend = document.querySelector('.atlas-legend');
+
+    expect(document.body.classList.contains('atlas-body')).toBe(true);
+    expect(page.classList.contains('atlas-page--viewport')).toBe(true);
+    expect(document.querySelector('.atlas-topbar #atlasTimeline')).toBeTruthy();
+    expect(legend.textContent).toContain('Large shaded regions: neighborhoods');
+    expect(legend.textContent).toContain('smaller building footprints: landmarks');
+  });
+
   it('keeps a stable loading state while the city request is pending', async () => {
     let resolveRequest;
     const fetchCity = vi.fn(() => new Promise((resolve) => {
@@ -91,6 +107,40 @@ describe('Time Atlas bootstrap', () => {
     expect(renderer.renderFeatures.mock.calls[1][0].features.map((feature) => feature.id))
       .toEqual(['later']);
     expect(fetchCity).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows and clears hover details without refetching or recreating the map', async () => {
+    const fetchCity = vi.fn().mockResolvedValue(successfulCity());
+    const harness = rendererHarness();
+    await startTimeAtlas({ fetchCity, createRenderer: harness.createRenderer });
+    const feature = {
+      type: 'Feature',
+      id: 'ohm:way/42',
+      properties: {
+        name: null,
+        layer: 'landmarks',
+        start_date: '1915',
+        end_date: '1916',
+        source: 'ohm',
+        source_id: 'way/42',
+      },
+    };
+
+    harness.getOptions().onFeatureHover(feature);
+
+    const details = document.getElementById('atlasHoverDetails');
+    expect(details.hidden).toBe(false);
+    expect(details.textContent).toContain('Unnamed feature');
+    expect(details.textContent).toContain('landmarks');
+    expect(details.textContent).toContain('1915 – 1916');
+    expect(details.textContent).toContain('ohm:way/42');
+
+    harness.getOptions().onFeatureHover(null);
+
+    expect(details.hidden).toBe(true);
+    expect(details.textContent).toBe('');
+    expect(fetchCity).toHaveBeenCalledTimes(1);
+    expect(harness.createRenderer).toHaveBeenCalledTimes(1);
   });
 
   it.each([

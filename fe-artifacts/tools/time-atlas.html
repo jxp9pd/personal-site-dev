@@ -12,8 +12,8 @@
   <link rel="stylesheet" href="/assets/site.css?v=3" />
   <link rel="stylesheet" href="/assets/css/time-atlas.css" />
 </head>
-<body>
-  <header class="site-head reveal d1">
+<body class="atlas-body">
+  <header class="site-head atlas-site-head reveal d1">
     <a class="logo gradient-text" href="/">Penta Projects</a>
     <nav class="nav">
       <a class="btn" href="/games">Games</a>
@@ -21,28 +21,38 @@
     </nav>
   </header>
 
-  <main class="atlas-page" id="timeAtlas" data-state="loading">
-    <div class="atlas-heading">
-      <h1>Time Atlas</h1>
-      <p>A minimal curation view of San Francisco. Move between the configured checkpoints to inspect what existed then.</p>
-    </div>
-
+  <main class="atlas-page atlas-page--viewport" id="timeAtlas" data-state="loading">
     <section class="atlas-shell" aria-label="Historical map of San Francisco">
       <div id="atlasMap" class="atlas-map"></div>
+
+      <div class="atlas-topbar">
+        <div class="atlas-heading">
+          <h1>Time Atlas</h1>
+          <p>San Francisco checkpoint review</p>
+        </div>
+
+        <div id="atlasTimeline" class="atlas-timeline" hidden>
+          <label for="atlasCheckpoint">Historical decade checkpoint</label>
+          <output id="atlasCheckpointLabel" class="atlas-checkpoint-label" for="atlasCheckpoint"></output>
+          <input
+            id="atlasCheckpoint"
+            type="range"
+            aria-label="Historical decade checkpoint"
+          />
+        </div>
+      </div>
+
+      <aside class="atlas-legend" aria-label="Map legend">
+        <strong>Map key</strong>
+        <span><i class="atlas-key atlas-key--neighborhood"></i>Large shaded regions: neighborhoods</span>
+        <span><i class="atlas-key atlas-key--landmark"></i>Points and smaller building footprints: landmarks</span>
+      </aside>
+
+      <aside id="atlasHoverDetails" class="atlas-hover-details" aria-live="polite" hidden></aside>
 
       <div id="atlasState" class="atlas-state" role="status" aria-live="polite">
         <p id="atlasStateMessage">Loading San Francisco atlas data…</p>
         <button id="atlasRetry" class="atlas-retry" type="button" hidden>Try again</button>
-      </div>
-
-      <div id="atlasTimeline" class="atlas-timeline" hidden>
-        <label for="atlasCheckpoint">Historical decade checkpoint</label>
-        <output id="atlasCheckpointLabel" class="atlas-checkpoint-label" for="atlasCheckpoint"></output>
-        <input
-          id="atlasCheckpoint"
-          type="range"
-          aria-label="Historical decade checkpoint"
-        />
       </div>
     </section>
   </main>

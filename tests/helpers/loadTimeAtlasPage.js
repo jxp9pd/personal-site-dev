@@ -9,6 +9,7 @@ export function loadTimeAtlasPage() {
   const html = readFileSync(PAGE_PATH, 'utf8');
   const parsed = new DOMParser().parseFromString(html, 'text/html');
   parsed.querySelectorAll('script').forEach((script) => script.remove());
+  document.body.className = parsed.body.className;
   document.body.innerHTML = parsed.body.innerHTML;
   return document.getElementById('timeAtlas');
 }
