@@ -10,6 +10,7 @@ function mapHarness() {
     getSource: vi.fn(() => source),
     getCanvas: vi.fn(() => ({ style: {} })),
     on: vi.fn(),
+    setPaintProperty: vi.fn(),
   };
   const Map = class {
     constructor() {
@@ -23,16 +24,28 @@ describe('Time Atlas map adapter', () => {
   it('separates neighborhood regions from landmark footprints', async () => {
     const { map, Map } = mapHarness();
 
-    await createTimeAtlasMap({
+    const renderer = await createTimeAtlasMap({
       container: document.createElement('div'),
       center: [-122.44, 37.76],
       zoom: 11.5,
       mapLibreLoader: async () => ({ Map }),
     });
+    renderer.configureLayers([
+      {
+        category: 'neighborhoods',
+        geometries: ['Polygon'],
+        style: { color: '#4f746c', fillOpacity: 0.24, lineOpacity: 0.8, pointOpacity: 0.9 },
+      },
+      {
+        category: 'landmarks',
+        geometries: ['Polygon'],
+        style: { color: '#b85c38', fillOpacity: 0.42, lineOpacity: 0.9, pointOpacity: 1 },
+      },
+    ]);
 
     const layers = map.addLayer.mock.calls.map(([layer]) => layer);
-    const neighborhoods = layers.find((layer) => layer.id === 'atlas-neighborhoods');
-    const landmarks = layers.find((layer) => layer.id === 'atlas-landmark-polygons');
+    const neighborhoods = layers.find((layer) => layer.id === 'atlas-neighborhoods-fill');
+    const landmarks = layers.find((layer) => layer.id === 'atlas-landmarks-fill');
     expect(neighborhoods.filter).toContainEqual(['==', ['get', 'layer'], 'neighborhoods']);
     expect(landmarks.filter).toContainEqual(['==', ['get', 'layer'], 'landmarks']);
   });
@@ -47,6 +60,11 @@ describe('Time Atlas map adapter', () => {
       onFeatureHover,
       mapLibreLoader: async () => ({ Map }),
     });
+    renderer.configureLayers([{
+      category: 'landmarks',
+      geometries: ['Point'],
+      style: { color: '#b85c38', fillOpacity: 0.42, lineOpacity: 0.9, pointOpacity: 1 },
+    }]);
     const feature = { id: 'ohm:node/7', properties: { layer: 'landmarks' } };
     const move = map.on.mock.calls.find(([event]) => event === 'mousemove')[2];
     const leave = map.on.mock.calls.find(([event]) => event === 'mouseleave')[2];

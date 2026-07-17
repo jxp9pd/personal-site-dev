@@ -1,5 +1,6 @@
 import { fetchAtlasCity } from './dataClient.js';
 import { getTimeAtlasCityConfig } from './time-atlas-config.js';
+import { createLayerController } from './time-atlas-layers.js';
 import { createTimeAtlasMap } from './time-atlas-map.js';
 import { createTimeline, featuresAtCheckpoint } from './time-atlas-timeline.js';
 
@@ -23,6 +24,8 @@ export async function startTimeAtlas({
   const timelinePanel = document.getElementById('atlasTimeline');
   const timelineControl = document.getElementById('atlasCheckpoint');
   const timelineOutput = document.getElementById('atlasCheckpointLabel');
+  const layerPanel = document.getElementById('atlasLayers');
+  const layerControls = document.getElementById('atlasLayerControls');
   const hoverDetails = document.getElementById('atlasHoverDetails');
 
   const city = getTimeAtlasCityConfig(citySlug);
@@ -36,6 +39,7 @@ export async function startTimeAtlas({
     stateMessage.textContent = message ?? '';
     retryButton.hidden = state !== 'failure';
     timelinePanel.hidden = state !== 'ready';
+    layerPanel.hidden = state !== 'ready';
   }
 
   function renderCheckpoint(checkpoint) {
@@ -84,6 +88,11 @@ export async function startTimeAtlas({
         center: city.center,
         zoom: city.zoom,
         onFeatureHover: showHoverFeature,
+      });
+      createLayerController({
+        featureCollection,
+        container: layerControls,
+        renderer,
       });
 
       timeline = createTimeline({

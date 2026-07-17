@@ -1,10 +1,107 @@
 const BASEMAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
-const INTERACTIVE_LAYER_IDS = [
-  'atlas-neighborhoods',
-  'atlas-landmark-polygons',
-  'atlas-lines',
-  'atlas-points',
-];
+
+function safeId(value) {
+  return value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+}
+
+function geometryFamily(geometry) {
+  if (geometry.endsWith('Polygon')) return 'Polygon';
+  if (geometry.endsWith('LineString')) return 'LineString';
+  return 'Point';
+}
+
+function layerDefinitions(layers) {
+  const definitions = [];
+  for (const layer of layers) {
+    const families = new Set(layer.geometries.map(geometryFamily));
+    const filterFor = (geometry) => [
+      'all',
+      ['==', ['geometry-type'], geometry],
+      ['==', ['get', 'layer'], layer.category],
+    ];
+    const id = `atlas-${safeId(layer.category)}`;
+
+    if (families.has('Polygon')) {
+      definitions.push({
+        order: 0,
+        category: layer.category,
+        opacityProperty: 'fill-opacity',
+        baseOpacity: layer.style.fillOpacity,
+        mapLayer: {
+          id: `${id}-fill`,
+          type: 'fill',
+          source: 'atlas-features',
+          filter: filterFor('Polygon'),
+          paint: {
+            'fill-color': layer.style.color,
+            'fill-opacity': layer.style.fillOpacity,
+          },
+        },
+      });
+      definitions.push({
+        order: 1,
+        category: layer.category,
+        opacityProperty: 'line-opacity',
+        baseOpacity: layer.style.lineOpacity,
+        mapLayer: {
+          id: `${id}-outline`,
+          type: 'line',
+          source: 'atlas-features',
+          filter: filterFor('Polygon'),
+          paint: {
+            'line-color': layer.style.color,
+            'line-opacity': layer.style.lineOpacity,
+            'line-width': 1.25,
+          },
+        },
+      });
+    }
+    if (families.has('LineString')) {
+      definitions.push({
+        order: 2,
+        category: layer.category,
+        opacityProperty: 'line-opacity',
+        baseOpacity: layer.style.lineOpacity,
+        mapLayer: {
+          id: `${id}-line`,
+          type: 'line',
+          source: 'atlas-features',
+          filter: filterFor('LineString'),
+          paint: {
+            'line-color': layer.style.color,
+            'line-opacity': layer.style.lineOpacity,
+            'line-width': 2,
+          },
+        },
+      });
+    }
+    if (families.has('Point')) {
+      definitions.push({
+        order: 3,
+        category: layer.category,
+        opacityProperty: 'circle-opacity',
+        baseOpacity: layer.style.pointOpacity,
+        mapLayer: {
+          id: `${id}-point`,
+          type: 'circle',
+          source: 'atlas-features',
+          filter: filterFor('Point'),
+          paint: {
+            'circle-color': layer.style.color,
+            'circle-opacity': layer.style.pointOpacity,
+            'circle-radius': 5,
+            'circle-stroke-color': '#fffaf0',
+            'circle-stroke-opacity': layer.style.pointOpacity,
+            'circle-stroke-width': 1.5,
+          },
+        },
+      });
+    }
+  }
+  return definitions.sort((left, right) => (
+    left.order - right.order || left.mapLayer.id.localeCompare(right.mapLayer.id)
+  ));
+}
 
 async function loadMapLibre() {
   return import('https://esm.sh/maplibre-gl@5');
@@ -40,69 +137,52 @@ export async function createTimeAtlasMap({
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
   });
-  map.addLayer({
-    id: 'atlas-neighborhoods',
-    type: 'fill',
-    source: 'atlas-features',
-    filter: [
-      'all',
-      ['==', ['geometry-type'], 'Polygon'],
-      ['==', ['get', 'layer'], 'neighborhoods'],
-    ],
-    paint: {
-      'fill-color': '#4f746c',
-      'fill-opacity': 0.24,
-    },
-  });
-  map.addLayer({
-    id: 'atlas-landmark-polygons',
-    type: 'fill',
-    source: 'atlas-features',
-    filter: [
-      'all',
-      ['==', ['geometry-type'], 'Polygon'],
-      ['==', ['get', 'layer'], 'landmarks'],
-    ],
-    paint: {
-      'fill-color': '#b85c38',
-      'fill-opacity': 0.42,
-    },
-  });
-  map.addLayer({
-    id: 'atlas-lines',
-    type: 'line',
-    source: 'atlas-features',
-    filter: ['==', ['geometry-type'], 'LineString'],
-    paint: {
-      'line-color': '#8c3f25',
-      'line-width': 2,
-    },
-  });
-  map.addLayer({
-    id: 'atlas-points',
-    type: 'circle',
-    source: 'atlas-features',
-    filter: ['==', ['geometry-type'], 'Point'],
-    paint: {
-      'circle-color': '#8c3f25',
-      'circle-radius': 5,
-      'circle-stroke-color': '#fffaf0',
-      'circle-stroke-width': 1.5,
-    },
-  });
-
-  map.on('mousemove', INTERACTIVE_LAYER_IDS, (event) => {
-    map.getCanvas().style.cursor = 'pointer';
-    onFeatureHover(event.features?.[0] ?? null);
-  });
-  map.on('mouseleave', INTERACTIVE_LAYER_IDS, () => {
-    map.getCanvas().style.cursor = '';
-    onFeatureHover(null);
-  });
+  let definitions = [];
 
   return {
+    configureLayers(layers) {
+      definitions = layerDefinitions(layers);
+      for (const definition of definitions) map.addLayer(definition.mapLayer);
+
+      const interactiveLayerIds = definitions.map(({ mapLayer }) => mapLayer.id);
+      if (interactiveLayerIds.length > 0) {
+        map.on('mousemove', interactiveLayerIds, (event) => {
+          map.getCanvas().style.cursor = 'pointer';
+          onFeatureHover(event.features?.[0] ?? null);
+        });
+        map.on('mouseleave', interactiveLayerIds, () => {
+          map.getCanvas().style.cursor = '';
+          onFeatureHover(null);
+        });
+      }
+    },
     renderFeatures(featureCollection) {
       map.getSource('atlas-features').setData(featureCollection);
+    },
+    setLayerVisibility(category, visible) {
+      for (const definition of definitions.filter((item) => item.category === category)) {
+        map.setLayoutProperty(
+          definition.mapLayer.id,
+          'visibility',
+          visible ? 'visible' : 'none',
+        );
+      }
+    },
+    setLayerOpacity(category, opacity) {
+      for (const definition of definitions.filter((item) => item.category === category)) {
+        map.setPaintProperty(
+          definition.mapLayer.id,
+          definition.opacityProperty,
+          definition.baseOpacity * opacity,
+        );
+        if (definition.mapLayer.type === 'circle') {
+          map.setPaintProperty(
+            definition.mapLayer.id,
+            'circle-stroke-opacity',
+            definition.baseOpacity * opacity,
+          );
+        }
+      }
     },
   };
 }
