@@ -2,6 +2,7 @@ working-docs/
 node_modules/
 .env
 .env.*
+!.env.example
 __pycache__/
 .DS_Store
 

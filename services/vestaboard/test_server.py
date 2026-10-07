@@ -1,11 +1,15 @@
 import io
 import json
+import os
+from pathlib import Path
+import tempfile
 import threading
 import unittest
+from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer
-from server import BoardGateway, handler_for, valid_characters
+from server import BoardGateway, api_token, cloud_tls_context, handler_for, valid_characters
 
 
 def message():
@@ -14,6 +18,44 @@ def message():
 
 class Response(io.BytesIO):
     status = 200
+
+
+class EnvironmentTest(unittest.TestCase):
+    def test_preview_reads_only_the_token_without_expanding_values(self):
+        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {}, clear=True):
+            env_file = Path(folder) / '.env'
+            env_file.write_text('# Local settings\nOTHER=value\nVESTABOARD_API_TOKEN="test-$literal" # comment\n')
+            self.assertEqual(api_token(env_file), 'test-$literal')
+
+    def test_environment_overrides_file_and_empty_environment_disables_sends(self):
+        with tempfile.TemporaryDirectory() as folder:
+            env_file = Path(folder) / '.env'
+            env_file.write_text('VESTABOARD_API_TOKEN=file-token\n')
+            for value in ('environment-token', ''):
+                with patch.dict(os.environ, {'VESTABOARD_API_TOKEN': value}):
+                    self.assertEqual(api_token(env_file), value)
+
+    def test_missing_file_and_production_without_environment_stay_unconfigured(self):
+        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(api_token(Path(folder) / '.env'), '')
+            self.assertEqual(api_token(), '')
+
+    def test_macos_missing_ca_bundle_uses_system_roots(self):
+        context = Mock()
+        context.cert_store_stats.return_value = {'x509_ca': 0}
+        with patch('server.ssl.create_default_context', return_value=context), \
+                patch('server.sys.platform', 'darwin'), patch.dict(os.environ, {}, clear=True):
+            self.assertIs(cloud_tls_context(), context)
+        context.load_verify_locations.assert_called_once_with('/etc/ssl/cert.pem')
+
+    def test_explicit_certificate_settings_are_preserved(self):
+        context = Mock()
+        context.cert_store_stats.return_value = {'x509_ca': 0}
+        with patch('server.ssl.create_default_context', return_value=context), \
+                patch('server.sys.platform', 'darwin'), \
+                patch.dict(os.environ, {'SSL_CERT_FILE': '/custom/roots.pem'}):
+            cloud_tls_context()
+        context.load_verify_locations.assert_not_called()
 
 
 class GatewayTest(unittest.TestCase):

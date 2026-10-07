@@ -43,8 +43,19 @@ python3 services/vestaboard/server.py --preview fe-artifacts --port 8000
 
 Open http://127.0.0.1:8000/tools/vestaboard.html. Without a token, the preview
 works and sending is visibly disabled. The server serves only `fe-artifacts/`.
-For local live sends, set `VESTABOARD_API_TOKEN` privately in the process
-environment. Do not add the key to client JavaScript or commit an environment file.
+For local live sends, copy `.env.example` to `.env` in the repository root and
+set `VESTABOARD_API_TOKEN` there. The preview gateway loads it automatically on
+startup. Keep `.env` outside `fe-artifacts/`, Git-ignored, and owner-only (`chmod
+600 .env`). Restart the preview after changing it. An explicitly set process
+environment variable takes precedence; setting it to an empty string disables
+live sends even when `.env` contains a token. The loader supports plain or quoted
+values and comments; it does not execute shell commands or expand variables.
+
+Production continues to read `/etc/vestaboard-note.env` via systemd. The local
+`.env` is never deployed or committed. Do not add the key to client JavaScript.
+On macOS, if Python has no CA certificates configured, the gateway uses the
+existing `/etc/ssl/cert.pem` bundle. Explicit `SSL_CERT_FILE` / `SSL_CERT_DIR`
+settings take precedence, and TLS certificate verification remains enabled.
 
 ## Production install / update
 

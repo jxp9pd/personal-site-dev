@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """Small, dependency-free Vestaboard Note gateway. Run behind nginx in production."""
 import argparse
+from functools import partial
 import json
 import math
 import os
+from pathlib import Path
+import shlex
 import socket
+import ssl
+import sys
 import threading
 import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -16,6 +21,32 @@ API_URL = 'https://cloud.vestaboard.com/'
 VALID_CODES = set(range(43)) | {44, 46, 47, 48, 49, 50, 52, 53, 54, 55, 56, 59, 60, 62} | set(range(63, 72))
 COOLDOWN = 15
 MAX_BODY = 4096
+
+
+def api_token(env_file=None):
+    # Explicit environment settings (including an empty value) take precedence.
+    if 'VESTABOARD_API_TOKEN' in os.environ:
+        return os.environ['VESTABOARD_API_TOKEN'].strip()
+    if env_file is None or not env_file.is_file():
+        return ''
+    for line in env_file.read_text().splitlines():
+        key, separator, value = line.partition('=')
+        if separator and key.strip() == 'VESTABOARD_API_TOKEN':
+            values = shlex.split(value, comments=True)
+            if len(values) > 1:
+                raise ValueError('VESTABOARD_API_TOKEN must be a single value in .env.')
+            return values[0] if values else ''
+    return ''
+
+
+def cloud_tls_context():
+    context = ssl.create_default_context()
+    # python.org macOS installations can lack their optional CA bundle.
+    # Use the OS's existing roots without disabling certificate verification.
+    if (sys.platform == 'darwin' and context.cert_store_stats()['x509_ca'] == 0
+            and not os.environ.get('SSL_CERT_FILE') and not os.environ.get('SSL_CERT_DIR')):
+        context.load_verify_locations('/etc/ssl/cert.pem')
+    return context
 
 
 def valid_characters(value):
@@ -163,7 +194,9 @@ def main():
     origins = {'https://jpentakalos.com', 'https://www.jpentakalos.com'}
     if args.preview:
         origins |= {f'http://127.0.0.1:{args.port}', f'http://localhost:{args.port}'}
-    gateway = BoardGateway(os.environ.get('VESTABOARD_API_TOKEN', ''))
+    # Only local previews read the repo's .env; production uses systemd's EnvironmentFile.
+    env_file = Path(__file__).resolve().parents[2] / '.env' if args.preview else None
+    gateway = BoardGateway(api_token(env_file), opener=partial(urlopen, context=cloud_tls_context()))
     server = ThreadingHTTPServer(('127.0.0.1', args.port), handler_for(gateway, origins, args.preview))
     print(f'Note gateway listening on 127.0.0.1:{args.port}; token configured: {bool(gateway.token)}', flush=True)
     server.serve_forever()
