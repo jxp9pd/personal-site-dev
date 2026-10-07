@@ -63,6 +63,11 @@ async function checkConnection() {
 }
 
 input.addEventListener('input', render);
+form.addEventListener('keydown', event => {
+  if (event.key !== 'Enter' || !event.metaKey || event.isComposing) return;
+  event.preventDefault();
+  if (!event.repeat && !$('send').disabled) form.requestSubmit($('send'));
+});
 $('clear').addEventListener('click', () => { input.value = ''; render(); input.focus(); });
 document.querySelectorAll('[data-symbol]').forEach(button => {
   button.addEventListener('click', () => {

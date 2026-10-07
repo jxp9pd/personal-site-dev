@@ -54,6 +54,38 @@ describe('Note composer delivery feedback', () => {
     expect($('feedback').dataset.error).toBe('true');
     expect($('send-label').textContent).toContain('30s');
   });
+  it('sends with Command+Enter while preserving ordinary Enter and preventing repeat sends', async () => {
+    const fetch = await start();
+    fetch.mockResolvedValueOnce(reply({ accepted: true, retryAfter: 15 }));
+    const key = options => $('message').dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter', bubbles: true, cancelable: true, ...options,
+    }));
+    expect(key({})).toBe(true); // Ordinary Enter keeps its normal newline behavior.
+    key({ metaKey: true, isComposing: true });
+    key({ metaKey: true, repeat: true });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(key({ metaKey: true })).toBe(false);
+    key({ metaKey: true }); // Still sending.
+    await vi.advanceTimersByTimeAsync(0);
+    key({ metaKey: true }); // Cooldown.
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect($('feedback').textContent).toContain('Accepted by Vestaboard');
+  });
+  it('does not bypass validation or connection state with Command+Enter', async () => {
+    const fetch = await start(false);
+    const send = () => $('message').dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter', metaKey: true, bubbles: true, cancelable: true,
+    }));
+    send();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    fetch.mockResolvedValueOnce(reply({ configured: true }));
+    $('reconnect').click();
+    await vi.advanceTimersByTimeAsync(0);
+    $('message').value = 'A\nB\nC\nD';
+    $('message').dispatchEvent(new Event('input'));
+    send();
+    expect(fetch).toHaveBeenCalledTimes(2); // Only the two connection checks.
+  });
   it('handles proxy HTML errors without misreporting them as a connection failure', async () => {
     const fetch = await start();
     fetch.mockResolvedValueOnce({ ok: false, status: 502, json: async () => { throw new SyntaxError('HTML'); } });
