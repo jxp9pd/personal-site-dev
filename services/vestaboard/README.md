@@ -26,7 +26,7 @@ Vestaboard's Cloud API. No npm production dependencies or database are required.
    owned by root with mode `0600`, outside the web root. It restarts the gateway.
    The token never appears in shell arguments, Git, frontend assets, or stdout.
 4. Reload the public page, click **Send to the board**, and check the Note.
-   **Sending enabled** only means a token is configured. **Accepted by Vestaboard**
+   An enabled **Send to the board** button means a token is configured. **Accepted by Vestaboard**
    requires a successful API response. Physical delivery must be checked on the
    device; Wi-Fi, quiet hours, or other integrations can delay/replace a message.
 

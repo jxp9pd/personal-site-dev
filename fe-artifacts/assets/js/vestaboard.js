@@ -37,7 +37,6 @@ function render() {
   board.setAttribute('aria-label', layout.error ? 'Empty preview. ' + layout.error : 'Preview: ' + input.value);
   input.setAttribute('aria-invalid', String(!!layout.error && !!input.value.trim()));
   $('validation').textContent = input.value.trim() ? layout.error || '' : '';
-  $('row-count').textContent = `${layout.lines} / 3 rows`;
   updateButton();
 }
 
@@ -54,14 +53,10 @@ async function checkConnection() {
     const data = await response.json();
     configured = data.configured === true;
     cooldownUntil = Math.max(cooldownUntil, Date.now() + (data.retryAfter || 0) * 1000);
-    $('connection').textContent = configured ? 'Sending enabled' : 'Preview only';
-    $('connection').classList.toggle('ready', configured);
-    feedback(configured ? '' : 'The board is not connected yet. You can still try the preview.');
+    feedback(configured ? '' : 'The board is not connected yet.');
   } catch {
     configured = false;
-    $('connection').textContent = 'Preview only';
-    $('connection').classList.remove('ready');
-    feedback('The connection is unavailable. You can still try the preview.');
+    feedback('The connection is unavailable. Try again in a moment.');
   }
   $('reconnect').hidden = configured;
   updateButton();
@@ -100,7 +95,7 @@ form.addEventListener('submit', async event => {
     if (data.retryAfter) cooldownUntil = Date.now() + data.retryAfter * 1000;
     if (!response.ok) throw new Error(data.error || 'Your note could not be sent. Please try again.');
     if (data.accepted !== true) throw new Error('The board did not confirm your note. Please check before retrying.');
-    feedback('Accepted by Vestaboard. Your note is on its way! Quiet hours and the board’s connection can delay delivery.');
+    feedback('Accepted by Vestaboard. Your note is on its way.');
   } catch (error) {
     const message = error.name === 'TimeoutError' || error instanceof TypeError || error instanceof SyntaxError
       ? 'The connection was interrupted. Your note may have been sent; check the board before trying again.'

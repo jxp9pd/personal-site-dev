@@ -9,8 +9,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/assets/site.css?v=3" />
-  <link rel="stylesheet" href="/assets/css/vestaboard.css?v=1" />
-  <script type="module" src="/assets/js/vestaboard.js?v=2"></script>
+  <link rel="stylesheet" href="/assets/css/vestaboard.css?v=2" />
+  <script type="module" src="/assets/js/vestaboard.js?v=3"></script>
 </head>
 <body>
   <header class="site-head">
@@ -22,24 +22,15 @@
   </header>
   <main class="note-page">
     <div class="note-heading reveal d1">
-      <a class="back-link" href="/tools/">← All tools</a>
-      <p class="eyebrow">A SMALL WINDOW INTO THE REAL WORLD</p>
       <h1>Leave a <em>little note.</em></h1>
-      <p class="intro">A hello, a good thought, a tiny masterpiece.<br>Your words, on John's Vestaboard Note.</p>
     </div>
 
     <section class="preview-section reveal d2" aria-labelledby="preview-title">
       <div class="preview-meta">
-        <h2 id="preview-title">Your preview</h2>
-        <span>15 columns · 3 rows</span>
+        <h2 id="preview-title">Preview</h2>
       </div>
       <div class="board-frame">
         <div id="board" class="board" role="img" aria-label="Message preview"></div>
-        <span class="board-wordmark" aria-hidden="true">VESTABOARD <span>NOTE</span></span>
-      </div>
-      <div class="preview-caption">
-        <span id="connection" class="connection">Checking connection…</span>
-        <span>45 tiles. Make them count.</span>
       </div>
     </section>
 
@@ -48,32 +39,25 @@
         <label for="message">Your message</label>
         <button type="button" id="clear" class="text-button">Clear</button>
       </div>
-      <textarea id="message" name="message" rows="3" maxlength="240" spellcheck="false" aria-describedby="message-help validation" placeholder="SOMETHING WORTH&#10;LOOKING UP FOR">HELLO FROM
+      <textarea id="message" name="message" rows="3" maxlength="240" spellcheck="false" aria-describedby="validation" placeholder="Write a little note…">HELLO FROM
 THE INTERNET</textarea>
-      <div class="message-meta">
-        <span id="message-help">Auto-centered. Words wrap to fit.</span>
-        <span id="row-count">2 / 3 rows</span>
-      </div>
-      <div class="palette" role="group" aria-label="Add a heart or color tile">
-        <span>A little color</span>
-        <button type="button" class="heart-button" data-symbol="♥" aria-label="Add a heart">♥</button>
-        <button type="button" class="swatch red" data-symbol="🟥" aria-label="Add a red tile"></button>
-        <button type="button" class="swatch orange" data-symbol="🟧" aria-label="Add an orange tile"></button>
-        <button type="button" class="swatch yellow" data-symbol="🟨" aria-label="Add a yellow tile"></button>
-        <button type="button" class="swatch green" data-symbol="🟩" aria-label="Add a green tile"></button>
-        <button type="button" class="swatch blue" data-symbol="🟦" aria-label="Add a blue tile"></button>
-        <button type="button" class="swatch violet" data-symbol="🟪" aria-label="Add a violet tile"></button>
-        <button type="button" class="swatch white" data-symbol="⬜" aria-label="Add a white tile"></button>
-      </div>
       <p id="validation" class="validation" aria-live="polite"></p>
-      <div class="send-row">
-        <p>This changes the real board.<br>Keep it kind. Anyone can send.</p>
+      <div class="composer-actions">
+        <div class="palette" role="group" aria-label="Add a heart or color tile">
+          <button type="button" class="heart-button" data-symbol="♥" aria-label="Add a heart">♥</button>
+          <button type="button" class="swatch red" data-symbol="🟥" aria-label="Add a red tile"></button>
+          <button type="button" class="swatch orange" data-symbol="🟧" aria-label="Add an orange tile"></button>
+          <button type="button" class="swatch yellow" data-symbol="🟨" aria-label="Add a yellow tile"></button>
+          <button type="button" class="swatch green" data-symbol="🟩" aria-label="Add a green tile"></button>
+          <button type="button" class="swatch blue" data-symbol="🟦" aria-label="Add a blue tile"></button>
+          <button type="button" class="swatch violet" data-symbol="🟪" aria-label="Add a violet tile"></button>
+          <button type="button" class="swatch white" data-symbol="⬜" aria-label="Add a white tile"></button>
+        </div>
         <button type="submit" id="send" class="send-button" disabled><span id="send-label">Send to the board</span><span aria-hidden="true">↗</span></button>
       </div>
       <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
-      <button type="button" id="reconnect" class="text-button" hidden>Check connection again ↻</button>
+      <button type="button" id="reconnect" class="text-button" hidden>Retry connection ↻</button>
     </form>
-    <footer class="note-footer"><span>FROM YOUR SCREEN TO A LITTLE FLIP OF THE TILES.</span><span>One message every 15 seconds.</span></footer>
     <noscript><p>Enable JavaScript to preview and send a message.</p></noscript>
   </main>
 </body>
