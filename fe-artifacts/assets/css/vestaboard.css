@@ -36,7 +36,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid #527560; outline-offs
 .send-button { display: inline-flex; align-items: center; justify-content: space-between; gap: 25px; min-width: 228px; border: 1px solid #284d3b; border-radius: 5px; padding: 16px 21px; background: #284d3b; color: #fffdf1; font: 400 .72rem var(--font-mono); cursor: pointer; transition: background .15s; }
 .send-button:hover:enabled { background: #1a3628; }
 .send-button:disabled { opacity: .48; cursor: not-allowed; }
-.send-button > span:last-child { font-size: 1.1rem; }
+.send-shortcut { font-size: .95rem; opacity: .65; white-space: nowrap; flex-shrink: 0; }
 .feedback { font-size: .7rem; line-height: 1.7; color: #477363; margin: 16px 0 0; }
 .feedback[data-error="true"] { color: #a34433; }
 @media (max-width: 560px) {
