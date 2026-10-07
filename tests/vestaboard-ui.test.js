@@ -54,6 +54,15 @@ describe('Note composer delivery feedback', () => {
     expect($('feedback').dataset.error).toBe('true');
     expect($('send-label').textContent).toContain('30s');
   });
+  it('handles proxy HTML errors without misreporting them as a connection failure', async () => {
+    const fetch = await start();
+    fetch.mockResolvedValueOnce({ ok: false, status: 502, json: async () => { throw new SyntaxError('HTML'); } });
+    $('message-form').dispatchEvent(new Event('submit', { cancelable: true }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect($('feedback').textContent).toContain('HTTP 502');
+    expect($('feedback').textContent).toContain('may have been sent');
+    expect($('send').disabled).toBe(true);
+  });
   it('disables invalid drafts and never auto-sends when typing or inserting colors', async () => {
     const fetch = await start();
     $('message').value = 'A\nB\nC\nD';

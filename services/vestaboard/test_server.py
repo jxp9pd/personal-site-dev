@@ -61,6 +61,11 @@ class GatewayTest(unittest.TestCase):
             release.set()
             worker.join()
 
+    def test_live_cloud_success_response(self):
+        gateway = BoardGateway('test-token', lambda *a, **kw: Response(
+            b'{"status":"success","id":"test-note","created":1791390821443}'))
+        self.assertEqual(gateway.send(message()), (200, {'accepted': True, 'retryAfter': 15}))
+
     def test_failures_do_not_claim_success_or_leak_upstream_body(self):
         for raw in (b'{"status":"error","secret":"private"}', b'not json', b'[]'):
             gateway = BoardGateway('test-token', lambda *a, **kw: Response(raw))

@@ -88,7 +88,15 @@ form.addEventListener('submit', async event => {
       body: JSON.stringify({ characters: layout.characters }),
       signal: AbortSignal.timeout(20000),
     });
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      // A proxy may replace an upstream error with an HTML error page.
+      // The physical board may already have received the note; don't imply a failed send.
+      cooldownUntil = Date.now() + 15000;
+      throw new Error(`The request returned an unexpected response (HTTP ${response.status}). Your note may have been sent; check the board before retrying.`);
+    }
     if (data.retryAfter) cooldownUntil = Date.now() + data.retryAfter * 1000;
     if (!response.ok) throw new Error(data.error || 'Your note could not be sent. Please try again.');
     if (data.accepted !== true) throw new Error('The board did not confirm your note. Please check before retrying.');

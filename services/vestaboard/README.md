@@ -104,6 +104,8 @@ Official documentation checked October 7, 2026:
 
 Current endpoint: `POST https://cloud.vestaboard.com/`, header
 `X-Vestaboard-Token`, body `{"characters": [[...], [...], [...]]}`.
-The success response has `"status": "ok"`. Code `62` is a heart on the Note
+The live API returns `"status": "success"` (verified with a real Note on October
+7, 2026); the documentation examples use `"status": "ok"`. Both are accepted.
+Code `62` is a heart on the Note
 (a degree sign on the Flagship). The cloud docs recommend no more than one
 message every 15 seconds.

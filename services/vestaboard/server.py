@@ -58,7 +58,8 @@ class BoardGateway:
                               headers={'Content-Type': 'application/json', 'X-Vestaboard-Token': self.token})
             with self.opener(request, timeout=10) as response:
                 result = json.loads(response.read(65536))
-                if not 200 <= response.status < 300 or not isinstance(result, dict) or result.get('status') != 'ok':
+                # The live Cloud API returns "success"; the official examples use "ok".
+                if not 200 <= response.status < 300 or not isinstance(result, dict) or result.get('status') not in ('ok', 'success'):
                     return 502, {'error': 'Vestaboard did not confirm the message. Check the board before retrying.'}
             return 200, {'accepted': True, 'retryAfter': COOLDOWN}
         except HTTPError as error:
