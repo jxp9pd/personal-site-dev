@@ -1,5 +1,8 @@
 working-docs/
 node_modules/
+.env
+.env.*
+__pycache__/
 .DS_Store
 
 # Quiz seed data — source for scripts/upload-quizzes.mjs, published to the
