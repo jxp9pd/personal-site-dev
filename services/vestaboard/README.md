@@ -65,8 +65,11 @@ countdown updates from the browser.
 
 - The Note shows a randomly chosen focus phrase that stays fixed for the
   session, whole minutes remaining (rounded up), and a shrinking 15-tile bar.
-  Both time and bar change only on minute boundaries. Focus is violet; break
-  is green with “TAKE A BREATHER.” Phase changes update the message and colors
+  Both time and bar update every five minutes during focus and every minute
+  during break. Updates count from the start or resume of a phase, so a
+  12-minute focus shows 12, 7, then 2 minutes. The website countdown still shows
+  live seconds. Focus is violet; break is green with “TAKE A BREATHER.” Phase
+  changes happen on time and update the message and colors
   together, making the physical shuffle the cue. No extra animation sends.
 - Pause saves the exact remaining time and displays “PAUSED.” Resume continues
   that phase with the original focus phrase. Stop ends it with “TIMER STOPPED.”
@@ -77,7 +80,7 @@ countdown updates from the browser.
   clears; missed frames are discarded, and board delays never extend a phase.
 - The preview is the timer's intended display, not a readback of the physical
   board. Delivery feedback distinguishes pending, cloud-accepted, and failed
-  updates. Timeouts are not retried for the same frame; the next minute or
+  updates. Timeouts are not retried for the same frame; the next scheduled update or
   explicit control can send the current display. Quiet hours still apply.
 - Timer state lives in memory. Restarting the gateway ends the session; the
   last physical display remains until the next write. No persistence, session
@@ -174,7 +177,7 @@ Tests mock the upstream API; they do not change the physical board. Coverage
 includes character mapping, overflow, Unicode, blank input, HTTP validation,
 simultaneous sends, upstream failures, secret isolation, and rate limiting.
 Pomodoro tests also cover background execution, exact pause/resume timing,
-single-session completion, stable messages, minute-only frames, independent
+single-session completion, stable messages, phase-specific update intervals, independent
 note writes, delayed/rate-limited delivery, and browser reconnection/races.
 
 Cloud transport is tested in `test_board.py`; common HTTP validation and shared

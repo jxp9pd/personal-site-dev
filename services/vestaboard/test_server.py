@@ -71,22 +71,22 @@ class HttpTest(unittest.TestCase):
         self.assertEqual(status, 429)
         self.assertGreater(int(headers['Retry-After']), 0)
         self.assertEqual(self.forwarded, [{'characters': message()}])
-        self.timer.command({'action': 'start', 'focusMinutes': 2, 'breakMinutes': 1})
+        self.timer.command({'action': 'start', 'focusMinutes': 6, 'breakMinutes': 1})
         self.timer.tick()  # The note's cooldown applies to timer sends too.
         self.assertEqual(len(self.forwarded), 1)
         self.now = 15
         self.timer.tick()
         self.assertEqual(len(self.forwarded), 2)
         self.assertEqual(self.request(body)[0], 429)  # And vice versa.
-        self.now = 59
+        self.now = 299
         self.assertEqual(self.request(body)[0], 200)  # A note can replace an active timer.
-        self.now = 60
+        self.now = 300
         self.timer.tick()
         self.assertEqual(self.forwarded[-1], {'characters': message()})
-        self.now = 74
+        self.now = 314
         self.timer.tick()
         self.assertEqual(self.forwarded[-1]['characters'], self.timer.status()['characters'])
-        self.now = 120
+        self.now = 360
         self.assertEqual(self.timer.status()['phase'], 'break')  # Delivery delays don't extend focus.
 
     def test_pomodoro_commands_update_shared_state_without_synchronous_board_writes(self):

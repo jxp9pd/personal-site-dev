@@ -44,21 +44,45 @@ class PomodoroTest(unittest.TestCase):
         self.assertEqual(self.timer.status()['state'], 'idle')
         self.assertEqual(self.frames, [])
 
-    def test_only_minute_updates_then_break_then_done_without_a_browser(self):
-        self.start()
-        for second in range(241):
+    def test_focus_updates_every_five_minutes_break_every_minute_and_transitions_on_time(self):
+        self.start(focus=12, rest=3)
+        updates = []
+        for second in range(961):
+            count = len(self.frames)
             self.tick_at(second)
-        self.assertEqual(len(self.frames), 4)  # 0, 60, 120, 180; no endless cycles.
+            if len(self.frames) != count:
+                updates.append(second)
+        self.assertEqual(updates, [0, 300, 600, 720, 780, 840, 900])
         self.assertEqual(self.frames[0][0], text_row('YOU GOT THIS'))
         self.assertEqual(self.frames[1][0], self.frames[0][0])
+        self.assertEqual(self.frames[2][0], self.frames[0][0])
+        self.assertEqual([frame[1][1:-1] for frame in self.frames[:3]],
+                         [text_row(f'FOCUS {minutes} MIN', 13) for minutes in (12, 7, 2)])
         self.assertEqual(self.frames[0][2], [68] * 15)
-        self.assertEqual(self.frames[1][2], [68] * 8 + [0] * 7)
-        self.assertEqual(self.frames[2][0], text_row(BREAK_MESSAGE))
-        self.assertEqual(self.frames[2][2], [66] * 15)
-        self.assertEqual(self.frames[3][0], text_row('ALL DONE'))
+        self.assertEqual(self.frames[1][2], [68] * 9 + [0] * 6)
+        self.assertEqual(self.frames[3][0], text_row(BREAK_MESSAGE))
+        self.assertEqual(self.frames[3][2], [66] * 15)
+        self.assertEqual(self.frames[4][2], [66] * 10 + [0] * 5)
+        self.assertEqual(self.frames[6][0], text_row('ALL DONE'))
         self.assertEqual(self.timer.status()['state'], 'completed')
         self.assertTrue(all(valid_characters(frame) for frame in self.frames))
         self.choose.assert_called_once_with(FOCUS_MESSAGES)
+
+    def test_resume_displays_current_time_then_waits_five_minutes_for_next_focus_update(self):
+        self.start(focus=12)
+        self.tick_at(0)
+        self.now = 61
+        self.timer.command({'action': 'pause'})
+        self.timer.tick()
+        self.now = 1000
+        self.timer.command({'action': 'resume'})
+        self.timer.tick()
+        self.assertEqual(self.frames[-1][1][1:-1], text_row('FOCUS 11 MIN', 13))
+        self.tick_at(1299)
+        self.assertEqual(len(self.frames), 3)  # Start, pause, resume only.
+        self.tick_at(1300)
+        self.assertEqual(len(self.frames), 4)
+        self.assertEqual(self.frames[-1][1][1:-1], text_row('FOCUS 6 MIN', 13))
 
     def test_curated_messages_fit_with_the_largest_supported_duration(self):
         # Content regression: one overlong phrase would otherwise kill the worker.
@@ -116,14 +140,14 @@ class PomodoroTest(unittest.TestCase):
         self.assertEqual(self.choose.call_count, 2)
 
     def test_ambiguous_failure_is_visible_and_never_retried_for_the_same_frame(self):
-        self.start()
+        self.start(focus=6)
         self.gateway.send.return_value = (504, {'error': 'Delivery unconfirmed.'})
-        for second in range(60):
+        for second in range(300):
             self.tick_at(second)
         self.gateway.send.assert_called_once()
         self.assertEqual(self.timer.status()['delivery'], {'status': 'error', 'error': 'Delivery unconfirmed.'})
         self.gateway.send.return_value = (200, {'accepted': True})
-        self.tick_at(60)
+        self.tick_at(300)
         self.assertEqual(self.timer.status()['delivery']['status'], 'accepted')
 
     def test_deferred_updates_skip_old_frames_without_extending_phase_deadlines(self):

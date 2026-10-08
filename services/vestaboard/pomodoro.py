@@ -15,7 +15,7 @@ BREAK_MESSAGE = 'TAKE A BREATHER'
 
 
 def board_frame(state, phase, remaining, duration, focus_message):
-    """Quantize every moving part to minutes, so the bar never adds extra flips."""
+    """Render the sampled countdown so time and progress always update together."""
     if state in ('completed', 'stopped'):
         done = state == 'completed'
         color = GREEN if done else WHITE
@@ -47,6 +47,7 @@ class Pomodoro:
         self.focus_message = FOCUS_MESSAGES[0]
         self.deadline = 0
         self.frozen_remaining = 0
+        self.update_anchor_remaining = 0
         self.revision = 0
         self.last_attempt = None
         self.delivery = {'status': 'idle'}
@@ -58,6 +59,7 @@ class Pomodoro:
             self.phase = 'break'
             # Keep the planned boundary even after a delayed scheduler wakeup.
             self.deadline += self.break_minutes * 60
+            self.update_anchor_remaining = self.break_minutes * 60
             self.revision += 1
         if now >= self.deadline:
             self.state = 'completed'
@@ -72,7 +74,14 @@ class Pomodoro:
         else:
             remaining = self.focus_minutes * 60 if self.state == 'idle' else 0
         duration = (self.focus_minutes if self.phase == 'focus' else self.break_minutes) * 60
-        characters = board_frame(self.state, self.phase, remaining, duration, self.focus_message)
+        display_remaining = remaining
+        if self.state == 'running':
+            interval = 300 if self.phase == 'focus' else 60
+            # Count intervals from start/resume, not round-number minutes left:
+            # a 12-minute focus shows 12, 7, 2, then transitions on time.
+            elapsed = max(0, self.update_anchor_remaining - remaining)
+            display_remaining = self.update_anchor_remaining - math.floor(elapsed / interval) * interval
+        characters = board_frame(self.state, self.phase, display_remaining, duration, self.focus_message)
         key = (self.revision, tuple(code for row in characters for code in row))
         delivery = self.delivery if key == self.last_attempt or self.state == 'idle' else {'status': 'pending'}
         return {'configured': bool(self.gateway.token), 'state': self.state, 'phase': self.phase,
@@ -102,11 +111,13 @@ class Pomodoro:
                 self.focus_message = self.choose(FOCUS_MESSAGES)
                 self.phase, self.state = 'focus', 'running'
                 self.deadline = now + focus * 60
+                self.update_anchor_remaining = focus * 60
             elif action == 'pause' and self.state == 'running':
                 self.frozen_remaining = max(0, self.deadline - now)
                 self.state = 'paused'
             elif action == 'resume' and self.state == 'paused':
                 self.deadline = now + self.frozen_remaining
+                self.update_anchor_remaining = self.frozen_remaining
                 self.state = 'running'
             elif action == 'stop' and self.state in ('running', 'paused'):
                 self.state = 'stopped'
@@ -118,7 +129,7 @@ class Pomodoro:
         return 200, snapshot
 
     def tick(self):
-        """Send only the latest frame; never replay missed minutes or queued controls."""
+        """Send only the latest frame; never replay missed updates or queued controls."""
         with self.lock:
             snapshot, key = self._snapshot(self.clock())
             if self.state == 'idle' or key == self.last_attempt:
@@ -136,7 +147,7 @@ class Pomodoro:
             self.delivery = ({'status': 'accepted'} if status == 200 else
                              {'status': 'error', 'error': result.get('error', 'Board update failed.')})
             # An ambiguous timeout is never retried for this frame. The next
-            # minute or explicit control may send a new, current frame.
+            # scheduled update or explicit control may send a new, current frame.
 
     def start_worker(self):
         def run():
