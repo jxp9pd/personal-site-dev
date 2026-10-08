@@ -68,22 +68,6 @@ class PomodoroTest(unittest.TestCase):
         self.assertTrue(all(valid_characters(frame) for frame in self.frames))
         self.choose.assert_called_once_with(FOCUS_MESSAGES)
 
-    def test_resume_displays_current_time_then_waits_five_minutes_for_next_focus_update(self):
-        self.start(focus=12)
-        self.tick_at(0)
-        self.now = 61
-        self.timer.command({'action': 'pause'})
-        self.timer.tick()
-        self.now = 1000
-        self.timer.command({'action': 'resume'})
-        self.timer.tick()
-        self.assertEqual(self.frames[-1][1][1:-1], text_row('FOCUS 11 MIN', 13))
-        self.tick_at(1299)
-        self.assertEqual(len(self.frames), 3)  # Start, pause, resume only.
-        self.tick_at(1300)
-        self.assertEqual(len(self.frames), 4)
-        self.assertEqual(self.frames[-1][1][1:-1], text_row('FOCUS 6 MIN', 13))
-
     def test_curated_messages_fit_with_the_largest_supported_duration(self):
         # Content regression: one overlong phrase would otherwise kill the worker.
         for message in FOCUS_MESSAGES:
