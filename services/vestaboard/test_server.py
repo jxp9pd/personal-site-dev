@@ -1,145 +1,27 @@
-import io
 import json
-import os
-from pathlib import Path
-import tempfile
 import threading
 import unittest
-from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer
-from server import BoardGateway, api_token, cloud_tls_context, handler_for, valid_characters
 
-
-def message():
-    return [[1] + [0] * 14, [0] * 15, [0] * 15]
-
-
-class Response(io.BytesIO):
-    status = 200
-
-
-class EnvironmentTest(unittest.TestCase):
-    def test_preview_reads_only_the_token_without_expanding_values(self):
-        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {}, clear=True):
-            env_file = Path(folder) / '.env'
-            env_file.write_text('# Local settings\nOTHER=value\nVESTABOARD_API_TOKEN="test-$literal" # comment\n')
-            self.assertEqual(api_token(env_file), 'test-$literal')
-
-    def test_environment_overrides_file_and_empty_environment_disables_sends(self):
-        with tempfile.TemporaryDirectory() as folder:
-            env_file = Path(folder) / '.env'
-            env_file.write_text('VESTABOARD_API_TOKEN=file-token\n')
-            for value in ('environment-token', ''):
-                with patch.dict(os.environ, {'VESTABOARD_API_TOKEN': value}):
-                    self.assertEqual(api_token(env_file), value)
-
-    def test_missing_file_and_production_without_environment_stay_unconfigured(self):
-        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(api_token(Path(folder) / '.env'), '')
-            self.assertEqual(api_token(), '')
-
-    def test_macos_missing_ca_bundle_uses_system_roots(self):
-        context = Mock()
-        context.cert_store_stats.return_value = {'x509_ca': 0}
-        with patch('server.ssl.create_default_context', return_value=context), \
-                patch('server.sys.platform', 'darwin'), patch.dict(os.environ, {}, clear=True):
-            self.assertIs(cloud_tls_context(), context)
-        context.load_verify_locations.assert_called_once_with('/etc/ssl/cert.pem')
-
-    def test_explicit_certificate_settings_are_preserved(self):
-        context = Mock()
-        context.cert_store_stats.return_value = {'x509_ca': 0}
-        with patch('server.ssl.create_default_context', return_value=context), \
-                patch('server.sys.platform', 'darwin'), \
-                patch.dict(os.environ, {'SSL_CERT_FILE': '/custom/roots.pem'}):
-            cloud_tls_context()
-        context.load_verify_locations.assert_not_called()
-
-
-class GatewayTest(unittest.TestCase):
-    def test_shape_and_code_validation(self):
-        self.assertTrue(valid_characters(message()))
-        for value in (None, {}, [[1]], [[0] * 15] * 3, [[70] * 15] * 3,
-                      [[True] * 15] * 3, [[43] * 15] * 3, [[1.0] * 15] * 3):
-            self.assertFalse(valid_characters(value), repr(value))
-
-    def test_unconfigured_never_calls_api(self):
-        gateway = BoardGateway(opener=lambda *a, **kw: self.fail('Unexpected API call'))
-        self.assertFalse(gateway.status()['configured'])
-        self.assertEqual(gateway.send(message())[0], 503)
-
-    def test_cloud_contract_and_cooldown(self):
-        calls = []
-        now = [100]
-        def upstream(request, **kwargs):
-            calls.append(request)
-            self.assertEqual(request.full_url, 'https://cloud.vestaboard.com/')
-            self.assertEqual(request.get_header('X-vestaboard-token'), 'test-token')
-            self.assertEqual(json.loads(request.data), {'characters': message()})
-            self.assertEqual(kwargs['timeout'], 10)
-            return Response(b'{"status":"ok","id":"test"}')
-        gateway = BoardGateway('test-token', upstream, lambda: now[0])
-        self.assertEqual(gateway.send(message()), (200, {'accepted': True, 'retryAfter': 15}))
-        self.assertEqual(gateway.send(message())[0], 429)
-        now[0] = 115
-        self.assertEqual(gateway.send(message())[0], 200)
-        self.assertEqual(len(calls), 2)
-
-    def test_concurrent_sends_only_forward_one(self):
-        started, release = threading.Event(), threading.Event()
-        def upstream(*a, **kw):
-            started.set()
-            release.wait(2)
-            return Response(b'{"status":"ok"}')
-        gateway = BoardGateway('test-token', upstream)
-        worker = threading.Thread(target=lambda: gateway.send(message()))
-        worker.start()
-        self.assertTrue(started.wait(2))
-        try:
-            self.assertEqual(gateway.send(message())[0], 429)
-        finally:
-            release.set()
-            worker.join()
-
-    def test_live_cloud_success_response(self):
-        gateway = BoardGateway('test-token', lambda *a, **kw: Response(
-            b'{"status":"success","id":"test-note","created":1791390821443}'))
-        self.assertEqual(gateway.send(message()), (200, {'accepted': True, 'retryAfter': 15}))
-
-    def test_failures_do_not_claim_success_or_leak_upstream_body(self):
-        for raw in (b'{"status":"error","secret":"private"}', b'not json', b'[]'):
-            gateway = BoardGateway('test-token', lambda *a, **kw: Response(raw))
-            status, body = gateway.send(message())
-            self.assertEqual(status, 502)
-            self.assertNotIn('private', json.dumps(body))
-            self.assertNotIn('accepted', body)
-        def failure(*a, **kw):
-            raise HTTPError('https://cloud.vestaboard.com/', 401, 'secret', {}, io.BytesIO(b'secret'))
-        status, body = BoardGateway('test-token', failure).send(message())
-        self.assertEqual(status, 502)
-        self.assertNotIn('secret', json.dumps(body))
-
-    def test_timeout_and_upstream_rate_limit(self):
-        def timeout(*a, **kw):
-            raise TimeoutError()
-        self.assertEqual(BoardGateway('test-token', timeout).send(message())[0], 504)
-        def busy(*a, **kw):
-            raise HTTPError('https://cloud.vestaboard.com/', 429, 'busy', {'Retry-After': '90'}, None)
-        gateway = BoardGateway('test-token', busy)
-        self.assertEqual(gateway.send(message())[1]['retryAfter'], 90)
-        self.assertGreaterEqual(gateway.status()['retryAfter'], 89)
+from board import BoardGateway
+from pomodoro import Pomodoro
+from server import handler_for
+from test_helpers import Response, message
 
 
 class HttpTest(unittest.TestCase):
     def setUp(self):
+        self.now = 0
         self.forwarded = []
         def upstream(request, **kwargs):
             self.forwarded.append(json.loads(request.data))
             return Response(b'{"status":"ok"}')
-        gateway = BoardGateway('test-token', upstream)
-        self.server = ThreadingHTTPServer(('127.0.0.1', 0), handler_for(gateway, {'https://jpentakalos.com'}))
+        gateway = BoardGateway('test-token', upstream, lambda: self.now)
+        self.timer = Pomodoro(gateway, lambda: self.now)
+        self.server = ThreadingHTTPServer(('127.0.0.1', 0), handler_for(
+            gateway, {'https://jpentakalos.com'}, pomodoro=self.timer))
         self.thread = threading.Thread(target=self.server.serve_forever)
         self.thread.start()
         self.base = f'http://127.0.0.1:{self.server.server_port}'
@@ -161,30 +43,61 @@ class HttpTest(unittest.TestCase):
 
     def test_origin_content_type_body_and_validation_block_before_api(self):
         body = json.dumps({'characters': message()}).encode()
-        self.assertEqual(self.request(body, origin='https://evil.example')[0], 403)
-        self.assertEqual(self.request(body, content_type='text/plain')[0], 415)
-        self.assertEqual(self.request(b'x' * 4097)[0], 413)
-        self.assertEqual(self.request(b'{')[0], 400)
-        self.assertEqual(self.request(b'\xff')[0], 400)
-        self.assertEqual(self.request(b'[]')[0], 400)
+        for path in ('/api/vestaboard/messages', '/api/vestaboard/pomodoro'):
+            with self.subTest(path=path):
+                self.assertEqual(self.request(body, path=path, origin='https://evil.example')[0], 403)
+                self.assertEqual(self.request(body, path=path, content_type='text/plain')[0], 415)
+                self.assertEqual(self.request(b'x' * 4097, path=path)[0], 413)
+                self.assertEqual(self.request(b'{', path=path)[0], 400)
+                self.assertEqual(self.request(b'\xff', path=path)[0], 400)
+                self.assertEqual(self.request(b'[]', path=path)[0], 400)
         self.assertEqual(self.request(b'{"characters": [[true]]}')[0], 400)
         self.assertEqual(self.forwarded, [])
 
     def test_status_is_uncached_contains_no_secret_and_does_not_contact_cloud(self):
-        status, headers, raw = self.request(path='/api/vestaboard/status')
-        self.assertEqual(status, 200)
-        self.assertEqual(headers['Cache-Control'], 'no-store')
-        self.assertTrue(json.loads(raw)['configured'])
-        self.assertNotIn(b'test-token', raw)
+        for path in ('/api/vestaboard/status', '/api/vestaboard/pomodoro'):
+            with self.subTest(path=path):
+                status, headers, raw = self.request(path=path)
+                self.assertEqual(status, 200)
+                self.assertEqual(headers['Cache-Control'], 'no-store')
+                self.assertTrue(json.loads(raw)['configured'])
+                self.assertNotIn(b'test-token', raw)
         self.assertEqual(self.forwarded, [])
 
-    def test_success_then_http_cooldown_and_no_forced_override(self):
+    def test_notes_and_timer_share_delivery_and_cooldown_without_forced_override(self):
         body = json.dumps({'characters': message(), 'forced': True}).encode()
         self.assertEqual(self.request(body)[0], 200)
         status, headers, raw = self.request(body)
         self.assertEqual(status, 429)
         self.assertGreater(int(headers['Retry-After']), 0)
         self.assertEqual(self.forwarded, [{'characters': message()}])
+        self.timer.command({'action': 'start', 'focusMinutes': 2, 'breakMinutes': 1})
+        self.timer.tick()  # The note's cooldown applies to timer sends too.
+        self.assertEqual(len(self.forwarded), 1)
+        self.now = 15
+        self.timer.tick()
+        self.assertEqual(len(self.forwarded), 2)
+        self.assertEqual(self.request(body)[0], 429)  # And vice versa.
+        self.now = 59
+        self.assertEqual(self.request(body)[0], 200)  # A note can replace an active timer.
+        self.now = 60
+        self.timer.tick()
+        self.assertEqual(self.forwarded[-1], {'characters': message()})
+        self.now = 74
+        self.timer.tick()
+        self.assertEqual(self.forwarded[-1]['characters'], self.timer.status()['characters'])
+        self.now = 120
+        self.assertEqual(self.timer.status()['phase'], 'break')  # Delivery delays don't extend focus.
+
+    def test_pomodoro_commands_update_shared_state_without_synchronous_board_writes(self):
+        path = '/api/vestaboard/pomodoro'
+        for action, state in (('start', 'running'), ('pause', 'paused'), ('resume', 'running'), ('stop', 'stopped')):
+            body = {'action': action, 'focusMinutes': 25, 'breakMinutes': 5}
+            status, _, raw = self.request(json.dumps(body).encode(), path=path)
+            self.assertEqual(status, 200)
+            self.assertEqual(json.loads(raw)['state'], state)
+            self.assertEqual(json.loads(self.request(path=path)[2])['state'], state)
+        self.assertEqual(self.forwarded, [])
 
     def test_production_does_not_serve_local_files(self):
         self.assertEqual(self.request(path='/server.py')[0], 404)

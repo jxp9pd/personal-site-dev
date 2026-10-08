@@ -4,6 +4,8 @@ set -euo pipefail
 cd -- "$(dirname -- "$0")"
 install -d -m 755 /opt/vestaboard-note
 install -m 644 server.py /opt/vestaboard-note/server.py
+install -m 644 board.py /opt/vestaboard-note/board.py
+install -m 644 pomodoro.py /opt/vestaboard-note/pomodoro.py
 install -m 644 vestaboard-note.service /etc/systemd/system/vestaboard-note.service
 install -m 644 nginx.conf /etc/nginx/snippets/vestaboard-note.conf
 printf '%s\n' 'limit_req_zone $server_name zone=vestaboard_requests:1m rate=5r/s;' > /etc/nginx/conf.d/vestaboard-rate-limit.conf

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="A Pomodoro timer for John's Vestaboard Note." />
+  <title>Pomodoro — Penta Projects</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/site.css?v=4" />
+  <link rel="stylesheet" href="/assets/css/vestaboard.css?v=4" />
+  <link rel="stylesheet" href="/assets/css/pomodoro.css?v=2" />
+  <script type="module" src="/assets/js/pomodoro.js?v=3"></script>
+</head>
+<body>
+  <header class="site-head">
+    <a class="logo gradient-text" href="/">Penta Projects</a>
+    <nav class="nav" aria-label="Main navigation">
+      <a class="btn" href="/games">Games</a>
+      <a class="btn" href="/tools" aria-current="page">Tools</a>
+    </nav>
+  </header>
+  <main class="note-page pomodoro-page" id="pomodoro" data-phase="focus">
+    <div class="note-heading reveal d1">
+      <h1>Pomodoro</h1>
+    </div>
+
+    <section class="preview-section reveal d2" aria-labelledby="preview-title">
+      <div class="preview-meta">
+        <h2 id="preview-title">Preview</h2>
+      </div>
+      <div class="board-frame">
+        <div id="board" class="board" role="img" aria-label="Pomodoro board preview"></div>
+      </div>
+      <p id="delivery" class="delivery" role="status"></p>
+    </section>
+
+    <form id="timer-form" class="composer timer-form reveal d3" aria-labelledby="timer-title">
+      <div class="field-heading">
+        <h2 id="timer-title">Timer</h2>
+        <span id="phase-label" class="phase-label" role="status">Ready</span>
+      </div>
+      <div class="timer-settings">
+        <div id="countdown" class="countdown" role="timer" aria-label="Time remaining" aria-live="off">25:00</div>
+        <fieldset id="durations" class="duration-fields" aria-label="Session durations">
+          <label for="focus-minutes">Focus<span class="minute-field"><input id="focus-minutes" name="focusMinutes" type="number" min="1" max="180" step="1" value="25" required /><span>min</span></span></label>
+          <label for="break-minutes">Break<span class="minute-field"><input id="break-minutes" name="breakMinutes" type="number" min="1" max="180" step="1" value="5" required /><span>min</span></span></label>
+        </fieldset>
+      </div>
+      <div class="timer-actions">
+        <button id="start" type="submit" class="send-button" disabled>Start timer <span aria-hidden="true">↗</span></button>
+        <div id="active-controls" class="active-controls" hidden>
+          <button id="pause" type="button" class="send-button">Pause</button>
+          <button id="stop" type="button" class="stop-button">Stop</button>
+        </div>
+      </div>
+      <p id="feedback" class="feedback" role="status"></p>
+      <button id="reconnect" type="button" class="text-button" hidden>Retry connection ↻</button>
+    </form>
+    <noscript><p>Enable JavaScript to set and control the Pomodoro timer.</p></noscript>
+  </main>
+</body>
+</html>

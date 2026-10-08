@@ -2,10 +2,24 @@
 
 Public page: https://jpentakalos.com/tools/vestaboard.html
 
+Pomodoro page: https://jpentakalos.com/tools/pomodoro.html
+
 A vanilla HTML/CSS/JS composer previews exactly 3 rows × 15 columns and posts
 the same character array to a Python gateway. nginx forwards `/api/vestaboard/`
 to a loopback-only service. The gateway alone holds the API token and calls
 Vestaboard's Cloud API. No npm production dependencies or database are required.
+
+## Shared code
+
+`board.py` owns character encoding/validation, credentials, TLS, cloud sends,
+and the shared cooldown. It has no dependency on the HTTP server or Pomodoro.
+`server.py` wires one gateway instance into note routes and `pomodoro.py`;
+features should reuse that instance rather than create independent senders.
+
+In `fe-artifacts/assets/js/`, `vestaboard-api.js` owns gateway requests and the
+reusable `sendBoardMessage` helper. `vestaboard-preview.js` renders the tiles;
+`vestaboard-layout.js` handles text layout. Both page controllers import these
+helpers and retain only their own form, countdown, and feedback behavior.
 
 ## Connect the Note
 
@@ -34,6 +48,57 @@ Anyone can send, as requested. Each new message replaces the board's display.
 Sends from this service are spaced by at least 15 seconds, including concurrent
 visitors. The page does not display the board's current content or store messages.
 The preview is the visitor's draft. A token is never needed to use the preview.
+
+## Pomodoro
+
+The separate Pomodoro page runs one focus → break → done session. Anyone can
+start, pause, resume, or stop the shared timer. Focus and break durations are
+editable whole minutes (1–180 each), defaulting to 25 / 5. The page contains just
+the board preview and timer controls. Active sessions show the same state to
+every visitor; their durations stay fixed until a new session starts.
+
+The Python gateway owns the clock and a background scheduler, so closing the
+page, locking a phone, or losing the browser connection does not stop a session.
+The website polls status every five seconds while visible and counts seconds
+locally between polls. It reconnects when reopened and never sends individual
+countdown updates from the browser.
+
+- The Note shows a randomly chosen focus phrase that stays fixed for the
+  session, whole minutes remaining (rounded up), and a shrinking 15-tile bar.
+  Both time and bar change only on minute boundaries. Focus is violet; break
+  is green with “TAKE A BREATHER.” Phase changes update the message and colors
+  together, making the physical shuffle the cue. No extra animation sends.
+- Pause saves the exact remaining time and displays “PAUSED.” Resume continues
+  that phase with the original focus phrase. Stop ends it with “TIMER STOPPED.”
+  Normal completion leaves “ALL DONE.” Paused and terminal displays stay static.
+- Notes remain independent: either can overwrite the other, and a note does
+  not stop the timer. Both share the existing minimum 15-second cloud cooldown.
+  Controls and transitions queue the latest timer display until that cooldown
+  clears; missed frames are discarded, and board delays never extend a phase.
+- The preview is the timer's intended display, not a readback of the physical
+  board. Delivery feedback distinguishes pending, cloud-accepted, and failed
+  updates. Timeouts are not retried for the same frame; the next minute or
+  explicit control can send the current display. Quiet hours still apply.
+- Timer state lives in memory. Restarting the gateway ends the session; the
+  last physical display remains until the next write. No persistence, session
+  history, authentication, or note/timer conflict arbitration is added.
+
+`GET /api/vestaboard/pomodoro` returns the current shared session and intended
+character array without contacting Vestaboard. `POST` to the same path accepts
+`{"action":"start","focusMinutes":25,"breakMinutes":5}` or an action of `pause`,
+`resume`, or `stop`, with the same origin/body restrictions as note sends. A
+successful command changes the timer; board delivery is asynchronous and
+reported in the response's `delivery` field on subsequent status requests.
+
+For a preview that cannot send to the physical board even if `.env` is configured:
+
+```sh
+VESTABOARD_API_TOKEN='' python3 services/vestaboard/server.py --preview fe-artifacts --port 8000
+```
+
+Open http://127.0.0.1:8000/tools/pomodoro.html. Duration controls and the board
+preview work; starting a session requires a configured board. Tests use a fake
+upstream and controlled clock to exercise complete sessions without live sends.
 
 ## Local preview
 
@@ -93,7 +158,8 @@ Do not restore the whole old nginx file if other site changes were made later.
   dimensions and allowed character codes, and serializes sends with a shared
   cooldown. One process owns this board. Cooldown state resets on restart.
 - Quiet hours are respected: clients cannot forward a `forced` override.
-- No automatic retries: a timeout can mean the upstream accepted the message.
+- No retries of ambiguous sends: a timeout can mean the upstream accepted the
+  message. The timer can defer a definitely rejected, rate-limited frame.
 - The API URL is fixed. Client requests cannot choose a destination or token.
 - No current-message read endpoint, analytics, or message history is added.
 
@@ -107,6 +173,16 @@ python3 -m unittest discover -s services/vestaboard -p 'test_*.py'
 Tests mock the upstream API; they do not change the physical board. Coverage
 includes character mapping, overflow, Unicode, blank input, HTTP validation,
 simultaneous sends, upstream failures, secret isolation, and rate limiting.
+Pomodoro tests also cover background execution, exact pause/resume timing,
+single-session completion, stable messages, minute-only frames, independent
+note writes, delayed/rate-limited delivery, and browser reconnection/races.
+
+Cloud transport is tested in `test_board.py`; common HTTP validation and shared
+note/timer delivery are tested in `test_server.py`. `test_pomodoro.py` uses a
+fake gateway to focus on scheduling rather than repeat cloud contract tests.
+Browser request errors are covered once in `vestaboard-api.test.js`; connection
+checks use the same parameterized scenario for both pages. Page-specific tests
+retain their distinct interactions and timer synchronization checks.
 
 Official documentation checked October 7, 2026:
 - https://docs.vestaboard.com/docs/read-write-api/authentication

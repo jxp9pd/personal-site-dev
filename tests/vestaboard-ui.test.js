@@ -1,34 +1,26 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
+import { loadBoardPage, pomodoroState, reply } from './helpers/vestaboard.js';
 
-const html = readFileSync(resolve('fe-artifacts/tools/vestaboard.html'), 'utf8');
-const reply = (data, ok = true) => ({ ok, json: async () => data });
 const $ = id => document.getElementById(id);
+const start = (configured = true) => loadBoardPage('note', { configured });
 
-async function start(configured = true) {
-  vi.resetModules();
-  vi.useFakeTimers();
-  document.body.innerHTML = html;
-  const fetch = vi.fn().mockResolvedValueOnce(reply({ configured, retryAfter: 0 }));
-  vi.stubGlobal('fetch', fetch);
-  await import('../fe-artifacts/assets/js/vestaboard.js');
-  await vi.advanceTimersByTimeAsync(0);
-  return fetch;
-}
-
-afterEach(() => { vi.clearAllTimers(); vi.unstubAllGlobals(); document.body.innerHTML = ''; });
-
-describe('Note composer delivery feedback', () => {
-  it('keeps sending disabled until configured, then supports an explicit connection recheck', async () => {
-    const fetch = await start(false);
-    expect($('send').disabled).toBe(true);
-    expect($('feedback').textContent).toContain('not connected');
-    fetch.mockResolvedValueOnce(reply({ configured: true }));
+// Each page wires its own disabled control and feedback, but the same connection
+// contract is checked here instead of copying a test into every feature suite.
+describe.each(['note', 'pomodoro'])('%s board connection', page => {
+  it('blocks writes until configured and recovers through the retry control', async () => {
+    const fetch = await loadBoardPage(page, { configured: false });
+    const button = $(page === 'note' ? 'send' : 'start');
+    expect(button.disabled).toBe(true);
+    expect($(page === 'note' ? 'feedback' : 'delivery').textContent).toContain('not connected');
+    expect($('reconnect').hidden).toBe(false);
+    fetch.mockResolvedValue(reply(page === 'note' ? { configured: true } : pomodoroState()));
     $('reconnect').click();
     await vi.advanceTimersByTimeAsync(0);
-    expect($('send').disabled).toBe(false);
+    expect(button.disabled).toBe(false);
   });
+});
+
+describe('Note composer delivery feedback', () => {
   it('sends exactly the preview and prevents double submission until the cooldown ends', async () => {
     const fetch = await start();
     fetch.mockResolvedValueOnce(reply({ accepted: true, retryAfter: 15 }));
@@ -64,36 +56,18 @@ describe('Note composer delivery feedback', () => {
     key({ metaKey: true, isComposing: true });
     key({ metaKey: true, repeat: true });
     expect(fetch).toHaveBeenCalledTimes(1);
+    $('message').value = 'A\nB\nC\nD';
+    $('message').dispatchEvent(new Event('input'));
+    key({ metaKey: true });
+    expect(fetch).toHaveBeenCalledTimes(1); // Shortcut still respects invalid drafts.
+    $('message').value = 'HELLO';
+    $('message').dispatchEvent(new Event('input'));
     expect(key({ metaKey: true })).toBe(false);
     key({ metaKey: true }); // Still sending.
     await vi.advanceTimersByTimeAsync(0);
     key({ metaKey: true }); // Cooldown.
     expect(fetch).toHaveBeenCalledTimes(2);
     expect($('feedback').textContent).toContain('Accepted by Vestaboard');
-  });
-  it('does not bypass validation or connection state with Command+Enter', async () => {
-    const fetch = await start(false);
-    const send = () => $('message').dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'Enter', metaKey: true, bubbles: true, cancelable: true,
-    }));
-    send();
-    expect(fetch).toHaveBeenCalledTimes(1);
-    fetch.mockResolvedValueOnce(reply({ configured: true }));
-    $('reconnect').click();
-    await vi.advanceTimersByTimeAsync(0);
-    $('message').value = 'A\nB\nC\nD';
-    $('message').dispatchEvent(new Event('input'));
-    send();
-    expect(fetch).toHaveBeenCalledTimes(2); // Only the two connection checks.
-  });
-  it('handles proxy HTML errors without misreporting them as a connection failure', async () => {
-    const fetch = await start();
-    fetch.mockResolvedValueOnce({ ok: false, status: 502, json: async () => { throw new SyntaxError('HTML'); } });
-    $('message-form').dispatchEvent(new Event('submit', { cancelable: true }));
-    await vi.advanceTimersByTimeAsync(0);
-    expect($('feedback').textContent).toContain('HTTP 502');
-    expect($('feedback').textContent).toContain('may have been sent');
-    expect($('send').disabled).toBe(true);
   });
   it('disables invalid drafts and never auto-sends when typing or inserting colors', async () => {
     const fetch = await start();

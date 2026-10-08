@@ -1,0 +1,33 @@
+.pomodoro-page { --phase-color: #71588f; }
+.pomodoro-page[data-phase="break"], .pomodoro-page[data-phase="completed"] { --phase-color: #386e51; }
+.pomodoro-page[data-phase="paused"], .pomodoro-page[data-phase="stopped"] { --phase-color: #716c61; }
+.delivery { margin: 13px 0 0; color: var(--muted); font-size: .65rem; line-height: 1.7; }
+.delivery:empty { display: none; }
+.delivery[data-error="true"] { color: #a34433; }
+.timer-form .field-heading { margin-bottom: 20px; }
+.timer-form h2 { font: inherit; margin: 0; }
+.phase-label { display: flex; align-items: center; gap: 8px; color: var(--phase-color); font-size: .68rem; }
+.phase-label::before { content: ''; width: 7px; height: 7px; background: var(--phase-color); border-radius: 50%; }
+.timer-settings { display: flex; align-items: center; justify-content: space-between; gap: 35px; }
+.countdown { font: 400 clamp(2.8rem, 7vw, 4rem)/1.15 var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -.075em; }
+.duration-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; border: 0; padding: 0; margin: 0; min-width: 0; width: 280px; }
+.duration-fields label { font-size: .68rem; color: var(--muted); }
+.minute-field { display: flex; align-items: center; gap: 4px; margin-top: 7px; padding: 10px 11px; border: 1px solid #d6d4cc; border-radius: 5px; background: #fffef8; }
+.minute-field:focus-within { outline: 2px solid var(--phase-color); outline-offset: 2px; }
+.minute-field input { width: 100%; min-width: 0; border: 0; padding: 0; outline: 0; font: 400 1.2rem var(--font-mono); color: var(--ink); background: transparent; }
+.minute-field span { font-size: .6rem; }
+.timer-form fieldset:disabled { opacity: .62; }
+.timer-actions { display: flex; justify-content: flex-end; margin-top: 24px; }
+.timer-form .send-button { background: var(--phase-color); border-color: var(--phase-color); }
+.timer-form .send-button:hover:enabled { filter: brightness(.9); }
+.active-controls { display: flex; gap: 10px; }
+.stop-button { border: 1px solid #ccc7bd; border-radius: 5px; padding: 12px 20px; font: .7rem var(--font-mono); color: var(--muted); background: transparent; cursor: pointer; }
+.stop-button:hover:enabled { background: #eee9df; color: var(--ink); }
+.stop-button:disabled { opacity: .48; cursor: not-allowed; }
+.pomodoro-page [hidden] { display: none !important; }
+@media (max-width: 560px) {
+  .timer-settings { flex-wrap: wrap; gap: 22px; }
+  .duration-fields { width: 100%; }
+  .active-controls { width: 100%; }
+  .active-controls .send-button { min-width: 0; }
+}
