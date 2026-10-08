@@ -3,42 +3,69 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#151614" />
   <title>Vestaboard — Penta Projects</title>
   <meta name="description" content="Send a note or set a Pomodoro timer on John's Vestaboard." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/assets/site.css?v=5" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/css/vestaboard-hub.css?v=1" />
+  <script type="module" src="/assets/js/vestaboard-hub.js?v=1"></script>
 </head>
 <body>
-  <header class="site-head reveal d1">
-    <a class="logo gradient-text" href="/">Penta Projects</a>
-    <nav class="nav" aria-label="Main navigation">
-      <a class="btn" href="/games">Games</a>
-      <a class="btn" href="/tools" aria-current="page">Tools</a>
-    </nav>
+  <header class="site-head">
+    <a class="back-link" href="/tools/"><span aria-hidden="true">&larr;</span> All tools</a>
+    <a class="site-name" href="/">Penta Projects <span aria-hidden="true">&nearr;</span></a>
   </header>
 
-  <main class="content tools-page">
-    <div class="page-heading reveal d1">
-      <a class="back-link" href="/tools/">&larr; Tools</a>
-      <h1 class="page-title">Vestaboard</h1>
+  <main>
+    <div class="page-heading">
+      <div>
+        <h1>Vestaboard<span class="title-dot">.</span></h1>
+        <p class="intro">A little message. A little focus.</p>
+      </div>
+      <div class="tile-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
     </div>
 
-    <ul class="entry-list reveal d2">
-      <li>
-        <a class="entry" href="/tools/vestaboard.html">
-          <span class="entry-title">Send a note</span>
-          <span class="entry-go" aria-hidden="true">&rarr;</span>
+    <ul class="app-list" aria-label="Vestaboard apps">
+      <li class="note-app">
+        <a class="app-card" href="/tools/vestaboard.html" aria-labelledby="note-title" aria-describedby="note-description">
+          <div class="app-art" aria-hidden="true">
+            <span class="app-number"></span>
+            <div class="mini-note">
+              <div class="app-board" data-preview="HEY, YOU.&#10;HAVE A GOOD DAY&#10;🟨🟨🟨"></div>
+              <span class="device-name">Vestaboard</span>
+            </div>
+          </div>
+          <div class="app-info">
+            <div>
+              <h2 id="note-title">Send a note</h2>
+              <p id="note-description">Words, colors, a little hello.</p>
+            </div>
+            <span class="app-arrow" aria-hidden="true">&nearr;</span>
+          </div>
         </a>
       </li>
-      <li>
-        <a class="entry" href="/tools/pomodoro.html">
-          <span class="entry-title">Pomodoro timer</span>
-          <span class="entry-go" aria-hidden="true">&rarr;</span>
+      <li class="timer-app">
+        <a class="app-card" href="/tools/pomodoro.html" aria-labelledby="timer-title" aria-describedby="timer-description">
+          <div class="app-art" aria-hidden="true">
+            <span class="app-number"></span>
+            <div class="mini-note">
+              <div class="app-board" data-preview="ONE THING&#10;FOCUS 25 MIN&#10;🟪🟪🟪🟪🟪🟪🟪🟪🟪🟪🟪🟪🟪🟪🟪"></div>
+              <span class="device-name">Vestaboard</span>
+            </div>
+          </div>
+          <div class="app-info">
+            <div>
+              <h2 id="timer-title">Pomodoro timer</h2>
+              <p id="timer-description">Time to focus. Room to breathe.</p>
+            </div>
+            <span class="app-arrow" aria-hidden="true">&nearr;</span>
+          </div>
         </a>
       </li>
     </ul>
+    <p class="collection-note">Little apps for John's Vestaboard Note.</p>
   </main>
 </body>
 </html>

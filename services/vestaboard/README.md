@@ -8,7 +8,10 @@ Pomodoro page: https://jpentakalos.com/tools/pomodoro.html
 
 The Tools page links to the apps home. To add an app, append an entry to the
 list in `fe-artifacts/tools/vestaboard/index.html` and link back to the hub
-from the new page. The hub uses shared site styles and requires no JavaScript.
+from the new page. The hub has its own stylesheet, `vestaboard-hub.css`, and
+uses the shared layout and preview helpers to draw decorative board examples.
+Set `data-preview` on an app's illustration to customize its message; the hub
+does not call the gateway or send to the physical board.
 
 A vanilla HTML/CSS/JS composer previews exactly 3 rows × 15 columns and posts
 the same character array to a Python gateway. nginx forwards `/api/vestaboard/`
