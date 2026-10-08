@@ -125,8 +125,9 @@ a { color: inherit; }
 }
 .page-sub { color: var(--muted); font-size: 0.85rem; margin: 0 0 40px; letter-spacing: 0.01em; }
 .page-heading { margin-bottom: 36px; }
-.back-link { display: inline-block; margin-bottom: 14px; color: var(--muted); font-size: .65rem; text-decoration: none; }
-.back-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.back-link { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-bottom: 14px; color: var(--ink); font-size: .875rem; text-decoration: none; }
+.back-link-icon { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 50%; background: var(--paper-2); font-size: 1.15rem; }
+.back-link:hover .back-link-icon { background: #e8eee5; border-color: #a7b8aa; }
 
 .entry-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
 .entry {

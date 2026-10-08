@@ -21,10 +21,9 @@
 .timer-form .send-button { background: var(--phase-color); border-color: var(--phase-color); }
 .timer-form .send-button:hover:enabled { filter: brightness(.9); }
 .active-controls { display: flex; gap: 10px; }
-.stop-button { border: 1px solid #ccc7bd; border-radius: 5px; padding: 12px 20px; font: .7rem var(--font-mono); color: var(--muted); background: transparent; cursor: pointer; }
+.stop-button { border: 1px solid #ccc7bd; border-radius: 5px; padding: 12px 20px; font: .875rem var(--font-mono); color: var(--muted); background: transparent; cursor: pointer; }
 .stop-button:hover:enabled { background: #eee9df; color: var(--ink); }
 .stop-button:disabled { opacity: .48; cursor: not-allowed; }
-.pomodoro-page [hidden] { display: none !important; }
 @media (max-width: 560px) {
   .timer-settings { flex-wrap: wrap; gap: 22px; }
   .duration-fields { width: 100%; }

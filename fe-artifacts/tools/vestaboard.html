@@ -8,8 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/assets/site.css?v=5" />
-  <link rel="stylesheet" href="/assets/css/vestaboard.css?v=5" />
+  <link rel="stylesheet" href="/assets/site.css?v=6" />
+  <link rel="stylesheet" href="/assets/css/vestaboard.css?v=6" />
   <script type="module" src="/assets/js/vestaboard.js?v=5"></script>
 </head>
 <body>
@@ -22,7 +22,7 @@
   </header>
   <main class="note-page">
     <div class="note-heading reveal d1">
-      <a class="back-link" href="/tools/vestaboard/">&larr; Vestaboard</a>
+      <a class="back-link" href="/tools/vestaboard/"><span class="back-link-icon" aria-hidden="true">&larr;</span> Vestaboard</a>
       <h1>Leave a <em>note</em></h1>
     </div>
 
@@ -38,7 +38,7 @@
     <form id="message-form" class="composer reveal d3">
       <div class="field-heading">
         <label for="message">Your message</label>
-        <button type="button" id="clear" class="text-button">Clear</button>
+        <button type="button" id="clear" class="secondary-button">Clear</button>
       </div>
       <textarea id="message" name="message" rows="3" maxlength="240" spellcheck="false" aria-describedby="validation" placeholder="Write a little note…">🟦🟧 WAHOOWA 🟧🟦</textarea>
       <p id="validation" class="validation" aria-live="polite"></p>
@@ -56,7 +56,7 @@
         <button type="submit" id="send" class="send-button" aria-keyshortcuts="Meta+Enter" title="Send to the board (⌘Enter)" disabled><span id="send-label">Send to the board</span><span class="send-shortcut" aria-hidden="true">⌘↵</span></button>
       </div>
       <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
-      <button type="button" id="reconnect" class="text-button" hidden>Retry connection ↻</button>
+      <button type="button" id="reconnect" class="secondary-button reconnect-button" hidden><svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2.3 5.7" /></svg>Retry connection</button>
     </form>
     <noscript><p>Enable JavaScript to preview and send a message.</p></noscript>
   </main>
