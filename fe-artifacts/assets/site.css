@@ -144,6 +144,14 @@ a { color: inherit; }
 .entry-go { font-size: 1.4rem; color: var(--muted); transition: transform 0.25s, color 0.25s; }
 .entry:hover .entry-go { transform: translateX(5px); color: var(--ink); }
 
+.tools-page .entry { grid-template-columns: minmax(0, 1fr) auto; }
+.tools-page .entry-desc {
+  max-width: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 620px) {
   .entry-title { font-size: 1.6rem; }
 }
