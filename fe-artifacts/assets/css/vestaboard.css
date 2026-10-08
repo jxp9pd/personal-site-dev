@@ -40,10 +40,6 @@ button:focus-visible, a:focus-visible { outline: 2px solid #527560; outline-offs
 .feedback { font-size: .7rem; line-height: 1.7; color: #477363; margin: 16px 0 0; }
 .feedback[data-error="true"] { color: #a34433; }
 @media (max-width: 560px) {
-  .site-head { padding: 20px; gap: 10px; }
-  .site-head .logo { font-size: 1.4rem; }
-  .site-head .nav { gap: 8px; }
-  .site-head .btn { padding: 9px 13px; font-size: .6rem; }
   .note-page { padding: 12px 20px 28px; }
   .note-heading { margin: 20px 0 30px; }
   .composer-actions { align-items: stretch; flex-direction: column; gap: 20px; }

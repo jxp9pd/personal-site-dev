@@ -1,8 +1,14 @@
 # Vestaboard Note
 
-Public page: https://jpentakalos.com/tools/vestaboard.html
+Apps home: https://jpentakalos.com/tools/vestaboard/
+
+Send a note page: https://jpentakalos.com/tools/vestaboard.html
 
 Pomodoro page: https://jpentakalos.com/tools/pomodoro.html
+
+The Tools page links to the apps home. To add an app, append an entry to the
+list in `fe-artifacts/tools/vestaboard/index.html` and link back to the hub
+from the new page. The hub uses shared site styles and requires no JavaScript.
 
 A vanilla HTML/CSS/JS composer previews exactly 3 rows × 15 columns and posts
 the same character array to a Python gateway. nginx forwards `/api/vestaboard/`

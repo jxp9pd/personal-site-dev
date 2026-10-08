@@ -124,6 +124,9 @@ a { color: inherit; }
   line-height: 1;
 }
 .page-sub { color: var(--muted); font-size: 0.85rem; margin: 0 0 40px; letter-spacing: 0.01em; }
+.page-heading { margin-bottom: 36px; }
+.back-link { display: inline-block; margin-bottom: 14px; color: var(--muted); font-size: .65rem; text-decoration: none; }
+.back-link:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
 .entry-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
 .entry {
@@ -154,6 +157,13 @@ a { color: inherit; }
 
 @media (max-width: 620px) {
   .entry-title { font-size: 1.6rem; }
+}
+
+@media (max-width: 560px) {
+  .site-head { padding: 20px; gap: 10px; }
+  .site-head .logo { font-size: 1.4rem; }
+  .site-head .nav { gap: 8px; }
+  .site-head .btn { padding: 9px 13px; font-size: .6rem; }
 }
 
 /* ---------- entrance ---------- */
