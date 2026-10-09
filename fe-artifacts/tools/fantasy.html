@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Live Sleeper fantasy scores and Big Play alerts on the Vestaboard Note." />
+  <title>Fantasy football — Penta Projects</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/site.css?v=7" />
+  <link rel="stylesheet" href="/assets/css/vestaboard.css?v=6" />
+  <link rel="stylesheet" href="/assets/css/fantasy.css?v=1" />
+  <script type="module" src="/assets/js/fantasy.js?v=1"></script>
+</head>
+<body>
+  <header class="site-head">
+    <a class="logo gradient-text" href="/">Penta Projects</a>
+    <nav class="nav" aria-label="Main navigation">
+      <a class="btn" href="/games">Games</a>
+      <a class="btn" href="/tools" aria-current="page">Tools</a>
+    </nav>
+  </header>
+  <main class="note-page fantasy-page">
+    <div class="note-heading reveal d1">
+      <a class="back-link" href="/tools/vestaboard/"><span class="back-link-icon" aria-hidden="true">&larr;</span> Vestaboard</a>
+      <h1>Fantasy <em>football</em></h1>
+    </div>
+    <section class="preview-section reveal d2" aria-labelledby="preview-title">
+      <div class="preview-meta">
+        <h2 id="preview-title">Scores</h2>
+        <span id="week" class="week"></span>
+        <span id="tracking-status" class="tracking-status" role="status">Ready</span>
+      </div>
+      <div class="board-frame"><div id="board" class="board" role="img" aria-label="Fantasy football board preview"></div></div>
+      <div id="matchups" class="matchups"></div>
+      <p id="alert-status" class="alert-status" role="status"></p>
+      <p id="delivery" class="delivery" role="status"></p>
+      <p id="source-status" class="source-status" role="status"></p>
+      <p id="updated" class="updated"></p>
+    </section>
+    <form id="league-form" class="composer reveal d3" aria-labelledby="league-title">
+      <div class="field-heading"><h2 id="league-title">Your leagues</h2></div>
+      <fieldset id="league-fields" class="league-fields">
+        <div class="league-settings">
+          <label for="league-1">League 1 URL<input id="league-1" type="url" maxlength="300" value="https://sleeper.com/leagues/1399168246661296128" autocomplete="off" required /></label>
+          <div class="league-details">
+            <label for="username-1">Username<input id="username-1" type="text" maxlength="40" value="pentakalos" autocapitalize="none" spellcheck="false" autocomplete="off" pattern="[A-Za-z0-9_.\-]+" required /></label>
+            <label for="label-1">Board label<input id="label-1" class="label-input" type="text" maxlength="3" value="TD" pattern="[A-Za-z0-9]{1,3}" autocomplete="off" required /></label>
+          </div>
+        </div>
+        <div class="league-settings">
+          <label for="league-2">League 2 URL<input id="league-2" type="url" maxlength="300" value="https://sleeper.com/leagues/1389707496347697152" autocomplete="off" required /></label>
+          <div class="league-details">
+            <label for="username-2">Username<input id="username-2" type="text" maxlength="40" value="pentakalos" autocapitalize="none" spellcheck="false" autocomplete="off" pattern="[A-Za-z0-9_.\-]+" required /></label>
+            <label for="label-2">Board label<input id="label-2" class="label-input" type="text" maxlength="3" value="SH" pattern="[A-Za-z0-9]{1,3}" autocomplete="off" required /></label>
+          </div>
+        </div>
+      </fieldset>
+      <div class="fantasy-actions">
+        <button id="preview" class="secondary-button" type="button" disabled>Preview matchups</button>
+        <button id="start" class="send-button" type="submit" disabled>Start tracking <span aria-hidden="true">↗</span></button>
+        <button id="stop" class="secondary-button" type="button" hidden>Stop tracking</button>
+      </div>
+      <p id="feedback" class="feedback" role="status"></p>
+      <button id="reconnect" type="button" class="secondary-button reconnect-button" hidden>Retry connection</button>
+    </form>
+    <noscript><p>Enable JavaScript to preview your leagues and start tracking.</p></noscript>
+  </main>
+</body>
+</html>

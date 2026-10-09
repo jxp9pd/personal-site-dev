@@ -46,6 +46,7 @@ h1 { margin: 0; font-size: clamp(52px, 7.4vw, 86px); font-weight: 500; letter-sp
 .app-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; list-style: none; padding: 0; margin: 0; counter-reset: app; }
 .app-list > li { min-width: 0; counter-increment: app; --accent: #e8ee97; --glow: #e8ee970a; }
 .app-list > .timer-app { --accent: #c2ace9; --glow: #c2ace90d; }
+.app-list > .fantasy-app { --accent: #7fa890; --glow: #7fa8900d; }
 .app-card { display: block; height: 100%; overflow: hidden; background: #1c1d1a; border: 1px solid #ffffff17; border-radius: 14px; transition: border-color .2s, transform .2s; }
 .app-card:hover { border-color: #ffffff45; transform: translateY(-4px); }
 .app-art { position: relative; display: grid; place-items: center; min-height: 250px; padding: 50px 34px 36px; background: radial-gradient(ellipse at 50% 60%, var(--glow), transparent 75%); }

@@ -6,6 +6,8 @@ Send a note page: https://jpentakalos.com/tools/vestaboard.html
 
 Pomodoro page: https://jpentakalos.com/tools/pomodoro.html
 
+Fantasy football page: https://jpentakalos.com/tools/fantasy.html
+
 The Tools page links to the apps home. To add an app, append an entry to the
 list in `fe-artifacts/tools/vestaboard/index.html` and link back to the hub
 from the new page. The hub has its own stylesheet, `vestaboard-hub.css`, and
@@ -22,7 +24,7 @@ Vestaboard's Cloud API. No npm production dependencies or database are required.
 
 `board.py` owns character encoding/validation, credentials, TLS, cloud sends,
 and the shared cooldown. It has no dependency on the HTTP server or Pomodoro.
-`server.py` wires one gateway instance into note routes and `pomodoro.py`;
+`server.py` wires one gateway instance into note routes, `pomodoro.py`, and `fantasy.py`;
 features should reuse that instance rather than create independent senders.
 
 In `fe-artifacts/assets/js/`, `vestaboard-api.js` owns gateway requests and the
@@ -111,6 +113,78 @@ VESTABOARD_API_TOKEN='' python3 services/vestaboard/server.py --preview fe-artif
 Open http://127.0.0.1:8000/tools/pomodoro.html. Duration controls and the board
 preview work; starting a session requires a configured board. Tests use a fake
 upstream and controlled clock to exercise complete sessions without live sends.
+
+## Fantasy football
+
+The Fantasy page shows two Sleeper matchups at once, with your score first and
+your opponent's score second. Scores round to the nearest whole point. Both
+league slots accept a Sleeper league URL, username, and unique 1–3 character
+board label. Defaults are `pentakalos` in Show Me Your TDs (`TD`) and Shmeed
+League (`SH`). Sleeper IDs, ownership (including co-owners), current-season
+membership, and matchups are resolved on the server; clients cannot submit
+scores or arbitrary fetch destinations. Bye weeks display `BYE`.
+
+**Preview matchups** updates the shared preview without writing to the board,
+including when no board token is configured. **Start tracking** starts the
+shared background worker; **Stop tracking** clears queued alerts and stops
+board writes and play polling. Stop leaves the physical board untouched; a
+write already in flight may finish. Stop before changing leagues. Opening the
+page only reads status and requests a cached preview refresh. State is in memory;
+restarting the gateway ends tracking. Notes, Pomodoro, and Fantasy run
+independently and share the same gateway and 15-second cooldown.
+
+While tracking, the server refreshes matchup scores and recent plays every
+15 seconds. It sends the scoreboard only when rounded scores change. Closing
+the browser does not stop the worker. League metadata and rosters are cached
+for a minute; starting lineups come from each fresh matchup. The current week
+comes from Sleeper and rolls forward automatically. Idle previews refresh at
+most once per minute while visitors request them. Outages preserve scores and
+report a warning on the website; a failed play feed does not stop score updates.
+
+Big Play criteria match Sleeper's web play labels, verified October 8, 2026:
+any scoring play described as a touchdown, a `Rush` of at least 15 yards, or
+a `PassCompleted` of at least 20 yards. Only your starters who actually scored
+the touchdown or gained the yards trigger alerts; bench players, opponents,
+and tacklers appearing in a play's stats are excluded. Plays before tracking
+started are ignored. Each new play queues once, even when multiple starters
+or both leagues are involved. Alerts run in chronological order for 30 seconds
+each, then return to the latest scores. The hold starts after the board delivery
+attempt, so time spent waiting for the shared cooldown does not shorten it.
+Ambiguous failures are reported and not retried; definite rate limits defer
+delivery. Other apps can overwrite an alert during its hold, as requested.
+
+The documented API (`https://docs.sleeper.com/`) supplies league data, users,
+rosters, and matchups. The publicly accessible but undocumented recent-play
+endpoint used by Sleeper's web app is
+`https://api.sleeper.app/plays/nfl/recent?season_type=regular&season=2026&week=5&limit=1000`.
+Responses include play IDs, timestamps, player IDs, stats, and descriptions.
+Polling is bounded to the newest 1,000 plays; a prolonged outage may miss older
+events that have fallen out of that window. The player catalog is cached for a
+day, following Sleeper's guidance. No login or sports API credentials are needed.
+
+Sleeper's public matchup API does not provide win percentages; the current web
+app computes them in its client. The third board row is therefore blank today.
+No alternative estimate or reconstructed probability is substituted. The score
+renderer supports a percentage row for a future direct Sleeper value.
+
+`GET /api/vestaboard/fantasy` returns both league configurations, matchups,
+source errors and freshness, intended characters, current alert, queue count,
+and delivery status. `POST` accepts `{"action":"start","leagues":[...]}`,
+`{"action":"preview","leagues":[...]}`, or `{"action":"stop"}`. Each league
+object contains `url`, `username`, and `label`. Writes use the existing origin,
+JSON, and request-size restrictions. Commands schedule background work and do
+not synchronously contact Sleeper or the physical board.
+
+Rerun the install script after deploying the gateway to copy `fantasy.py`.
+For local browsing with real Sleeper scores and physical writes disabled:
+
+```sh
+VESTABOARD_API_TOKEN='' python3 services/vestaboard/server.py --preview fe-artifacts --port 8012
+```
+
+Open http://127.0.0.1:8012/tools/fantasy.html. Automated tests use fake sources,
+controlled clocks, and fake board delivery to exercise queues, outages,
+cooldowns, rollover, and start/stop races without physical sends.
 
 ## Local preview
 

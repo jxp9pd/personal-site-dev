@@ -1,11 +1,13 @@
 import json
 import threading
 import unittest
+from unittest.mock import Mock
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer
 
 from board import BoardGateway
+from fantasy import DEFAULT_LEAGUES, Fantasy
 from pomodoro import Pomodoro
 from server import handler_for
 from test_helpers import Response, message
@@ -20,8 +22,9 @@ class HttpTest(unittest.TestCase):
             return Response(b'{"status":"ok"}')
         gateway = BoardGateway('test-token', upstream, lambda: self.now)
         self.timer = Pomodoro(gateway, lambda: self.now)
+        self.fantasy = Fantasy(gateway, Mock(), lambda: self.now)
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), handler_for(
-            gateway, {'https://jpentakalos.com'}, pomodoro=self.timer))
+            gateway, {'https://jpentakalos.com'}, pomodoro=self.timer, fantasy=self.fantasy))
         self.thread = threading.Thread(target=self.server.serve_forever)
         self.thread.start()
         self.base = f'http://127.0.0.1:{self.server.server_port}'
@@ -43,7 +46,7 @@ class HttpTest(unittest.TestCase):
 
     def test_origin_content_type_body_and_validation_block_before_api(self):
         body = json.dumps({'characters': message()}).encode()
-        for path in ('/api/vestaboard/messages', '/api/vestaboard/pomodoro'):
+        for path in ('/api/vestaboard/messages', '/api/vestaboard/pomodoro', '/api/vestaboard/fantasy'):
             with self.subTest(path=path):
                 self.assertEqual(self.request(body, path=path, origin='https://evil.example')[0], 403)
                 self.assertEqual(self.request(body, path=path, content_type='text/plain')[0], 415)
@@ -55,7 +58,7 @@ class HttpTest(unittest.TestCase):
         self.assertEqual(self.forwarded, [])
 
     def test_status_is_uncached_contains_no_secret_and_does_not_contact_cloud(self):
-        for path in ('/api/vestaboard/status', '/api/vestaboard/pomodoro'):
+        for path in ('/api/vestaboard/status', '/api/vestaboard/pomodoro', '/api/vestaboard/fantasy'):
             with self.subTest(path=path):
                 status, headers, raw = self.request(path=path)
                 self.assertEqual(status, 200)
@@ -102,6 +105,20 @@ class HttpTest(unittest.TestCase):
     def test_production_does_not_serve_local_files(self):
         self.assertEqual(self.request(path='/server.py')[0], 404)
         self.assertEqual(self.request(path='/server.py', method='HEAD')[0], 405)
+
+    def test_fantasy_controls_are_shared_and_do_not_stop_pomodoro(self):
+        self.timer.command({'action': 'start', 'focusMinutes': 25, 'breakMinutes': 5})
+        path = '/api/vestaboard/fantasy'
+        body = {'action': 'start', 'leagues': DEFAULT_LEAGUES}
+        status, _, raw = self.request(json.dumps(body).encode(), path=path)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(raw)['state'], 'tracking')
+        self.assertEqual(self.timer.status()['state'], 'running')
+        self.assertEqual(self.forwarded, [])
+        self.assertEqual(json.loads(self.request(path=path)[2])['state'], 'tracking')
+        self.assertEqual(self.request(b'{"action":"stop"}', path=path)[0], 200)
+        self.assertEqual(self.timer.status()['state'], 'running')
+        self.assertEqual(self.forwarded, [])
 
 
 if __name__ == '__main__':
