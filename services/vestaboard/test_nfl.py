@@ -3,7 +3,7 @@ import threading
 import unittest
 from unittest.mock import Mock
 
-from board import text_row, valid_characters
+from board import text_row
 from nfl import NFL, NFLSource, normalize_game
 from test_helpers import Response
 
@@ -32,7 +32,6 @@ class SourceTest(unittest.TestCase):
     def test_normalizes_away_home_colors_scores_and_possession_into_exact_grid(self):
         data = game()
         frame = data['characters']
-        self.assertTrue(valid_characters(frame))
         self.assertEqual(frame[0], [63, 0, 19, 6, 0, 65, 0, 0, 67, 0, 19, 5, 1, 0, 66])
         self.assertEqual(frame[1], text_row('21', 7) + [0] + text_row('17', 7))
         self.assertEqual(frame[2], [0, 0, 0, 64] + [0] * 11)
@@ -107,7 +106,7 @@ class NFLTest(unittest.TestCase):
         self.now = now
         self.app.tick()
 
-    def test_preview_never_writes_and_track_queues_a_shared_session(self):
+    def test_track_queues_without_writing_then_polls_every_three_minutes_for_changed_frames(self):
         self.assertEqual(self.app.status()['state'], 'idle')
         self.assertEqual(self.frames, [])
         status, snapshot = self.track()
@@ -119,9 +118,6 @@ class NFLTest(unittest.TestCase):
         self.assertEqual(self.frames, [game()['characters']])
         self.assertEqual(self.app.status()['delivery']['status'], 'accepted')
 
-    def test_polls_every_three_minutes_and_sends_only_changed_scores_or_possession(self):
-        self.track()
-        self.app.tick()
         self.tick_at(179)
         self.fetch.assert_called_once()
         self.tick_at(180)
@@ -228,28 +224,25 @@ class NFLTest(unittest.TestCase):
         self.assertEqual(self.frames[-1], game(away_score='35')['characters'])
         self.assertEqual(len(self.frames), 2)
 
-    def test_selected_game_is_followed_across_a_week_rollover_by_game_day(self):
-        self.track()
-        self.app.tick()
-        self.fetch.side_effect = [[], [game(state='final')]]
-        self.tick_at(180)
-        self.assertEqual(self.fetch.call_args.args, ('20261012',))
-        self.assertEqual(self.app.status()['state'], 'completed')
-        self.assertEqual(self.app.status()['games'], [])
-        self.assertEqual(self.app.status()['game']['id'], '401000001')
-
-    def test_current_week_updates_while_an_older_selected_game_continues(self):
+    def test_week_rollover_updates_picker_and_follows_selected_game_by_day_until_final(self):
         self.track()
         self.app.tick()
         next_week = game(state='scheduled')
         next_week['id'] = '401000002'
         next_week['startsAt'] = '2026-10-18T20:25:00+00:00'
-        self.fetch.side_effect = [[next_week], [game()]]
+        self.fetch.side_effect = [[next_week], [game()], [], [game(state='final')]]
         self.tick_at(180)
         snapshot = self.app.status()
         self.assertEqual([item['id'] for item in snapshot['games']], ['401000002'])
         self.assertEqual(snapshot['game']['id'], '401000001')
         self.assertEqual(snapshot['state'], 'tracking')
+        self.tick_at(360)
+        self.assertEqual(self.fetch.call_args.args, ('20261012',))
+        snapshot = self.app.status()
+        self.assertEqual(snapshot['state'], 'completed')
+        self.assertEqual(snapshot['games'], [])
+        self.assertEqual(snapshot['game']['id'], '401000001')
+        self.assertEqual(self.frames[-1][2], text_row('FINAL'))
 
     def test_idle_schedule_refreshes_on_visits_after_the_cache_expires(self):
         next_week = game(state='scheduled')

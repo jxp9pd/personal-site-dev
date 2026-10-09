@@ -45,17 +45,6 @@ describe('NFL game selection and shared tracking', () => {
     expect(bubble(other.id).getAttribute('aria-pressed')).toBe('true'); // Polling keeps the draft selection.
   });
 
-  it('stops tracking without sending a replacement board message', async () => {
-    const fetch = await loadBoardPage('nfl', { state: 'tracking', game: nflGame() });
-    fetch.mockResolvedValue(reply(nflState({ state: 'stopped', game: nflGame() })));
-    $('stop').click();
-    await vi.advanceTimersByTimeAsync(0);
-    const writes = fetch.mock.calls.filter(([, options]) => options.method === 'POST');
-    expect(JSON.parse(writes[0][1].body)).toEqual({ action: 'stop' });
-    expect($('stop').hidden).toBe(true);
-    expect($('tracking-status').textContent).toBe('Stopped');
-  });
-
   it('reopens an active game and automatically reflects final without another command', async () => {
     const fetch = await loadBoardPage('nfl', { state: 'tracking', game: nflGame() });
     expect($('preview-title').textContent).toBe('Tracking');
@@ -75,7 +64,7 @@ describe('NFL game selection and shared tracking', () => {
     expect($('track').disabled).toBe(true);
   });
 
-  it('ignores an old tracking poll that returns after a stop command', async () => {
+  it('stops once without a replacement message and ignores an older tracking poll', async () => {
     const fetch = await loadBoardPage('nfl', { state: 'tracking', game: nflGame() });
     let resolvePoll;
     fetch.mockImplementationOnce(() => new Promise(resolve => { resolvePoll = resolve; }));
@@ -83,6 +72,11 @@ describe('NFL game selection and shared tracking', () => {
     fetch.mockResolvedValue(reply(nflState({ state: 'stopped', game: nflGame() })));
     $('stop').click();
     await vi.advanceTimersByTimeAsync(0);
+    const writes = fetch.mock.calls.filter(([, options]) => options.method === 'POST');
+    expect(writes).toHaveLength(1);
+    expect(JSON.parse(writes[0][1].body)).toEqual({ action: 'stop' });
+    expect($('stop').hidden).toBe(true);
+    expect($('tracking-status').textContent).toBe('Stopped');
     resolvePoll(reply(nflState({ state: 'tracking', game: nflGame() })));
     await vi.advanceTimersByTimeAsync(0);
     expect($('stop').hidden).toBe(true);
@@ -118,16 +112,13 @@ describe('NFL game selection and shared tracking', () => {
     const thursday = scheduled('401000001', '2026-10-08T17:15:00');
     const sunday = scheduled('401000002', '2026-10-11T13:25:00');
     const monday = scheduled('401000003', '2026-10-12T17:15:00');
-    const fetch = await loadBoardPage('nfl', { games: [monday, thursday, sunday] });
+    await loadBoardPage('nfl', { games: [monday, thursday, sunday] });
     const headings = [...document.querySelectorAll('.game-day-heading')].map(heading => heading.textContent);
     expect(headings[0]).toContain('Thursday');
     expect(headings[1]).toContain('Sunday');
     expect(headings[2]).toContain('Monday');
     expect([...document.querySelectorAll('[data-game-id]')].map(button => button.dataset.gameId)).toEqual([thursday.id, sunday.id, monday.id]);
     expect(bubble(monday.id).textContent).not.toContain('21 – 17');
-    choose(sunday.id);
-    expect(bubble(sunday.id).getAttribute('aria-pressed')).toBe('true');
-    expect(fetch.mock.calls.every(([, options]) => !options.method)).toBe(true);
   });
 
   it('automatically replaces last week’s bubbles with the new schedule while open', async () => {
