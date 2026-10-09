@@ -34,7 +34,9 @@ def board_frame(game):
     away, home = game['away'], game['home']
     def heading(team):
         primary, secondary = team['colors']
-        return [primary] + text_row(team['abbreviation'], 5) + [secondary]
+        abbreviation = team['abbreviation']
+        tiles = [primary, BLANK] + text_row(abbreviation, len(abbreviation)) + [BLANK, secondary]
+        return tiles + [BLANK] * (7 - len(tiles))
     scores = [text_row(str(team['score']) if team['score'] is not None else '--', 7)
               for team in (away, home)]
     bottom = [BLANK] * 15

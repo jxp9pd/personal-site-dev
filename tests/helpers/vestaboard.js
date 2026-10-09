@@ -15,7 +15,7 @@ export const nflGame = (overrides = {}) => ({
   away: { id: '25', abbreviation: 'SF', name: 'San Francisco 49ers', score: 21, colors: [63, 65] },
   home: { id: '26', abbreviation: 'SEA', name: 'Seattle Seahawks', score: 17, colors: [67, 66] },
   characters: [
-    [63, 0, 19, 6, 0, 0, 65, 0, 67, 0, 19, 5, 1, 0, 66],
+    [63, 0, 19, 6, 0, 65, 0, 0, 67, 0, 19, 5, 1, 0, 66],
     [0, 0, 28, 27, 0, 0, 0, 0, 0, 0, 27, 33, 0, 0, 0],
     [0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   ], ...overrides,

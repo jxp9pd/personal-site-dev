@@ -33,7 +33,7 @@ class SourceTest(unittest.TestCase):
         data = game()
         frame = data['characters']
         self.assertTrue(valid_characters(frame))
-        self.assertEqual(frame[0], [63] + text_row('SF', 5) + [65, 0, 67] + text_row('SEA', 5) + [66])
+        self.assertEqual(frame[0], [63, 0, 19, 6, 0, 65, 0, 0, 67, 0, 19, 5, 1, 0, 66])
         self.assertEqual(frame[1], text_row('21', 7) + [0] + text_row('17', 7))
         self.assertEqual(frame[2], [0, 0, 0, 64] + [0] * 11)
         self.assertEqual(game(possession='26')['characters'][2][11], 64)
