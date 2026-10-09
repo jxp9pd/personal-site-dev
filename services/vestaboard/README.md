@@ -6,6 +6,8 @@ Send a note page: https://jpentakalos.com/tools/vestaboard.html
 
 Pomodoro page: https://jpentakalos.com/tools/pomodoro.html
 
+NFL scores page: https://jpentakalos.com/tools/nfl.html
+
 Fantasy football page: https://jpentakalos.com/tools/fantasy.html
 
 The Tools page links to the apps home. To add an app, append an entry to the
@@ -24,12 +26,12 @@ Vestaboard's Cloud API. No npm production dependencies or database are required.
 
 `board.py` owns character encoding/validation, credentials, TLS, cloud sends,
 and the shared cooldown. It has no dependency on the HTTP server or Pomodoro.
-`server.py` wires one gateway instance into note routes, `pomodoro.py`, and `fantasy.py`;
+`server.py` wires one gateway instance into notes, `pomodoro.py`, `nfl.py`, and `fantasy.py`;
 features should reuse that instance rather than create independent senders.
 
 In `fe-artifacts/assets/js/`, `vestaboard-api.js` owns gateway requests and the
 reusable `sendBoardMessage` helper. `vestaboard-preview.js` renders the tiles;
-`vestaboard-layout.js` handles text layout. Both page controllers import these
+`vestaboard-layout.js` handles text layout. Page controllers import these
 helpers and retain only their own form, countdown, and feedback behavior.
 
 ## Connect the Note
@@ -114,6 +116,63 @@ Open http://127.0.0.1:8000/tools/pomodoro.html. Duration controls and the board
 preview work; starting a session requires a configured board. Tests use a fake
 upstream and controlled clock to exercise complete sessions without live sends.
 
+## NFL scores
+
+The NFL page lists this week's games from ESPN's public scoreboard feed as
+selectable bubbles grouped by kickoff day in the visitor's local time zone.
+Each bubble shows team colors plus kickoff time or the score and live/final
+status. The current week comes from the feed, with no hardcoded week or date;
+the list automatically rolls over on a refresh, including while the page is
+open. An older game can finish tracking without appearing in the new week's
+bubbles. Select a game to preview it, then press **Track game** to start or switch the shared
+scoreboard. Selection alone never writes to the board. Upcoming and live games
+can be tracked; finished games can be previewed. Anyone can switch or stop the
+shared selection, matching the existing apps.
+
+- The Note shows the away team on the left and home team on the right, with
+  primary/secondary colors approximated using the available tile colors. Scores
+  sit underneath. A single orange tile beneath a team's score indicates
+  possession; brown is not available on the Note. Missing possession information
+  leaves that row blank rather than guessing. Quarter and game clock are omitted.
+- An upcoming game displays `--` scores and its kickoff day/time in Pacific
+  time. The website's game picker shows kickoff in the visitor's local time zone.
+  Tracking switches to live scores and possession after the feed reports kickoff.
+  Halftime, delays, and suspensions use a status label instead of possession.
+- The server polls every three minutes and queues a board write only when the
+  displayed score, possession, or status changes. Closing the browser does not
+  stop tracking. The selected game is also fetched by its Eastern game-day date
+  if it disappears from the current week's feed, including Monday-night games.
+- A final score queues one `FINAL` display and ends tracking. Canceled and
+  postponed games also end tracking with their status. The last display stays on
+  the board. **Stop tracking** cancels pending writes and future game polling,
+  leaving the physical display untouched; a write already in flight may finish.
+- The same gateway and 15-second cooldown serve notes, Pomodoro, and NFL. There
+  is no app priority or ownership arbitration: each can overwrite another.
+  Queued updates coalesce to the newest frame; final delivery can wait for the
+  cooldown after tracking ends. Ambiguous cloud failures are not retried for an
+  unchanged frame. The preview is intended content, not physical readback.
+- Feed outages retain the last known score, show a warning on the website,
+  and retry after 30 seconds. Starting a new selection
+  is disabled while the source is unavailable; Stop remains available. The feed
+  is public and requires no API key, but is an unofficial interface and has no
+  guaranteed update latency. No sports data token reaches the browser.
+
+`GET /api/vestaboard/nfl` returns the cached game list, shared selection, exact
+preview arrays, and source/delivery feedback. It requests a background refresh
+when the list is stale; opening the picker does not perform a synchronous
+upstream request or write to the board. The website checks gateway status every
+five seconds while visible; this does not increase the sports polling frequency.
+`POST` accepts `{"action":"track","gameId":"401872992"}` or
+`{"action":"stop"}`, using the existing origin/body checks. Game IDs must come
+from the current list; clients cannot supply URLs, scores, colors, or credentials.
+State is in memory, like Pomodoro; restarting the gateway ends tracking.
+
+The existing install script also copies `nfl.py`; rerun it after deploying gateway
+changes. The local preview below supports browsing real games with board writes
+disabled by setting `VESTABOARD_API_TOKEN=''`. NFL tests use fake scores and a fake
+gateway to cover background polling, start/stop races, final delivery, rollover,
+missing possession, outages, and shared delivery limits without live board sends.
+
 ## Fantasy football
 
 The Fantasy page shows two Sleeper matchups at once, with your score first and
@@ -130,7 +189,7 @@ shared background worker; **Stop tracking** clears queued alerts and stops
 board writes and play polling. Stop leaves the physical board untouched; a
 write already in flight may finish. Stop before changing leagues. Opening the
 page only reads status and requests a cached preview refresh. State is in memory;
-restarting the gateway ends tracking. Notes, Pomodoro, and Fantasy run
+restarting the gateway ends tracking. Notes, Pomodoro, NFL, and Fantasy run
 independently and share the same gateway and 15-second cooldown.
 
 While tracking, the server refreshes matchup scores and recent plays every
@@ -267,7 +326,7 @@ Cloud transport is tested in `test_board.py`; common HTTP validation and shared
 note/timer delivery are tested in `test_server.py`. `test_pomodoro.py` uses a
 fake gateway to focus on scheduling rather than repeat cloud contract tests.
 Browser request errors are covered once in `vestaboard-api.test.js`; connection
-checks use the same parameterized scenario for both pages. Page-specific tests
+checks use the same parameterized scenario for all three pages. Page-specific tests
 retain their distinct interactions and timer synchronization checks.
 
 Official documentation checked October 7, 2026:

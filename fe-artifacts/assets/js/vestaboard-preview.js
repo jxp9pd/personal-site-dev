@@ -1,7 +1,7 @@
 import { ROWS, COLUMNS, SYMBOLS } from './vestaboard-layout.js?v=1';
 
-// Both the note composer and timer render through this component. Reusing tiles
-// also avoids animating unchanged characters when timer status is polled.
+// All board apps render through this component. Reusing tiles also avoids
+// animating unchanged characters when live status is polled.
 export function createBoardPreview(element) {
   const tiles = Array.from({ length: ROWS * COLUMNS }, () => {
     const tile = document.createElement('span');
