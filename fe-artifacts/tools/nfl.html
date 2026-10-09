@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Follow an NFL game on John's Vestaboard Note." />
+  <title>NFL scores — Penta Projects</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/site.css?v=7" />
+  <link rel="stylesheet" href="/assets/css/vestaboard.css?v=6" />
+  <link rel="stylesheet" href="/assets/css/nfl.css?v=3" />
+  <script type="module" src="/assets/js/nfl.js?v=3"></script>
+</head>
+<body>
+  <header class="site-head">
+    <a class="logo gradient-text" href="/">Penta Projects</a>
+    <nav class="nav" aria-label="Main navigation">
+      <a class="btn" href="/games">Games</a>
+      <a class="btn" href="/tools" aria-current="page">Tools</a>
+    </nav>
+  </header>
+  <main class="note-page nfl-page">
+    <div class="note-heading reveal d1">
+      <a class="back-link" href="/tools/vestaboard/"><span class="back-link-icon" aria-hidden="true">&larr;</span> Vestaboard</a>
+      <h1>NFL <em>scores</em></h1>
+    </div>
+
+    <section class="preview-section reveal d2" aria-labelledby="preview-title">
+      <div class="preview-meta">
+        <h2 id="preview-title">Preview</h2>
+        <span id="tracking-status" class="tracking-status" role="status"></span>
+      </div>
+      <div class="board-frame">
+        <div id="board" class="board" role="img" aria-label="NFL scoreboard preview"></div>
+      </div>
+      <p id="delivery" class="delivery" role="status"></p>
+    </section>
+
+    <form id="game-form" class="tracking-controls reveal d3" aria-label="Game tracking controls">
+      <div class="game-actions">
+        <button id="stop" type="button" class="secondary-button" hidden>Stop tracking</button>
+        <button id="track" type="submit" class="send-button" disabled>Track game <span aria-hidden="true">↗</span></button>
+      </div>
+      <p id="feedback" class="feedback" role="status"></p>
+      <button id="reconnect" type="button" class="secondary-button reconnect-button" hidden>Retry connection</button>
+    </form>
+
+    <section class="composer game-picker reveal d3" aria-labelledby="game-title">
+      <div class="field-heading">
+        <h2 id="game-title">This week’s games</h2>
+      </div>
+      <p id="source-status" class="source-status" role="status"></p>
+      <div id="games" class="game-days"><p class="games-loading">Loading this week’s games…</p></div>
+    </section>
+    <noscript><p>Enable JavaScript to select and track an NFL game.</p></noscript>
+  </main>
+</body>
+</html>

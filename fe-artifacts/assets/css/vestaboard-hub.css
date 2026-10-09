@@ -46,6 +46,7 @@ h1 { margin: 0; font-size: clamp(52px, 7.4vw, 86px); font-weight: 500; letter-sp
 .app-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; list-style: none; padding: 0; margin: 0; counter-reset: app; }
 .app-list > li { min-width: 0; counter-increment: app; --accent: #e8ee97; --glow: #e8ee970a; }
 .app-list > .timer-app { --accent: #c2ace9; --glow: #c2ace90d; }
+.app-list > .nfl-app { --accent: #e9ae77; --glow: #e9ae770d; }
 .app-card { display: block; height: 100%; overflow: hidden; background: #1c1d1a; border: 1px solid #ffffff17; border-radius: 14px; transition: border-color .2s, transform .2s; }
 .app-card:hover { border-color: #ffffff45; transform: translateY(-4px); }
 .app-art { position: relative; display: grid; place-items: center; min-height: 250px; padding: 50px 34px 36px; background: radial-gradient(ellipse at 50% 60%, var(--glow), transparent 75%); }
@@ -56,6 +57,10 @@ h1 { margin: 0; font-size: clamp(52px, 7.4vw, 86px); font-weight: 500; letter-sp
 .app-board .tile { position: relative; display: grid; place-items: center; aspect-ratio: .75; overflow: hidden; border-radius: 2px; background: linear-gradient(#292b26 49%, #22241f 50%); color: #e8e8df; font: 500 clamp(9px, 1.35vw, 16px)/1 var(--font-mono); box-shadow: 0 1px 1px #000; }
 .app-board .tile::after { content: ""; position: absolute; inset: 50% 0 auto; height: 1px; background: #0007; }
 .app-board .tile[data-code="65"] { background: #e8d56c; }
+.app-board .tile[data-code="63"] { background: #cf5146; }
+.app-board .tile[data-code="64"] { background: #e89344; }
+.app-board .tile[data-code="66"] { background: #559f77; }
+.app-board .tile[data-code="67"] { background: #4b8cc5; }
 .app-board .tile[data-code="68"] { background: #a48ac8; }
 .device-name { display: block; text-align: center; color: #72756a; font-size: 5px; letter-spacing: .08em; margin-top: 9px; }
 .app-info { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 27px 28px 30px; border-top: 1px solid var(--line); }

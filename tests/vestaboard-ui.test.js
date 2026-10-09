@@ -1,21 +1,29 @@
 import { describe, expect, it, vi } from 'vitest';
-import { loadBoardPage, pomodoroState, reply } from './helpers/vestaboard.js';
+import { loadBoardPage, pomodoroState, nflState, reply } from './helpers/vestaboard.js';
 
 const $ = id => document.getElementById(id);
 const start = (configured = true) => loadBoardPage('note', { configured });
 
 // Each page wires its own disabled control and feedback, but the same connection
 // contract is checked here instead of copying a test into every feature suite.
-describe.each(['note', 'pomodoro'])('%s board connection', page => {
-  it('blocks writes until configured and recovers through the retry control', async () => {
+describe.each(['note', 'pomodoro', 'nfl'])('%s board connection', page => {
+  it('blocks writes until configured and recovers when configuration becomes available', async () => {
     const fetch = await loadBoardPage(page, { configured: false });
-    const button = $(page === 'note' ? 'send' : 'start');
+    const button = $(page === 'note' ? 'send' : page === 'nfl' ? 'track' : 'start');
     expect(button.disabled).toBe(true);
-    expect($(page === 'note' ? 'feedback' : 'delivery').textContent).toContain('not connected');
-    expect($('reconnect').hidden).toBe(false);
-    fetch.mockResolvedValue(reply(page === 'note' ? { configured: true } : pomodoroState()));
-    $('reconnect').click();
-    await vi.advanceTimersByTimeAsync(0);
+    if (page === 'nfl') {
+      expect($('delivery').textContent).toBe('');
+      expect($('reconnect').hidden).toBe(true);
+    } else {
+      expect($(page === 'note' ? 'feedback' : 'delivery').textContent).toContain('not connected');
+      expect($('reconnect').hidden).toBe(false);
+    }
+    fetch.mockResolvedValue(reply(page === 'note' ? { configured: true } : page === 'nfl' ? nflState() : pomodoroState()));
+    if (page === 'nfl') await vi.advanceTimersByTimeAsync(5000);
+    else {
+      $('reconnect').click();
+      await vi.advanceTimersByTimeAsync(0);
+    }
     expect(button.disabled).toBe(false);
   });
 });
