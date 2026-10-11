@@ -3,6 +3,11 @@
 This directory holds the SQL migrations for the site's user profiles + game
 history backend (hosted Postgres + Auth + Row-Level Security).
 
+Vestaboard's optional private Note history is defined in
+`migrations/0009_vestaboard_messages.sql`. Only the server's `service_role` can
+read, insert, or update it; no public or authenticated-user access is granted.
+See `services/vestaboard/README.md` for capture and configuration details.
+
 - `migrations/0001_profiles_and_plays.sql` — `profiles` and `plays` tables, RLS
   policies, and the `auth.users` → `profiles` creation trigger.
 - `migrations/0007_leaderboard.sql` — the read-only `leaderboard` view (best

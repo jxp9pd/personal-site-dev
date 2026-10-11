@@ -37,8 +37,8 @@ export async function requestBoard(resource, { body, timeoutMs = 8000 } = {}) {
 
 export const readBoardStatus = () => requestBoard('status');
 
-export async function sendBoardMessage(characters) {
-  const data = await requestBoard('messages', { body: { characters }, timeoutMs: 20000 });
+export async function sendBoardMessage(characters, message) {
+  const data = await requestBoard('messages', { body: { characters, message }, timeoutMs: 20000 });
   if (data.accepted !== true) throw new BoardRequestError('The board did not confirm the message. Check before trying again.',
     { uncertain: true, retryAfter: data.retryAfter || 15 });
   return data;

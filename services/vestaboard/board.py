@@ -30,20 +30,24 @@ def text_row(text, width=COLUMNS):
     return [CODES[char] for char in text.center(width)]
 
 
-def api_token(env_file=None):
+def environment_value(name, env_file=None):
     # Explicit environment settings (including an empty value) take precedence.
-    if 'VESTABOARD_API_TOKEN' in os.environ:
-        return os.environ['VESTABOARD_API_TOKEN'].strip()
+    if name in os.environ:
+        return os.environ[name].strip()
     if env_file is None or not env_file.is_file():
         return ''
     for line in env_file.read_text().splitlines():
         key, separator, value = line.partition('=')
-        if separator and key.strip() == 'VESTABOARD_API_TOKEN':
+        if separator and key.strip() == name:
             values = shlex.split(value, comments=True)
             if len(values) > 1:
-                raise ValueError('VESTABOARD_API_TOKEN must be a single value in .env.')
+                raise ValueError(name + ' must be a single value in .env.')
             return values[0] if values else ''
     return ''
+
+
+def api_token(env_file=None):
+    return environment_value('VESTABOARD_API_TOKEN', env_file)
 
 
 def cloud_tls_context():

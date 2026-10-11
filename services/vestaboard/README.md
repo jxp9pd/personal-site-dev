@@ -10,7 +10,8 @@ Public apps for a 3 × 15 Vestaboard Note:
 
 Vanilla HTML/CSS/JS pages call a Python gateway. nginx proxies
 `/api/vestaboard/` to the loopback-only service, which holds the token and
-calls Vestaboard's Cloud API. No database or npm production dependencies.
+calls Vestaboard's Cloud API. Optional Supabase storage keeps private Leave a
+Note history; there are no npm production dependencies.
 
 ## Shared behavior
 
@@ -31,7 +32,8 @@ calls Vestaboard's Cloud API. No database or npm production dependencies.
   sessions and tracking, while the physical display remains until another write.
 - Previews show intended content, not physical readback. Cloud acceptance does
   not confirm physical delivery; Wi-Fi, quiet hours, or other integrations may
-  delay or replace a message. No message history is stored.
+  delay or replace a message. Configured history records Leave a Note submissions;
+  automated timer and sports updates are excluded.
 - Controls are public: anyone can send or change the shared apps. Origin checks
   are not authentication. nginx limits request size and traffic; the gateway
   validates input and uses fixed upstream destinations. Run one gateway process
@@ -147,6 +149,38 @@ and Git. Production reads the systemd environment file instead. TLS verification
 stays enabled; explicit `SSL_CERT_FILE` / `SSL_CERT_DIR` settings take precedence
 over the macOS system certificate fallback.
 
+## Private message history
+
+Supabase table `vestaboard_messages` stores Leave a Note submissions: original
+composer text, the exact character grid, a server-generated UTC timestamp,
+sender IP, and delivery outcome. Legacy clients that send only a grid have no
+original text. Outcomes distinguish cloud acceptance, definite rejection, and
+unknown delivery. Valid requests rejected by the gateway's cooldown are recorded
+too; requests blocked by nginx never reach history storage.
+
+1. Apply `supabase/migrations/0009_vestaboard_messages.sql` to the site's Supabase
+   project. Row-level security and explicit grants restrict access to the server's
+   service role; browser users cannot read or write the table directly.
+2. Run `python3 scripts/configure-vestaboard.py --history` on John's Mac. Enter
+   the project URL and a secret/service-role key at the hidden prompt. This writes
+   `/etc/vestaboard-history.env` (root-owned, mode `0600`) separately from the board
+   token. Install the updated gateway and frontend to enable capture.
+3. View the private table in Supabase, ordered by `submitted_at`, or group by
+   `sender_ip` for a report. IPs may be shared or change over time.
+
+nginx accepts `CF-Connecting-IP` only from the official ranges in
+`cloudflare-real-ip.conf`, then overwrites `X-Real-IP` for the local gateway.
+Direct connections retain their actual socket IP; a client-supplied sender IP
+in the request body is ignored. Maintain the trusted ranges from Cloudflare's
+official list when they change.
+
+The initial record is saved before sending. If storage is unavailable, the
+request fails without sending or taking ownership. If the later outcome update
+fails, the saved message remains `unknown` and the board write is not retried.
+History is disabled when both Supabase settings are absent. Local previews can
+use `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env`; omit them for previews
+that should not write history. Existing unrecorded message text cannot be recovered.
+
 ## API
 
 Routes share the `/api/vestaboard/` prefix. POST requests use JSON and the same
@@ -156,7 +190,7 @@ an object such as `{"action":"stop"}`.
 | Route | GET | POST |
 | --- | --- | --- |
 | `status` | Gateway configuration and cooldown | — |
-| `messages` | — | `{"characters":[[…],[…],[…]]}` |
+| `messages` | — | `{"characters":[[…],[…],[…]],"message":"Original text"}` |
 | `pomodoro` | Session, preview, delivery | `{"action":"start","focusMinutes":25,"breakMinutes":5}`; or `pause`, `resume`, `stop` |
 | `nfl` | Games, selection, previews, source/delivery status | `{"action":"track","gameId":"…"}`; or `stop` |
 | `fantasy` | Leagues, matchups, preview, alerts, source/delivery status | `{"action":"start","leagues":[…]}`; or `preview` with leagues, or `stop` |
@@ -173,6 +207,7 @@ sports refresh without writing to the board.
 | --- | --- |
 | `board.py` | Encoding, validation, credentials, TLS, cloud transport, cooldown |
 | `apps.py` | `BoardController` ownership and `BoardApp` command/delivery contract |
+| `history.py` | Private Note submission records and delivery outcomes |
 | `server.py` | HTTP routes and shared-controller wiring |
 | `pomodoro.py`, `nfl.py`, `fantasy.py` | App state, scheduling, feeds, rendering |
 
@@ -209,7 +244,7 @@ sudo bash /var/www/personal-site-dev/services/vestaboard/install.sh
 ```
 
 The script installs into `/opt/vestaboard-note`, updates systemd/nginx, validates
-nginx, and restarts the gateway. It preserves `/etc/vestaboard-note.env` and saves
+nginx, and restarts the gateway. It preserves both private environment files and saves
 the original nginx config at `/etc/nginx/site.conf.before-vestaboard` on first
 install. Missing credentials leave sending disabled.
 

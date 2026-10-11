@@ -1,5 +1,5 @@
 import { layoutMessage } from './vestaboard-layout.js?v=1';
-import { readBoardStatus, sendBoardMessage } from './vestaboard-api.js?v=1';
+import { readBoardStatus, sendBoardMessage } from './vestaboard-api.js?v=2';
 import { createBoardPreview } from './vestaboard-preview.js?v=1';
 
 const $ = id => document.getElementById(id);
@@ -66,7 +66,7 @@ form.addEventListener('submit', async event => {
   updateButton();
   feedback('Sending your note…');
   try {
-    const data = await sendBoardMessage(layout.characters);
+    const data = await sendBoardMessage(layout.characters, input.value);
     if (data.retryAfter) cooldownUntil = Date.now() + data.retryAfter * 1000;
     feedback('Accepted by Vestaboard. Your note is on its way.');
   } catch (error) {

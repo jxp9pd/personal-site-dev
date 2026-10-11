@@ -1,6 +1,7 @@
 import json
 import threading
 import unittest
+from unittest.mock import Mock
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer
@@ -8,6 +9,7 @@ from http.server import ThreadingHTTPServer
 from board import BoardGateway
 from fantasy import DEFAULT_LEAGUES
 from server import handler_for
+from history import HistoryUnavailable
 from test_helpers import AppTestCase, Response, message
 
 
@@ -21,8 +23,10 @@ class HttpTest(AppTestCase):
 
     def setUp(self):
         super().setUp()
+        self.history = Mock()
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), handler_for(
-            self.controller, {'https://jpentakalos.com'}, pomodoro=self.timer, nfl=self.nfl, fantasy=self.fantasy))
+            self.controller, {'https://jpentakalos.com'}, pomodoro=self.timer, nfl=self.nfl, fantasy=self.fantasy,
+            history=self.history))
         self.thread = threading.Thread(target=self.server.serve_forever)
         self.thread.start()
         self.base = f'http://127.0.0.1:{self.server.server_port}'
@@ -32,8 +36,9 @@ class HttpTest(AppTestCase):
         self.server.server_close()
         self.thread.join()
 
-    def request(self, data=None, origin='https://jpentakalos.com', path='/api/vestaboard/messages', content_type='application/json', method=None):
+    def request(self, data=None, origin='https://jpentakalos.com', path='/api/vestaboard/messages', content_type='application/json', method=None, extra_headers=None):
         headers = {'Origin': origin, 'Content-Type': content_type}
+        headers.update(extra_headers or {})
         request = Request(self.base + path, data=data, headers=headers, method=method)
         try:
             response = urlopen(request)
@@ -54,6 +59,34 @@ class HttpTest(AppTestCase):
                 self.assertEqual(self.request(b'[]', path=path)[0], 400)
         self.assertEqual(self.request(b'{"characters": [[true]]}')[0], 400)
         self.assertEqual(self.forwarded, [])
+        self.history.begin.assert_not_called()
+
+    def test_history_preserves_original_input_and_trusted_sender_before_sending(self):
+        body = {'characters': message(), 'message': '  Hello ♥\nFriend', 'sender_ip': '192.0.2.99'}
+        self.history.begin.side_effect = lambda *args: (self.assertEqual(self.forwarded, []) or 'record-id')
+        status, _, _ = self.request(json.dumps(body).encode(), extra_headers={'X-Real-IP': '2001:db8::1'})
+        self.assertEqual(status, 200)
+        self.history.begin.assert_called_once_with(body['message'], message(), '2001:db8::1')
+        self.history.finish.assert_called_once_with('record-id', 200)
+        self.assertEqual(self.forwarded, [{'characters': message()}])
+
+    def test_history_failure_does_not_send_or_stop_an_active_app(self):
+        self.start_app(self.timer)
+        self.history.begin.side_effect = HistoryUnavailable()
+        status, _, raw = self.request(json.dumps({'characters': message(), 'message': 'A'}).encode())
+        self.assertEqual(status, 503)
+        self.assertIn('not sent', json.loads(raw)['error'])
+        self.assertEqual(self.forwarded, [])
+        self.assertEqual(self.timer.status()['state'], 'running')
+        self.history.finish.assert_not_called()
+
+    def test_invalid_original_message_is_rejected_before_recording_or_sending(self):
+        for value in ([], 1, 'x' * 241):
+            with self.subTest(value=value):
+                status, _, _ = self.request(json.dumps({'characters': message(), 'message': value}).encode())
+                self.assertEqual(status, 400)
+        self.history.begin.assert_not_called()
+        self.assertEqual(self.forwarded, [])
 
     def test_status_is_uncached_contains_no_secret_and_does_not_contact_cloud(self):
         for path in ('/api/vestaboard/status', '/api/vestaboard/pomodoro', '/api/vestaboard/nfl', '/api/vestaboard/fantasy'):
@@ -64,6 +97,7 @@ class HttpTest(AppTestCase):
                 self.assertTrue(json.loads(raw)['configured'])
                 self.assertNotIn(b'test-token', raw)
         self.assertEqual(self.forwarded, [])
+        self.history.begin.assert_not_called()
 
     def test_note_stops_timer_and_preserves_shared_cooldown_without_forced_override(self):
         body = json.dumps({'characters': message(), 'forced': True}).encode()
@@ -110,6 +144,7 @@ class HttpTest(AppTestCase):
                     if action in ('start', 'track'):
                         self.assertEqual(other.status()['state'], 'stopped')
                     self.assertEqual(self.forwarded, [])
+        self.history.begin.assert_not_called()
 
     def test_production_does_not_serve_local_files(self):
         self.assertEqual(self.request(path='/server.py')[0], 404)

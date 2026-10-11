@@ -31,6 +31,8 @@ describe.each(['note', 'pomodoro', 'nfl', 'fantasy'])('%s board connection', pag
 describe('Note composer delivery feedback', () => {
   it('sends exactly the preview and prevents double submission until the cooldown ends', async () => {
     const fetch = await start();
+    $('message').value = 'Hello ♥\n  friend';
+    $('message').dispatchEvent(new Event('input'));
     fetch.mockResolvedValueOnce(reply({ accepted: true, retryAfter: 15 }));
     $('message-form').dispatchEvent(new Event('submit', { cancelable: true }));
     $('message-form').dispatchEvent(new Event('submit', { cancelable: true }));
@@ -40,6 +42,7 @@ describe('Note composer delivery feedback', () => {
     expect(url).toBe('/api/vestaboard/messages');
     const preview = [...document.querySelectorAll('.tile')].map(tile => Number(tile.dataset.code));
     expect(JSON.parse(options.body).characters.flat()).toEqual(preview);
+    expect(JSON.parse(options.body).message).toBe('Hello ♥\n  friend');
     expect($('feedback').textContent).toContain('Accepted by Vestaboard');
     expect($('send').disabled).toBe(true);
     await vi.advanceTimersByTimeAsync(15000);

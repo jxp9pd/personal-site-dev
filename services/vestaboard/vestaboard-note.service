@@ -9,6 +9,7 @@ DynamicUser=yes
 WorkingDirectory=/opt/vestaboard-note
 ExecStart=/usr/bin/python3 /opt/vestaboard-note/server.py
 EnvironmentFile=-/etc/vestaboard-note.env
+EnvironmentFile=-/etc/vestaboard-history.env
 Restart=on-failure
 RestartSec=3
 NoNewPrivileges=yes

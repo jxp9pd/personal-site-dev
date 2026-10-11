@@ -9,16 +9,17 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 from urllib.request import urlopen
 
-from board import BoardGateway, api_token, cloud_tls_context
+from board import BoardGateway, api_token, cloud_tls_context, valid_characters
 from apps import BoardController
 from fantasy import Fantasy, SleeperSource
 from nfl import NFL, NFLSource
 from pomodoro import Pomodoro
+from history import HistoryUnavailable, MessageHistory, sender_ip
 
 MAX_BODY = 4096
 
 
-def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, fantasy=None):
+def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, fantasy=None, history=None):
     gateway = controller.gateway
     class Handler(SimpleHTTPRequestHandler):
         # HTTP/1.0 closes each connection, including rejected/unconsumed bodies.
@@ -100,9 +101,21 @@ def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, 
             if path == '/api/vestaboard/fantasy':
                 status, result = fantasy.command(body)
                 return self.reply(status, result)
-            # Discard all other fields; clients cannot force delivery during quiet hours.
+            # Only the grid is sent to Vestaboard; clients cannot force delivery.
             characters = body.get('characters') if isinstance(body, dict) else None
+            original_message = body.get('message') if isinstance(body, dict) else None
+            if original_message is not None and (not isinstance(original_message, str) or len(original_message) > 240):
+                return self.reply(400, {'error': 'Message text must be at most 240 characters.'})
+            record_id = None
+            if history and valid_characters(characters):
+                try:
+                    record_id = history.begin(original_message, characters,
+                                              sender_ip(self.client_address[0], self.headers.get('X-Real-IP')))
+                except HistoryUnavailable:
+                    return self.reply(503, {'error': 'Message history is temporarily unavailable. Your note was not sent; try again shortly.'})
             status, result = controller.send_note(characters)
+            if record_id:
+                history.finish(record_id, status)
             return self.reply(status, result)
 
     return Handler
@@ -119,12 +132,13 @@ def main():
     # Only local previews read the repo's .env; production uses systemd's EnvironmentFile.
     env_file = Path(__file__).resolve().parents[2] / '.env' if args.preview else None
     gateway = BoardGateway(api_token(env_file), opener=partial(urlopen, context=cloud_tls_context()))
+    history = MessageHistory.from_environment(env_file, opener=partial(urlopen, context=cloud_tls_context()))
     controller = BoardController(gateway)
     pomodoro = Pomodoro(controller)
     nfl = NFL(controller, NFLSource(opener=partial(urlopen, context=cloud_tls_context())).games)
     fantasy = Fantasy(controller, SleeperSource(opener=partial(urlopen, context=cloud_tls_context())))
     server = ThreadingHTTPServer(('127.0.0.1', args.port), handler_for(
-        controller, origins, args.preview, pomodoro=pomodoro, nfl=nfl, fantasy=fantasy))
+        controller, origins, args.preview, pomodoro=pomodoro, nfl=nfl, fantasy=fantasy, history=history))
     pomodoro.start_worker()
     nfl.start_worker()
     fantasy.start_worker()
