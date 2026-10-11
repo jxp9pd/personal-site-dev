@@ -5,6 +5,7 @@ cd -- "$(dirname -- "$0")"
 install -d -m 755 /opt/vestaboard-note
 install -m 644 server.py /opt/vestaboard-note/server.py
 install -m 644 board.py /opt/vestaboard-note/board.py
+install -m 644 apps.py /opt/vestaboard-note/apps.py
 install -m 644 pomodoro.py /opt/vestaboard-note/pomodoro.py
 install -m 644 nfl.py /opt/vestaboard-note/nfl.py
 install -m 644 fantasy.py /opt/vestaboard-note/fantasy.py

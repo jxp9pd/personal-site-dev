@@ -5,6 +5,7 @@ import threading
 import time
 
 from board import BLANK, GREEN, VIOLET, WHITE, text_row
+from apps import BoardApp
 
 
 FOCUS_MESSAGES = (
@@ -31,9 +32,9 @@ def board_frame(state, phase, remaining, duration, focus_message):
             [color] * filled + [BLANK] * (15 - filled)]
 
 
-class Pomodoro:
-    def __init__(self, gateway, clock=time.monotonic, choose=random.choice):
-        self.gateway = gateway
+class Pomodoro(BoardApp):
+    def __init__(self, controller, clock=time.monotonic, choose=random.choice):
+        super().__init__(controller)
         self.clock = clock
         self.choose = choose
         self.lock = threading.Lock()
@@ -93,7 +94,17 @@ class Pomodoro:
         with self.lock:
             return self._snapshot(self.clock())[0]
 
-    def command(self, body):
+    def deactivate(self):
+        with self.lock:
+            if self.state == 'idle':
+                return
+            self.state = 'stopped'
+            self.revision += 1
+            self.delivery = {'status': 'idle'}
+            self.last_attempt = self._snapshot(self.clock())[1]
+        self.wake.set()
+
+    def _command(self, body):
         if not isinstance(body, dict) or body.get('action') not in ('start', 'pause', 'resume', 'stop'):
             return 400, {'error': 'Choose start, pause, resume, or stop.'}
         action = body['action']
@@ -134,13 +145,11 @@ class Pomodoro:
             snapshot, key = self._snapshot(self.clock())
             if self.state == 'idle' or key == self.last_attempt:
                 return
-        # Manual notes still use this same gateway independently. Its cooldown
-        # serializes physical writes without reserving the board for the timer.
         if self.gateway.status()['retryAfter']:
             return
-        status, result = self.gateway.send(snapshot['characters'])
+        status, result = self.deliver(key[0], snapshot['characters'])
         with self.lock:
-            if status == 429:
+            if key[0] != self.revision or status == 429:
                 # Definitely rejected: keep only the latest frame pending.
                 return
             self.last_attempt = key

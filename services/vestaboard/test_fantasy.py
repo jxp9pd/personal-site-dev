@@ -4,6 +4,7 @@ import threading
 import unittest
 from unittest.mock import Mock
 
+from apps import BoardController
 from board import text_row, valid_characters
 from fantasy import (ALERT_SECONDS, DEFAULT_LEAGUES, Fantasy, SleeperSource, SourceError,
                      league_settings, play_alert, rounded_score, score_frame)
@@ -173,7 +174,7 @@ class SessionTest(unittest.TestCase):
         self.source.matchup.return_value = matchup()
         self.source.plays.return_value = []
         self.source.player.side_effect = player
-        self.session = Fantasy(self.gateway, self.source, lambda: self.now, lambda: self.wall)
+        self.session = Fantasy(BoardController(self.gateway), self.source, lambda: self.now, lambda: self.wall)
 
     def start(self):
         self.assertEqual(self.session.command({'action': 'start', 'leagues': DEFAULT_LEAGUES})[0], 200)

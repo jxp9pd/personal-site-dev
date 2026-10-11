@@ -6,6 +6,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer
 
+from apps import BoardController
 from board import BoardGateway
 from fantasy import DEFAULT_LEAGUES, Fantasy
 from nfl import NFL
@@ -23,13 +24,14 @@ class HttpTest(unittest.TestCase):
             self.forwarded.append(json.loads(request.data))
             return Response(b'{"status":"ok"}')
         gateway = BoardGateway('test-token', upstream, lambda: self.now)
-        self.timer = Pomodoro(gateway, lambda: self.now)
-        self.fantasy = Fantasy(gateway, Mock(), lambda: self.now)
-        self.nfl = NFL(gateway, lambda *args: [game()], lambda: self.now)
+        self.controller = BoardController(gateway)
+        self.timer = Pomodoro(self.controller, lambda: self.now)
+        self.fantasy = Fantasy(self.controller, Mock(), lambda: self.now)
+        self.nfl = NFL(self.controller, lambda *args: [game()], lambda: self.now)
         self.nfl.status()
         self.nfl.tick()
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), handler_for(
-            gateway, {'https://jpentakalos.com'}, pomodoro=self.timer, nfl=self.nfl, fantasy=self.fantasy))
+            self.controller, {'https://jpentakalos.com'}, pomodoro=self.timer, nfl=self.nfl, fantasy=self.fantasy))
         self.thread = threading.Thread(target=self.server.serve_forever)
         self.thread.start()
         self.base = f'http://127.0.0.1:{self.server.server_port}'
@@ -72,7 +74,7 @@ class HttpTest(unittest.TestCase):
                 self.assertNotIn(b'test-token', raw)
         self.assertEqual(self.forwarded, [])
 
-    def test_notes_and_timer_share_delivery_and_cooldown_without_forced_override(self):
+    def test_note_stops_timer_and_preserves_shared_cooldown_without_forced_override(self):
         body = json.dumps({'characters': message(), 'forced': True}).encode()
         self.assertEqual(self.request(body)[0], 200)
         status, headers, raw = self.request(body)
@@ -80,6 +82,9 @@ class HttpTest(unittest.TestCase):
         self.assertGreater(int(headers['Retry-After']), 0)
         self.assertEqual(self.forwarded, [{'characters': message()}])
         self.timer.command({'action': 'start', 'focusMinutes': 6, 'breakMinutes': 1})
+        self.assertEqual(self.request(b'{"characters": []}')[0], 400)
+        self.assertEqual(self.request(body)[0], 429)
+        self.assertEqual(self.timer.status()['state'], 'running')
         self.timer.tick()  # The note's cooldown applies to timer sends too.
         self.assertEqual(len(self.forwarded), 1)
         self.now = 15
@@ -93,9 +98,12 @@ class HttpTest(unittest.TestCase):
         self.assertEqual(self.forwarded[-1], {'characters': message()})
         self.now = 314
         self.timer.tick()
-        self.assertEqual(self.forwarded[-1]['characters'], self.timer.status()['characters'])
-        self.now = 360
-        self.assertEqual(self.timer.status()['phase'], 'break')  # Delivery delays don't extend focus.
+        self.assertEqual(self.forwarded[-1], {'characters': message()})
+        self.now = 10000
+        self.timer.tick()
+        self.assertEqual(self.timer.status()['state'], 'stopped')
+        self.assertEqual(self.timer.status()['delivery']['status'], 'idle')
+        self.assertEqual(len(self.forwarded), 3)
 
     def test_pomodoro_commands_update_shared_state_without_synchronous_board_writes(self):
         path = '/api/vestaboard/pomodoro'
@@ -122,11 +130,11 @@ class HttpTest(unittest.TestCase):
         self.assertEqual(len(self.forwarded), 1)
         self.now = 15
         self.nfl.tick()
-        self.assertEqual(self.forwarded[-1]['characters'], game()['characters'])
-        self.assertEqual(self.request(b'{"action":"stop"}', path=path)[0], 200)
+        self.assertEqual(len(self.forwarded), 1)
+        self.assertEqual(self.request(b'{"action":"stop"}', path=path)[0], 409)
         self.assertEqual(json.loads(self.request(path=path)[2])['state'], 'stopped')
 
-    def test_fantasy_controls_are_shared_and_do_not_stop_pomodoro(self):
+    def test_fantasy_controls_take_over_from_other_apps(self):
         self.timer.command({'action': 'start', 'focusMinutes': 25, 'breakMinutes': 5})
         self.nfl.command({'action': 'track', 'gameId': '401000001'})
         path = '/api/vestaboard/fantasy'
@@ -134,13 +142,13 @@ class HttpTest(unittest.TestCase):
         status, _, raw = self.request(json.dumps(body).encode(), path=path)
         self.assertEqual(status, 200)
         self.assertEqual(json.loads(raw)['state'], 'tracking')
-        self.assertEqual(self.timer.status()['state'], 'running')
-        self.assertEqual(self.nfl.status()['state'], 'tracking')
+        self.assertEqual(self.timer.status()['state'], 'stopped')
+        self.assertEqual(self.nfl.status()['state'], 'stopped')
         self.assertEqual(self.forwarded, [])
         self.assertEqual(json.loads(self.request(path=path)[2])['state'], 'tracking')
         self.assertEqual(self.request(b'{"action":"stop"}', path=path)[0], 200)
-        self.assertEqual(self.timer.status()['state'], 'running')
-        self.assertEqual(self.nfl.status()['state'], 'tracking')
+        self.assertEqual(self.timer.status()['state'], 'stopped')
+        self.assertEqual(self.nfl.status()['state'], 'stopped')
         self.assertEqual(self.forwarded, [])
 
 

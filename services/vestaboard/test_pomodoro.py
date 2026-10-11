@@ -2,6 +2,7 @@ import threading
 import unittest
 from unittest.mock import Mock
 
+from apps import BoardController
 from board import text_row, valid_characters
 from pomodoro import BREAK_MESSAGE, FOCUS_MESSAGES, Pomodoro, board_frame
 
@@ -15,7 +16,7 @@ class PomodoroTest(unittest.TestCase):
         self.gateway = Mock(token='test-token')
         self.gateway.status.return_value = {'retryAfter': 0}
         self.gateway.send.return_value = (200, {'accepted': True})
-        self.timer = Pomodoro(self.gateway, lambda: self.now, self.choose)
+        self.timer = Pomodoro(BoardController(self.gateway), lambda: self.now, self.choose)
 
     @property
     def frames(self):

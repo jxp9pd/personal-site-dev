@@ -3,6 +3,7 @@ import threading
 import unittest
 from unittest.mock import Mock
 
+from apps import BoardController
 from board import text_row
 from nfl import NFL, NFLSource, normalize_game
 from test_helpers import Response
@@ -91,7 +92,7 @@ class NFLTest(unittest.TestCase):
         self.gateway.status.return_value = {'retryAfter': 0}
         self.gateway.send.return_value = (200, {'accepted': True})
         self.fetch = Mock(return_value=[game()])
-        self.app = NFL(self.gateway, self.fetch, lambda: self.now, lambda: 1_791_850_000 + self.now)
+        self.app = NFL(BoardController(self.gateway), self.fetch, lambda: self.now, lambda: 1_791_850_000 + self.now)
         self.app.status()
         self.app.tick()  # Load the picker, without starting board writes.
 

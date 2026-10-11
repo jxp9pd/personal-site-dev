@@ -26,8 +26,38 @@ Vestaboard's Cloud API. No npm production dependencies or database are required.
 
 `board.py` owns character encoding/validation, credentials, TLS, cloud sends,
 and the shared cooldown. It has no dependency on the HTTP server or Pomodoro.
-`server.py` wires one gateway instance into notes, `pomodoro.py`, `nfl.py`, and `fantasy.py`;
-features should reuse that instance rather than create independent senders.
+`apps.py` adds one `BoardController` around that gateway. `server.py` passes the
+same controller to notes, `pomodoro.py`, `nfl.py`, and `fantasy.py`. A valid UI
+command that schedules a board display takes ownership immediately and silently
+stops every other app. This includes Pomodoro start/pause/resume/stop, NFL Track,
+and Fantasy Start. Sending a note stops all of them. Canceled apps stay stopped
+until explicitly started again; they never resume automatically.
+
+Preview actions, status reads, invalid commands, and note sends rejected for
+validation, missing credentials, or rate limits do not take ownership. A note
+with an ambiguous cloud failure still stops other apps because it may have been
+sent. All apps retain the shared 15-second cooldown. Pending frames, final
+scores, timer transitions, and Fantasy alerts are canceled on takeover. An
+already in-flight cloud write finishes before the UI command takes ownership;
+stale frames prepared by old workers cannot write afterward.
+
+To add a background app:
+
+1. Inherit `BoardApp` and pass the shared controller to `super().__init__`.
+2. Implement `_command(body)` with validation before changing state. Successful
+   commands take ownership by default; list non-writing actions such as preview
+   or silent stop in `passive_actions`.
+3. Implement `deactivate()` to stop its activity, increment its revision, and
+   clear queued displays without sending a stop message.
+4. Capture the revision with each display and use `self.deliver(revision,
+   characters)` outside the app's state lock. Increment the revision whenever
+   a command replaces or cancels pending work. Never call the transport's
+   `gateway.send` directly from a feature.
+
+The coordinator owns command and delivery serialization. App state locks must
+never be held while calling the coordinator, and sports fetches remain outside
+its lock. New subclasses inherit precedence without adding pairwise stop logic
+or changing the coordinator.
 
 In `fe-artifacts/assets/js/`, `vestaboard-api.js` owns gateway requests and the
 reusable `sendBoardMessage` helper. `vestaboard-preview.js` renders the tiles;
@@ -87,17 +117,19 @@ countdown updates from the browser.
 - Pause saves the exact remaining time and displays “PAUSED.” Resume continues
   that phase with the original focus phrase. Stop ends it with “TIMER STOPPED.”
   Normal completion leaves “ALL DONE.” Paused and terminal displays stay static.
-- Notes remain independent: either can overwrite the other, and a note does
-  not stop the timer. Both share the existing minimum 15-second cloud cooldown.
-  Controls and transitions queue the latest timer display until that cooldown
-  clears; missed frames are discarded, and board delays never extend a phase.
+- A note or another app's display command stops the timer and cancels its
+  pending updates without sending “TIMER STOPPED” over the new content.
+  Pomodoro controls take ownership from other apps. Controls and transitions
+  queue the latest timer display until the shared 15-second cooldown clears;
+  missed frames are discarded, and board delays never extend a phase.
 - The preview is the timer's intended display, not a readback of the physical
   board. Delivery feedback distinguishes pending, cloud-accepted, and failed
   updates. Timeouts are not retried for the same frame; the next scheduled update or
   explicit control can send the current display. Quiet hours still apply.
 - Timer state lives in memory. Restarting the gateway ends the session; the
   last physical display remains until the next write. No persistence, session
-  history, authentication, or note/timer conflict arbitration is added.
+  history or authentication is added. Ownership is managed by the shared
+  controller.
 
 `GET /api/vestaboard/pomodoro` returns the current shared session and intended
 character array without contacting Vestaboard. `POST` to the same path accepts
@@ -145,12 +177,14 @@ shared selection, matching the existing apps.
 - A final score queues one `FINAL` display and ends tracking. Canceled and
   postponed games also end tracking with their status. The last display stays on
   the board. **Stop tracking** cancels pending writes and future game polling,
-  leaving the physical display untouched; a write already in flight may finish.
-- The same gateway and 15-second cooldown serve notes, Pomodoro, and NFL. There
-  is no app priority or ownership arbitration: each can overwrite another.
+  leaving the physical display untouched. A write already in flight finishes
+  before the command takes effect.
+- Track takes ownership from every other app. A note or another app's display
+  command stops tracking and cancels queued scores, including a pending final.
   Queued updates coalesce to the newest frame; final delivery can wait for the
-  cooldown after tracking ends. Ambiguous cloud failures are not retried for an
-  unchanged frame. The preview is intended content, not physical readback.
+  shared 15-second cooldown after tracking ends while NFL retains ownership.
+  Ambiguous cloud failures are not retried for an unchanged frame. The preview
+  is intended content, not physical readback.
 - Feed outages retain the last known score, show a warning on the website,
   and retry after 30 seconds. Starting a new selection
   is disabled while the source is unavailable; Stop remains available. The feed
@@ -187,10 +221,13 @@ scores or arbitrary fetch destinations. Bye weeks display `BYE`.
 including when no board token is configured. **Start tracking** starts the
 shared background worker; **Stop tracking** clears queued alerts and stops
 board writes and play polling. Stop leaves the physical board untouched; a
-write already in flight may finish. Stop before changing leagues. Opening the
-page only reads status and requests a cached preview refresh. State is in memory;
-restarting the gateway ends tracking. Notes, Pomodoro, NFL, and Fantasy run
-independently and share the same gateway and 15-second cooldown.
+write already in flight finishes before Stop takes effect. Stop before changing
+leagues. Opening the page only reads status and requests a cached preview
+refresh. State is in memory; restarting the gateway ends tracking. Start
+tracking takes ownership from all
+other apps. A note or another app's display command stops Fantasy and clears
+queued alerts. Preview matchups and Stop tracking leave the active app alone.
+All apps share the same gateway and 15-second cooldown.
 
 While tracking, the server refreshes matchup scores and recent plays every
 15 seconds. It sends the scoreboard only when rounded scores change. Closing
@@ -210,7 +247,8 @@ or both leagues are involved. Alerts run in chronological order for 30 seconds
 each, then return to the latest scores. The hold starts after the board delivery
 attempt, so time spent waiting for the shared cooldown does not shorten it.
 Ambiguous failures are reported and not retried; definite rate limits defer
-delivery. Other apps can overwrite an alert during its hold, as requested.
+delivery. A UI send or display command from another app cancels the alert and
+its hold along with the rest of Fantasy tracking.
 
 The documented API (`https://docs.sleeper.com/`) supplies league data, users,
 rosters, and matchups. The publicly accessible but undocumented recent-play
@@ -319,8 +357,10 @@ Tests mock the upstream API; they do not change the physical board. Coverage
 includes character mapping, overflow, Unicode, blank input, HTTP validation,
 simultaneous sends, upstream failures, secret isolation, and rate limiting.
 Pomodoro tests also cover background execution, exact pause/resume timing,
-single-session completion, stable messages, phase-specific update intervals, independent
-note writes, delayed/rate-limited delivery, and browser reconnection/races.
+single-session completion, stable messages, phase-specific update intervals,
+delayed/rate-limited delivery, and browser reconnection/races. `test_apps.py`
+covers every app-to-app handoff, silent cancellation, stale frames, in-flight
+sends and sports fetches, and precedence inherited by a new app.
 
 Cloud transport is tested in `test_board.py`; common HTTP validation and shared
 note/timer delivery are tested in `test_server.py`. `test_pomodoro.py` uses a

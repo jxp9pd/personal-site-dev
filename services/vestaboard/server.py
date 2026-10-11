@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 from urllib.request import urlopen
 
 from board import BoardGateway, api_token, cloud_tls_context
+from apps import BoardController
 from fantasy import Fantasy, SleeperSource
 from nfl import NFL, NFLSource
 from pomodoro import Pomodoro
@@ -17,7 +18,8 @@ from pomodoro import Pomodoro
 MAX_BODY = 4096
 
 
-def handler_for(gateway, origins, preview_dir=None, pomodoro=None, nfl=None, fantasy=None):
+def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, fantasy=None):
+    gateway = controller.gateway
     class Handler(SimpleHTTPRequestHandler):
         # HTTP/1.0 closes each connection, including rejected/unconsumed bodies.
         server_version = 'NoteGateway'
@@ -100,7 +102,7 @@ def handler_for(gateway, origins, preview_dir=None, pomodoro=None, nfl=None, fan
                 return self.reply(status, result)
             # Discard all other fields; clients cannot force delivery during quiet hours.
             characters = body.get('characters') if isinstance(body, dict) else None
-            status, result = gateway.send(characters)
+            status, result = controller.send_note(characters)
             return self.reply(status, result)
 
     return Handler
@@ -117,11 +119,12 @@ def main():
     # Only local previews read the repo's .env; production uses systemd's EnvironmentFile.
     env_file = Path(__file__).resolve().parents[2] / '.env' if args.preview else None
     gateway = BoardGateway(api_token(env_file), opener=partial(urlopen, context=cloud_tls_context()))
-    pomodoro = Pomodoro(gateway)
-    nfl = NFL(gateway, NFLSource(opener=partial(urlopen, context=cloud_tls_context())).games)
-    fantasy = Fantasy(gateway, SleeperSource(opener=partial(urlopen, context=cloud_tls_context())))
+    controller = BoardController(gateway)
+    pomodoro = Pomodoro(controller)
+    nfl = NFL(controller, NFLSource(opener=partial(urlopen, context=cloud_tls_context())).games)
+    fantasy = Fantasy(controller, SleeperSource(opener=partial(urlopen, context=cloud_tls_context())))
     server = ThreadingHTTPServer(('127.0.0.1', args.port), handler_for(
-        gateway, origins, args.preview, pomodoro=pomodoro, nfl=nfl, fantasy=fantasy))
+        controller, origins, args.preview, pomodoro=pomodoro, nfl=nfl, fantasy=fantasy))
     pomodoro.start_worker()
     nfl.start_worker()
     fantasy.start_worker()

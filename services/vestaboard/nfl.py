@@ -9,6 +9,7 @@ from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
 from board import BLANK, WHITE, text_row
+from apps import BoardApp
 
 SCOREBOARD_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'
 POLL_SECONDS = 180
@@ -130,9 +131,12 @@ class NFLSource:
         return [normalize_game(event) for event in data['events']]
 
 
-class NFL:
-    def __init__(self, gateway, fetch_games, clock=time.monotonic, wall_clock=time.time):
-        self.gateway, self.fetch_games = gateway, fetch_games
+class NFL(BoardApp):
+    passive_actions = frozenset({'stop'})
+
+    def __init__(self, controller, fetch_games, clock=time.monotonic, wall_clock=time.time):
+        super().__init__(controller)
+        self.fetch_games = fetch_games
         self.clock, self.wall_clock = clock, wall_clock
         self.lock = threading.Lock()
         self.wake, self.shutdown = threading.Event(), threading.Event()
@@ -177,7 +181,17 @@ class NFL:
         if game['terminal']:
             self.state = 'completed'
 
-    def command(self, body):
+    def deactivate(self):
+        with self.lock:
+            if self.state == 'idle':
+                return
+            self.state, self.pending = 'stopped', False
+            self.revision += 1
+            self.delivery = {'status': 'idle'}
+            self.refresh_requested = False
+        self.wake.set()
+
+    def _command(self, body):
         if not isinstance(body, dict) or body.get('action') not in ('track', 'stop'):
             return 400, {'error': 'Choose track or stop.'}
         with self.lock:
@@ -254,7 +268,7 @@ class NFL:
             revision = self.revision
             characters = self.characters
             key = (revision, tuple(code for row in characters for code in row))
-        status, result = self.gateway.send(characters)
+        status, result = self.deliver(revision, characters)
         with self.lock:
             if revision != self.revision or status == 429:
                 return

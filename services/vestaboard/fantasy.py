@@ -13,6 +13,7 @@ from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 
 from board import BLANK, CODES, GREEN, text_row
+from apps import BoardApp
 
 POLL_SECONDS = 15
 ALERT_SECONDS = 30
@@ -234,9 +235,12 @@ def play_alert(play, starters, player_lookup):
             'characters': [[GREEN] + text_row('BIG PLAY!', 13) + [GREEN], text_row(name), text_row(detail)]}
 
 
-class Fantasy:
-    def __init__(self, gateway, source, clock=time.monotonic, wall_clock=time.time):
-        self.gateway, self.source = gateway, source
+class Fantasy(BoardApp):
+    passive_actions = frozenset({'preview', 'stop'})
+
+    def __init__(self, controller, source, clock=time.monotonic, wall_clock=time.time):
+        super().__init__(controller)
+        self.source = source
         self.clock, self.wall_clock = clock, wall_clock
         self.lock = threading.Lock()
         self.wake, self.shutdown = threading.Event(), threading.Event()
@@ -289,7 +293,20 @@ class Fantasy:
                 self.wake.set()
             return self._snapshot()
 
-    def command(self, body):
+    def deactivate(self):
+        with self.lock:
+            if self.state == 'idle':
+                return
+            self.state = 'stopped'
+            self.revision += 1
+            self.alert, self.alert_until = None, None
+            self.queue.clear()
+            self.delivery = {'status': 'idle'}
+            self.refresh_requested = False
+            self._prepare_display()
+        self.wake.set()
+
+    def _command(self, body):
         if not isinstance(body, dict) or body.get('action') not in ('start', 'stop', 'preview'):
             return 400, {'error': 'Choose start, stop, or preview.'}
         action = body['action']
@@ -407,7 +424,7 @@ class Fantasy:
             if self.state != 'tracking':
                 return
             revision, key, characters = self.revision, self.display_key, self.characters
-        status, result = self.gateway.send(characters)
+        status, result = self.deliver(revision, characters)
         with self.lock:
             if revision != self.revision or status == 429:
                 return
