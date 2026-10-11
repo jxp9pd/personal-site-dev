@@ -1,325 +1,214 @@
 # Vestaboard Note
 
-Apps home: https://jpentakalos.com/tools/vestaboard/
+Public apps for a 3 × 15 Vestaboard Note:
 
-Send a note page: https://jpentakalos.com/tools/vestaboard.html
+- [Apps home](https://jpentakalos.com/tools/vestaboard/)
+- [Leave a Note](https://jpentakalos.com/tools/vestaboard.html)
+- [Pomodoro](https://jpentakalos.com/tools/pomodoro.html)
+- [NFL scores](https://jpentakalos.com/tools/nfl.html)
+- [Fantasy football](https://jpentakalos.com/tools/fantasy.html)
 
-Pomodoro page: https://jpentakalos.com/tools/pomodoro.html
+Vanilla HTML/CSS/JS pages call a Python gateway. nginx proxies
+`/api/vestaboard/` to the loopback-only service, which holds the token and
+calls Vestaboard's Cloud API. No database or npm production dependencies.
 
-NFL scores page: https://jpentakalos.com/tools/nfl.html
+## Shared behavior
 
-Fantasy football page: https://jpentakalos.com/tools/fantasy.html
+- **UI commands take precedence.** Sending a note, using a Pomodoro control,
+  tracking an NFL game, or starting Fantasy silently stops every other app and
+  cancels its queued displays. Displaced apps stay stopped until restarted.
+- Previews, status reads, invalid commands, and NFL/Fantasy Stop do not take
+  ownership. Notes rejected for validation, missing credentials, or rate limits
+  also leave ownership unchanged. An ambiguous note failure stops other apps
+  because the note may have reached the board.
+- All apps share a minimum **15-second cooldown** and respect quiet hours.
+  Clients cannot request a `forced` override. Definite rate limits defer
+  background delivery; ambiguous failures do not automatically retry an
+  unchanged frame. An in-flight cloud write finishes before a new command takes
+  effect; stale worker frames cannot write afterward.
+- Background sessions continue when the browser closes. Pages poll status every
+  five seconds while visible. State is in memory: restarting the gateway ends
+  sessions and tracking, while the physical display remains until another write.
+- Previews show intended content, not physical readback. Cloud acceptance does
+  not confirm physical delivery; Wi-Fi, quiet hours, or other integrations may
+  delay or replace a message. No message history is stored.
+- Controls are public: anyone can send or change the shared apps. Origin checks
+  are not authentication. nginx limits request size and traffic; the gateway
+  validates input and uses fixed upstream destinations. Run one gateway process
+  per board; cooldown state resets on restart.
 
-The Tools page links to the apps home. To add an app, append an entry to the
-list in `fe-artifacts/tools/vestaboard/index.html` and link back to the hub
-from the new page. The hub has its own stylesheet, `vestaboard-hub.css`, and
-uses the shared layout and preview helpers to draw decorative board examples.
-Set `data-preview` on an app's illustration to customize its message; the hub
-does not call the gateway or send to the physical board.
+## Apps
 
-A vanilla HTML/CSS/JS composer previews exactly 3 rows × 15 columns and posts
-the same character array to a Python gateway. nginx forwards `/api/vestaboard/`
-to a loopback-only service. The gateway alone holds the API token and calls
-Vestaboard's Cloud API. No npm production dependencies or database are required.
+### Leave a Note
 
-## Shared code
+The composer previews a draft and sends the same character array to the board.
+Previewing needs no token; sending replaces the current display.
 
-`board.py` owns character encoding/validation, credentials, TLS, cloud sends,
-and the shared cooldown. It has no dependency on the HTTP server or Pomodoro.
-`apps.py` adds one `BoardController` around that gateway. `server.py` passes the
-same controller to notes, `pomodoro.py`, `nfl.py`, and `fantasy.py`. A valid UI
-command that schedules a board display takes ownership immediately and silently
-stops every other app. This includes Pomodoro start/pause/resume/stop, NFL Track,
-and Fantasy Start. Sending a note stops all of them. Canceled apps stay stopped
-until explicitly started again; they never resume automatically.
+### Pomodoro
 
-Preview actions, status reads, invalid commands, and note sends rejected for
-validation, missing credentials, or rate limits do not take ownership. A note
-with an ambiguous cloud failure still stops other apps because it may have been
-sent. All apps retain the shared 15-second cooldown. Pending frames, final
-scores, timer transitions, and Fantasy alerts are canceled on takeover. An
-already in-flight cloud write finishes before the UI command takes ownership;
-stale frames prepared by old workers cannot write afterward.
+Runs one focus → break → done cycle. Durations are whole minutes from 1–180,
+defaulting to 25/5. The gateway owns the clock; the browser shows live seconds
+between status polls.
 
-To add a background app:
+- Focus uses violet tiles and one random phrase fixed for the session. Break
+  uses green tiles and “TAKE A BREATHER.” Whole minutes remaining round up;
+  the 15-tile progress bar shrinks with time.
+- Board updates occur every five focus minutes and every break minute, counted
+  from start or resume. Phase changes occur on time even if delivery is delayed;
+  queued frames coalesce to the latest display.
+- Pause preserves exact remaining time and shows “PAUSED.” Resume continues
+  that phase. Explicit Stop writes “TIMER STOPPED”; completion writes “ALL DONE.”
+  Another app taking ownership stops the timer silently.
 
-1. Inherit `BoardApp` and pass the shared controller to `super().__init__`.
-2. Implement `_command(body)` with validation before changing state. Successful
-   commands take ownership by default; list non-writing actions such as preview
-   or silent stop in `passive_actions`.
-3. Implement `deactivate()` to stop its activity, increment its revision, and
-   clear queued displays without sending a stop message.
-4. Capture the revision with each display and use `self.deliver(revision,
-   characters)` outside the app's state lock. Increment the revision whenever
-   a command replaces or cancels pending work. Never call the transport's
-   `gateway.send` directly from a feature.
+### NFL scores
 
-The coordinator owns command and delivery serialization. App state locks must
-never be held while calling the coordinator, and sports fetches remain outside
-its lock. New subclasses inherit precedence without adding pairwise stop logic
-or changing the coordinator.
+Select a game to preview it, then **Track game** to start or switch tracking.
+Upcoming and live games are trackable; finished games remain previewable.
+ESPN's public feed supplies the current week, which rolls over automatically.
 
-In `fe-artifacts/assets/js/`, `vestaboard-api.js` owns gateway requests and the
-reusable `sendBoardMessage` helper. `vestaboard-preview.js` renders the tiles;
-`vestaboard-layout.js` handles text layout. Page controllers import these
-helpers and retain only their own form, countdown, and feedback behavior.
+- Away team appears left, home team right, with scores and an orange possession
+  tile. Missing possession stays blank; quarter and clock are omitted.
+  Upcoming games show `--` scores and Pacific kickoff time. The website picker
+  uses the visitor's local time zone. Halftime/delays/suspensions show a status.
+- Polls every three minutes and writes only changed frames. A selected game
+  that leaves the week's feed is fetched by its Eastern game-day date.
+- Final, canceled, and postponed games queue their last display and end
+  tracking. **Stop tracking** cancels pending writes and leaves the board alone.
+- Feed failures retain the last data, show a warning, and retry after 30 seconds.
+  New selections are disabled during an outage; Stop remains available. The
+  feed is unofficial and has no guaranteed update latency.
+
+### Fantasy football
+
+Shows two Sleeper matchups, your score first, rounded to whole points; bye weeks
+show `BYE`. Each league needs a URL, username, and unique 1–3 character label.
+Defaults use `pentakalos` in Show Me Your TDs (`TD`) and Shmeed League (`SH`).
+The server resolves league membership, co-owners, and matchups.
+
+- **Preview matchups** works without a board token. **Start tracking** polls
+  scores and plays every 15 seconds, writing scores when rounded values change.
+  **Stop tracking** clears alerts and leaves the board alone. Stop before
+  changing leagues. The current week rolls forward automatically.
+- **Big Plays** are touchdowns, rushes of at least 15 yards, and completed
+  passes of at least 20 yards. Only contributing starters trigger alerts;
+  bench players, opponents, tacklers, and plays before tracking began are excluded.
+  Plays are deduplicated across players/leagues. Alerts run chronologically for
+  30 seconds each, starting after the delivery attempt, then the scores return.
+- Metadata/rosters cache for one minute and the player catalog for a day;
+  starting lineups come from fresh matchups. Idle previews refresh at most once
+  per minute when requested. Outages preserve scores and show warnings; play
+  outages do not stop score updates.
+- League data uses Sleeper's documented API. Alerts use its undocumented
+  `plays/nfl/recent` endpoint, limited to the newest 1,000 plays. Prolonged
+  outages may miss events. No sports credentials are needed. The public API
+  supplies no win probabilities, so the third row stays blank.
 
 ## Connect the Note
 
-1. Install the Vestaboard app, sign in, and follow its **Add Vestaboard** pairing
-   flow to connect the Note to Wi-Fi. Send a message in the official app first.
-2. Open https://web.vestaboard.com and select that Note. In **API**, choose
-   **Create New Token**, give it a name such as `Penta Projects`, enable **Write**,
-   and copy the token. The mobile app also exposes tokens under
-   **Settings → Advanced Settings**. No read permission is needed by this site.
+1. Pair the Note with Wi-Fi in the official Vestaboard app and send a message
+   there first.
+2. At [web.vestaboard.com](https://web.vestaboard.com), select the Note, open
+   **API → Create New Token**, and enable **Write**. The mobile app also offers
+   tokens under **Settings → Advanced Settings**. Read permission is unnecessary.
 3. From this repository on John's Mac, run:
 
    ```sh
    python3 scripts/configure-vestaboard.py
    ```
 
-   Paste into the hidden prompt. It uses the personal SSH key to send the token
-   over encrypted stdin and atomically saves it in `/etc/vestaboard-note.env`,
-   owned by root with mode `0600`, outside the web root. It restarts the gateway.
-   The token never appears in shell arguments, Git, frontend assets, or stdout.
-4. Reload the public page, click **Send to the board**, and check the Note.
-   An enabled **Send to the board** button means a token is configured. **Accepted by Vestaboard**
-   requires a successful API response. Physical delivery must be checked on the
-   device; Wi-Fi, quiet hours, or other integrations can delay/replace a message.
+   The hidden prompt sends the token over SSH, saves it in
+   `/etc/vestaboard-note.env` (root-owned, mode `0600`), and restarts the gateway.
+   It keeps the token out of command arguments, Git, frontend assets, and stdout.
+4. Reload Leave a Note, send a message, and check the device. An enabled Send
+   button means credentials are configured; “Accepted by Vestaboard” means the
+   Cloud API accepted the write.
 
-Anyone can send, as requested. Each new message replaces the board's display.
-Sends from this service are spaced by at least 15 seconds, including concurrent
-visitors. The page does not display the board's current content or store messages.
-The preview is the visitor's draft. A token is never needed to use the preview.
+## Local preview
 
-## Pomodoro
-
-The separate Pomodoro page runs one focus → break → done session. Anyone can
-start, pause, resume, or stop the shared timer. Focus and break durations are
-editable whole minutes (1–180 each), defaulting to 25 / 5. The page contains just
-the board preview and timer controls. Active sessions show the same state to
-every visitor; their durations stay fixed until a new session starts.
-
-The Python gateway owns the clock and a background scheduler, so closing the
-page, locking a phone, or losing the browser connection does not stop a session.
-The website polls status every five seconds while visible and counts seconds
-locally between polls. It reconnects when reopened and never sends individual
-countdown updates from the browser.
-
-- The Note shows a randomly chosen focus phrase that stays fixed for the
-  session, whole minutes remaining (rounded up), and a shrinking 15-tile bar.
-  Both time and bar update every five minutes during focus and every minute
-  during break. Updates count from the start or resume of a phase, so a
-  12-minute focus shows 12, 7, then 2 minutes. The website countdown still shows
-  live seconds. Focus is violet; break is green with “TAKE A BREATHER.” Phase
-  changes happen on time and update the message and colors
-  together, making the physical shuffle the cue. No extra animation sends.
-- Pause saves the exact remaining time and displays “PAUSED.” Resume continues
-  that phase with the original focus phrase. Stop ends it with “TIMER STOPPED.”
-  Normal completion leaves “ALL DONE.” Paused and terminal displays stay static.
-- A note or another app's display command stops the timer and cancels its
-  pending updates without sending “TIMER STOPPED” over the new content.
-  Pomodoro controls take ownership from other apps. Controls and transitions
-  queue the latest timer display until the shared 15-second cooldown clears;
-  missed frames are discarded, and board delays never extend a phase.
-- The preview is the timer's intended display, not a readback of the physical
-  board. Delivery feedback distinguishes pending, cloud-accepted, and failed
-  updates. Timeouts are not retried for the same frame; the next scheduled update or
-  explicit control can send the current display. Quiet hours still apply.
-- Timer state lives in memory. Restarting the gateway ends the session; the
-  last physical display remains until the next write. No persistence, session
-  history or authentication is added. Ownership is managed by the shared
-  controller.
-
-`GET /api/vestaboard/pomodoro` returns the current shared session and intended
-character array without contacting Vestaboard. `POST` to the same path accepts
-`{"action":"start","focusMinutes":25,"breakMinutes":5}` or an action of `pause`,
-`resume`, or `stop`, with the same origin/body restrictions as note sends. A
-successful command changes the timer; board delivery is asynchronous and
-reported in the response's `delivery` field on subsequent status requests.
-
-For a preview that cannot send to the physical board even if `.env` is configured:
+From the repository root, start with physical sends disabled:
 
 ```sh
 VESTABOARD_API_TOKEN='' python3 services/vestaboard/server.py --preview fe-artifacts --port 8000
 ```
 
-Open http://127.0.0.1:8000/tools/pomodoro.html. Duration controls and the board
-preview work; starting a session requires a configured board. Tests use a fake
-upstream and controlled clock to exercise complete sessions without live sends.
+Open [the hub](http://127.0.0.1:8000/tools/vestaboard/) or any app's usual
+`/tools/*.html` path. Note and Fantasy previews and NFL browsing work without
+a token; starting background sessions requires one. Sports previews use real
+feeds. The server serves only `fe-artifacts/`.
 
-## NFL scores
+For live local sends, copy `.env.example` to the repository root's `.env`, set
+`VESTABOARD_API_TOKEN`, run `chmod 600 .env`, and restart without the empty-token
+override. Explicit environment values take precedence over `.env`; an empty
+token disables sends even when `.env` has one. Keep `.env` outside the web root
+and Git. Production reads the systemd environment file instead. TLS verification
+stays enabled; explicit `SSL_CERT_FILE` / `SSL_CERT_DIR` settings take precedence
+over the macOS system certificate fallback.
 
-The NFL page lists this week's games from ESPN's public scoreboard feed as
-selectable bubbles grouped by kickoff day in the visitor's local time zone.
-Each bubble shows team colors plus kickoff time or the score and live/final
-status. The current week comes from the feed, with no hardcoded week or date;
-the list automatically rolls over on a refresh, including while the page is
-open. An older game can finish tracking without appearing in the new week's
-bubbles. Select a game to preview it, then press **Track game** to start or switch the shared
-scoreboard. Selection alone never writes to the board. Upcoming and live games
-can be tracked; finished games can be previewed. Anyone can switch or stop the
-shared selection, matching the existing apps.
+## API
 
-- The Note shows the away team on the left and home team on the right, with
-  primary/secondary colors approximated using the available tile colors. Scores
-  sit underneath. A single orange tile beneath a team's score indicates
-  possession; brown is not available on the Note. Missing possession information
-  leaves that row blank rather than guessing. Quarter and game clock are omitted.
-- An upcoming game displays `--` scores and its kickoff day/time in Pacific
-  time. The website's game picker shows kickoff in the visitor's local time zone.
-  Tracking switches to live scores and possession after the feed reports kickoff.
-  Halftime, delays, and suspensions use a status label instead of possession.
-- The server polls every three minutes and queues a board write only when the
-  displayed score, possession, or status changes. Closing the browser does not
-  stop tracking. The selected game is also fetched by its Eastern game-day date
-  if it disappears from the current week's feed, including Monday-night games.
-- A final score queues one `FINAL` display and ends tracking. Canceled and
-  postponed games also end tracking with their status. The last display stays on
-  the board. **Stop tracking** cancels pending writes and future game polling,
-  leaving the physical display untouched. A write already in flight finishes
-  before the command takes effect.
-- Track takes ownership from every other app. A note or another app's display
-  command stops tracking and cancels queued scores, including a pending final.
-  Queued updates coalesce to the newest frame; final delivery can wait for the
-  shared 15-second cooldown after tracking ends while NFL retains ownership.
-  Ambiguous cloud failures are not retried for an unchanged frame. The preview
-  is intended content, not physical readback.
-- Feed outages retain the last known score, show a warning on the website,
-  and retry after 30 seconds. Starting a new selection
-  is disabled while the source is unavailable; Stop remains available. The feed
-  is public and requires no API key, but is an unofficial interface and has no
-  guaranteed update latency. No sports data token reaches the browser.
+Routes share the `/api/vestaboard/` prefix. POST requests use JSON and the same
+origin, body-size, and validation checks. For actions without other fields, send
+an object such as `{"action":"stop"}`.
 
-`GET /api/vestaboard/nfl` returns the cached game list, shared selection, exact
-preview arrays, and source/delivery feedback. It requests a background refresh
-when the list is stale; opening the picker does not perform a synchronous
-upstream request or write to the board. The website checks gateway status every
-five seconds while visible; this does not increase the sports polling frequency.
-`POST` accepts `{"action":"track","gameId":"401872992"}` or
-`{"action":"stop"}`, using the existing origin/body checks. Game IDs must come
-from the current list; clients cannot supply URLs, scores, colors, or credentials.
-State is in memory, like Pomodoro; restarting the gateway ends tracking.
+| Route | GET | POST |
+| --- | --- | --- |
+| `status` | Gateway configuration and cooldown | — |
+| `messages` | — | `{"characters":[[…],[…],[…]]}` |
+| `pomodoro` | Session, preview, delivery | `{"action":"start","focusMinutes":25,"breakMinutes":5}`; or `pause`, `resume`, `stop` |
+| `nfl` | Games, selection, previews, source/delivery status | `{"action":"track","gameId":"…"}`; or `stop` |
+| `fantasy` | Leagues, matchups, preview, alerts, source/delivery status | `{"action":"start","leagues":[…]}`; or `preview` with leagues, or `stop` |
 
-The existing install script also copies `nfl.py`; rerun it after deploying gateway
-changes. The local preview below supports browsing real games with board writes
-disabled by setting `VESTABOARD_API_TOKEN=''`. NFL tests use fake scores and a fake
-gateway to cover background polling, start/stop races, final delivery, rollover,
-missing possession, outages, and shared delivery limits without live board sends.
+Each Fantasy league object contains `url`, `username`, and `label`. NFL IDs must
+come from the current game list. Clients cannot supply scores, fetch destinations,
+or credentials. App commands schedule asynchronous work; poll status for source
+and delivery results. Status reads use cached data and may request a background
+sports refresh without writing to the board.
 
-## Fantasy football
+## Shared code and adding apps
 
-The Fantasy page shows two Sleeper matchups at once, with your score first and
-your opponent's score second. Scores round to the nearest whole point. Both
-league slots accept a Sleeper league URL, username, and unique 1–3 character
-board label. Defaults are `pentakalos` in Show Me Your TDs (`TD`) and Shmeed
-League (`SH`). Sleeper IDs, ownership (including co-owners), current-season
-membership, and matchups are resolved on the server; clients cannot submit
-scores or arbitrary fetch destinations. Bye weeks display `BYE`.
+| Module | Responsibility |
+| --- | --- |
+| `board.py` | Encoding, validation, credentials, TLS, cloud transport, cooldown |
+| `apps.py` | `BoardController` ownership and `BoardApp` command/delivery contract |
+| `server.py` | HTTP routes and shared-controller wiring |
+| `pomodoro.py`, `nfl.py`, `fantasy.py` | App state, scheduling, feeds, rendering |
 
-**Preview matchups** updates the shared preview without writing to the board,
-including when no board token is configured. **Start tracking** starts the
-shared background worker; **Stop tracking** clears queued alerts and stops
-board writes and play polling. Stop leaves the physical board untouched; a
-write already in flight finishes before Stop takes effect. Stop before changing
-leagues. Opening the page only reads status and requests a cached preview
-refresh. State is in memory; restarting the gateway ends tracking. Start
-tracking takes ownership from all
-other apps. A note or another app's display command stops Fantasy and clears
-queued alerts. Preview matchups and Stop tracking leave the active app alone.
-All apps share the same gateway and 15-second cooldown.
+To add a background app:
 
-While tracking, the server refreshes matchup scores and recent plays every
-15 seconds. It sends the scoreboard only when rounded scores change. Closing
-the browser does not stop the worker. League metadata and rosters are cached
-for a minute; starting lineups come from each fresh matchup. The current week
-comes from Sleeper and rolls forward automatically. Idle previews refresh at
-most once per minute while visitors request them. Outages preserve scores and
-report a warning on the website; a failed play feed does not stop score updates.
+1. Inherit `BoardApp` and pass the shared controller to `super().__init__`.
+2. Implement `_command(body)`, validating before mutation. Successful commands
+   claim ownership by default; put non-writing actions in `passive_actions`.
+3. Implement silent `deactivate()`: stop activity, increment the revision, and
+   clear queued displays. Also increment the revision when commands replace or
+   cancel work.
+4. Capture the revision with each display and call
+   `self.deliver(revision, characters)` outside the app state lock. Never call
+   `gateway.send` directly from a feature.
+5. Wire the app in `server.py` and copy its module in `install.sh`. Add its page
+   to `fe-artifacts/tools/vestaboard/index.html` and link back to the hub.
 
-Big Play criteria match Sleeper's web play labels, verified October 8, 2026:
-any scoring play described as a touchdown, a `Rush` of at least 15 yards, or
-a `PassCompleted` of at least 20 yards. Only your starters who actually scored
-the touchdown or gained the yards trigger alerts; bench players, opponents,
-and tacklers appearing in a play's stats are excluded. Plays before tracking
-started are ignored. Each new play queues once, even when multiple starters
-or both leagues are involved. Alerts run in chronological order for 30 seconds
-each, then return to the latest scores. The hold starts after the board delivery
-attempt, so time spent waiting for the shared cooldown does not shorten it.
-Ambiguous failures are reported and not retried; definite rate limits defer
-delivery. A UI send or display command from another app cancels the alert and
-its hold along with the rest of Fantasy tracking.
+Acquire the controller lock before app state locks; never call the controller
+while holding an app state lock. Keep sports I/O outside the controller lock.
+This lets new apps inherit precedence without pairwise stop logic.
 
-The documented API (`https://docs.sleeper.com/`) supplies league data, users,
-rosters, and matchups. The publicly accessible but undocumented recent-play
-endpoint used by Sleeper's web app is
-`https://api.sleeper.app/plays/nfl/recent?season_type=regular&season=2026&week=5&limit=1000`.
-Responses include play IDs, timestamps, player IDs, stats, and descriptions.
-Polling is bounded to the newest 1,000 plays; a prolonged outage may miss older
-events that have fallen out of that window. The player catalog is cached for a
-day, following Sleeper's guidance. No login or sports API credentials are needed.
-
-Sleeper's public matchup API does not provide win percentages; the current web
-app computes them in its client. The third board row is therefore blank today.
-No alternative estimate or reconstructed probability is substituted. The score
-renderer supports a percentage row for a future direct Sleeper value.
-
-`GET /api/vestaboard/fantasy` returns both league configurations, matchups,
-source errors and freshness, intended characters, current alert, queue count,
-and delivery status. `POST` accepts `{"action":"start","leagues":[...]}`,
-`{"action":"preview","leagues":[...]}`, or `{"action":"stop"}`. Each league
-object contains `url`, `username`, and `label`. Writes use the existing origin,
-JSON, and request-size restrictions. Commands schedule background work and do
-not synchronously contact Sleeper or the physical board.
-
-Rerun the install script after deploying the gateway to copy `fantasy.py`.
-For local browsing with real Sleeper scores and physical writes disabled:
-
-```sh
-VESTABOARD_API_TOKEN='' python3 services/vestaboard/server.py --preview fe-artifacts --port 8012
-```
-
-Open http://127.0.0.1:8012/tools/fantasy.html. Automated tests use fake sources,
-controlled clocks, and fake board delivery to exercise queues, outages,
-cooldowns, rollover, and start/stop races without physical sends.
-
-## Local preview
-
-```sh
-python3 services/vestaboard/server.py --preview fe-artifacts --port 8000
-```
-
-Open http://127.0.0.1:8000/tools/vestaboard.html. Without a token, the preview
-works and sending is visibly disabled. The server serves only `fe-artifacts/`.
-For local live sends, copy `.env.example` to `.env` in the repository root and
-set `VESTABOARD_API_TOKEN` there. The preview gateway loads it automatically on
-startup. Keep `.env` outside `fe-artifacts/`, Git-ignored, and owner-only (`chmod
-600 .env`). Restart the preview after changing it. An explicitly set process
-environment variable takes precedence; setting it to an empty string disables
-live sends even when `.env` contains a token. The loader supports plain or quoted
-values and comments; it does not execute shell commands or expand variables.
-
-Production continues to read `/etc/vestaboard-note.env` via systemd. The local
-`.env` is never deployed or committed. Do not add the key to client JavaScript.
-On macOS, if Python has no CA certificates configured, the gateway uses the
-existing `/etc/ssl/cert.pem` bundle. Explicit `SSL_CERT_FILE` / `SSL_CERT_DIR`
-settings take precedence, and TLS certificate verification remains enabled.
+Frontend helpers in `fe-artifacts/assets/js/` share gateway requests
+(`vestaboard-api.js`), tile rendering (`vestaboard-preview.js`), and text layout
+(`vestaboard-layout.js`). Page controllers own their forms and feedback. The hub
+uses decorative previews only; it never calls the gateway.
 
 ## Production install / update
 
-The site's existing GitHub Actions deployment publishes `fe-artifacts/` on a
-push to `main`. After deploying changes to the gateway, run on the Hetzner VM:
+GitHub Actions publishes `fe-artifacts/` on pushes to `main`. Gateway changes
+also require running this on the Hetzner VM after deploying the repository:
 
 ```sh
 sudo bash /var/www/personal-site-dev/services/vestaboard/install.sh
 ```
 
-This copies the gateway into `/opt/vestaboard-note`, installs its sandboxed
-systemd unit, adds an nginx snippet alongside the existing fantasy dashboard,
-checks nginx configuration, then starts/restarts the service and reloads nginx.
-It preserves `/etc/vestaboard-note.env`. The original nginx config is saved at
-`/etc/nginx/site.conf.before-vestaboard` on first install. Token setup can happen
-after installation; missing credentials leave the endpoint safely unconfigured.
+The script installs into `/opt/vestaboard-note`, updates systemd/nginx, validates
+nginx, and restarts the gateway. It preserves `/etc/vestaboard-note.env` and saves
+the original nginx config at `/etc/nginx/site.conf.before-vestaboard` on first
+install. Missing credentials leave sending disabled.
 
 ```sh
 systemctl status vestaboard-note
@@ -327,65 +216,30 @@ journalctl -u vestaboard-note -n 30
 curl http://127.0.0.1:8787/api/vestaboard/status
 ```
 
-Re-run the private setup script to replace an expired/revoked token. To stop
-sending immediately, `sudo systemctl stop vestaboard-note`. Revoke the token in
-Vestaboard's app if needed. To uninstall, stop/disable that service and remove
-the Vestaboard include from nginx's `site.conf`, then `nginx -t` and reload.
-Do not restore the whole old nginx file if other site changes were made later.
+Replace tokens with `scripts/configure-vestaboard.py`. Stop the service with
+`sudo systemctl stop vestaboard-note`. To uninstall, stop/disable the service,
+remove its include from nginx's `site.conf`, validate with `nginx -t`, and reload.
+Avoid restoring the entire old config over later site changes.
 
-## Boundaries
-
-- This is intentionally a public write endpoint with no access code. Origin
-  checks prevent casual cross-site browser submissions, not scripted clients.
-- nginx bounds request size and traffic; the gateway validates the exact Note
-  dimensions and allowed character codes, and serializes sends with a shared
-  cooldown. One process owns this board. Cooldown state resets on restart.
-- Quiet hours are respected: clients cannot forward a `forced` override.
-- No retries of ambiguous sends: a timeout can mean the upstream accepted the
-  message. The timer can defer a definitely rejected, rate-limited frame.
-- The API URL is fixed. Client requests cannot choose a destination or token.
-- No current-message read endpoint, analytics, or message history is added.
-
-## Verification
+## Verification and references
 
 ```sh
 npm test
 python3 -m unittest discover -s services/vestaboard -p 'test_*.py'
 ```
 
-Tests mock the upstream API; they do not change the physical board. Coverage
-includes character mapping, overflow, Unicode, blank input, HTTP validation,
-simultaneous sends, upstream failures, secret isolation, and rate limiting.
-Pomodoro tests also cover background execution, exact pause/resume timing,
-single-session completion, stable messages, phase-specific update intervals,
-delayed/rate-limited delivery, and browser reconnection/races. `test_apps.py`
-parameterizes worker startup, missing credentials, and delivery policy across
-all background apps. It also covers every app-to-app handoff, silent cancellation,
-stale frames, in-flight sends and sports fetches, and precedence inherited by a
-new app. `test_helpers.py` owns fresh sports fixtures, the shared app setup and
-clock, and race-test thread cleanup that propagates worker exceptions.
+Tests use fake upstreams and board delivery; they never write to the device.
+Shared suites cover transport/HTTP validation, ownership, worker lifecycle,
+delivery policy, and browser reconnection/races. Feature suites cover timing,
+feed parsing, rollover, alerts, rendering, and forms. Backend fixtures live in
+`test_helpers.py`; browser fixtures in `tests/helpers/vestaboard.js`.
 
-Cloud transport is tested in `test_board.py`; common HTTP validation and shared
-note/timer delivery are tested in `test_server.py`. The app routes share one
-parameterized command/status check. Feature suites retain their scheduling,
-feed parsing, rollover, rendering, and alert queue behavior.
+Cloud writes use `POST https://cloud.vestaboard.com/`, header
+`X-Vestaboard-Token`, and a `characters` array. Both `success` and `ok` response
+statuses are accepted. Character code `62` is a heart on the Note (a degree
+sign on the Flagship).
 
-Browser request errors are covered once in `vestaboard-api.test.js`; connection
-checks use the same parameterized scenario for all four pages.
-`vestaboard-session-ui.test.js` covers stale polls, uncertain command responses,
-and outage recovery across Pomodoro, NFL, and Fantasy. All pages use the fixtures
-and cleanup in `tests/helpers/vestaboard.js`. Page-specific suites retain their
-distinct form validation, command payloads, previews, and countdown behavior.
-
-Official documentation checked October 7, 2026:
-- https://docs.vestaboard.com/docs/read-write-api/authentication
-- https://docs.vestaboard.com/docs/read-write-api/endpoints
-- https://docs.vestaboard.com/docs/characterCodes
-
-Current endpoint: `POST https://cloud.vestaboard.com/`, header
-`X-Vestaboard-Token`, body `{"characters": [[...], [...], [...]]}`.
-The live API returns `"status": "success"` (verified with a real Note on October
-7, 2026); the documentation examples use `"status": "ok"`. Both are accepted.
-Code `62` is a heart on the Note
-(a degree sign on the Flagship). The cloud docs recommend no more than one
-message every 15 seconds.
+- Vestaboard: [Authentication](https://docs.vestaboard.com/docs/read-write-api/authentication),
+  [endpoints](https://docs.vestaboard.com/docs/read-write-api/endpoints),
+  [character codes](https://docs.vestaboard.com/docs/characterCodes)
+- [Sleeper API](https://docs.sleeper.com/)
