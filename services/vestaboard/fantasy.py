@@ -17,6 +17,13 @@ from apps import BoardApp
 
 POLL_SECONDS = 15
 ALERT_SECONDS = 30
+# Standard half-PPR weights in hundredths of a point keep the >= 3 cutoff exact.
+HALF_PPR_SCORING = {
+    'rec': 50, 'rec_yd': 10, 'rush_yd': 10, 'pass_yd': 4,
+    'rec_td': 600, 'rush_td': 600, 'pass_td': 400,
+    'def_td': 600, 'def_st_td': 600, 'st_td': 600, 'fum_rec_td': 600,
+    'pass_int': -200, 'fum_lost': -200,
+}
 DEFAULT_LEAGUES = [
     {'url': 'https://sleeper.com/leagues/1399168246661296128', 'username': 'pentakalos', 'label': 'TD'},
     {'url': 'https://sleeper.com/leagues/1389707496347697152', 'username': 'pentakalos', 'label': 'SH'},
@@ -194,22 +201,17 @@ class SleeperSource:
 def play_alert(play, starters, player_lookup):
     meta = play.get('metadata') or {}
     touchdown = meta.get('is_scoring_play') is True and 'touchdown' in str(meta.get('description', '')).lower()
-    big = (meta.get('type') == 'Rush' and meta.get('yards_gained', 0) >= 15
-           or meta.get('type') == 'PassCompleted' and meta.get('yards_gained', 0) >= 20)
-    if not (touchdown or big):
-        return None
     candidates = []
     for item in play.get('play_stats') or []:
         player_id, stats = item.get('player_id'), item.get('stats') or {}
         if player_id not in starters:
             continue
-        td = any(stats.get(key, 0) > 0 for key in
-                 ('rec_td', 'rush_td', 'pass_td', 'def_td', 'def_st_td', 'st_td', 'fum_rec_td'))
-        gained = (meta.get('type') == 'Rush' and stats.get('rush_yd', 0) >= 15
-                  or meta.get('type') == 'PassCompleted' and
-                  (stats.get('rec_yd', 0) >= 20 or stats.get('pass_yd', 0) >= 20))
-        if not ((touchdown and td) or (not touchdown and gained)):
-            continue  # A tackler or intercepted QB appearing in the same play is not its scorer.
+        values = {stat: stats.get(stat, 0) for stat in HALF_PPR_SCORING}
+        if any(type(value) not in (int, float) or not math.isfinite(value) for value in values.values()):
+            continue
+        point_hundredths = sum(value * HALF_PPR_SCORING[stat] for stat, value in values.items())
+        if point_hundredths < 300:
+            continue  # Each starter must qualify independently, including turnover deductions.
         kind = 'CATCH' if stats.get('rec', 0) > 0 else 'RUN' if stats.get('rush_att', 0) > 0 else 'PASS'
         priority = {'CATCH': 0, 'RUN': 1, 'PASS': 2}[kind]
         candidates.append((priority, player_id, kind))

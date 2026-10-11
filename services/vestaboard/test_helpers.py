@@ -49,7 +49,7 @@ def matchup(points=123.45, starters=None):
             'starters': starters or ['receiver', 'runner'], 'winChance': None}
 
 
-def play(play_id='one', timestamp=1001, yards=24, kind='PassCompleted', td=False, player_id='receiver'):
+def play(play_id='one', timestamp=1001, yards=30, kind='PassCompleted', td=False, player_id='receiver'):
     stats = {'rec': 1, 'rec_yd': yards, 'rec_td': int(td)} if kind == 'PassCompleted' else {
         'rush_att': 1, 'rush_yd': yards, 'rush_td': int(td)}
     return {'play_id': play_id, 'game_id': 'game', 'time': timestamp * 1000,

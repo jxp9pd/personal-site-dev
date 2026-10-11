@@ -89,8 +89,11 @@ The server resolves league membership, co-owners, and matchups.
   scores and plays every 15 seconds, writing scores when rounded values change.
   **Stop tracking** clears alerts and leaves the board alone. Stop before
   changing leagues. The current week rolls forward automatically.
-- **Big Plays** are touchdowns, rushes of at least 15 yards, and completed
-  passes of at least 20 yards. Only contributing starters trigger alerts;
+- **Big Plays** require a starter to earn **at least 3 standard half-PPR points
+  on one play**: 0.5 per catch, 1 per 10 rushing/receiving yards, 1 per 25 passing
+  yards, 6 per rushing/receiving/return touchdown, 4 per passing touchdown, and
+  −2 per interception thrown or fumble lost. A 30-yard completion qualifies its
+  receiver (3.5 points), but its QB earns only 1.2. Each starter qualifies separately;
   bench players, opponents, tacklers, and plays before tracking began are excluded.
   Plays are deduplicated across players/leagues. Alerts run chronologically for
   30 seconds each, starting after the delivery attempt, then the scores return.

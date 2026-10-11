@@ -43,14 +43,53 @@ class EncodingTest(unittest.TestCase):
         self.assertEqual(score_frame(configs, games, 5)[1], text_row('SH 99 - BYE'))
         self.assertTrue(valid_characters(frame))
 
-    def test_sleeper_big_play_boundaries_and_touchdowns(self):
-        for kind, threshold in [('Rush', 15), ('PassCompleted', 20)]:
-            self.assertIsNone(play_alert(play(kind=kind, yards=threshold - 1), {'receiver'}, player))
-            self.assertIsNotNone(play_alert(play(kind=kind, yards=threshold), {'receiver'}, player))
+    def test_big_play_requires_three_half_ppr_points_per_player(self):
+        for kind, stats, qualifies in [
+            ('Rush', {'rush_att': 1, 'rush_yd': 15}, False),
+            ('Rush', {'rush_att': 1, 'rush_yd': 29}, False),
+            ('Rush', {'rush_att': 1, 'rush_yd': 30}, True),
+            ('PassCompleted', {'rec': 1, 'rec_yd': 20}, False),
+            ('PassCompleted', {'rec': 1, 'rec_yd': 24}, False),
+            ('PassCompleted', {'rec': 1, 'rec_yd': 25}, True),
+            ('PassCompleted', {'rec': 1, 'rec_yd': 30}, True),
+            ('PassCompleted', {'pass_yd': 30}, False),
+            ('PassCompleted', {'pass_yd': 74}, False),
+            ('PassCompleted', {'pass_yd': 75}, True),
+            ('PassCompleted', {'rec': 1, 'rec_yd': 25, 'fum_lost': 1}, False),
+            ('PassCompleted', {'rec': 1, 'rec_yd': 45, 'fum_lost': 1}, True),
+        ]:
+            with self.subTest(kind=kind, stats=stats):
+                event = play(kind=kind, yards=stats.get('rush_yd', stats.get('rec_yd', stats.get('pass_yd'))))
+                event['play_stats'][0]['stats'] = stats
+                self.assertEqual(play_alert(event, {'receiver'}, player) is not None, qualifies)
+
+    def test_touchdown_points_and_display(self):
+        for stat in ('rec_td', 'rush_td', 'pass_td', 'def_td', 'def_st_td', 'st_td', 'fum_rec_td'):
+            with self.subTest(stat=stat):
+                event = play(yards=0, td=True)
+                event['play_stats'][0]['stats'] = {stat: 1}
+                self.assertIsNotNone(play_alert(event, {'receiver'}, player))
         alert = play_alert(play(yards=2, td=True), {'receiver'}, player)
         self.assertEqual(alert['detail'], '2YD TD')
         self.assertEqual(alert['characters'][1], text_row('CEEDEE LAMB'))
         self.assertTrue(valid_characters(alert['characters']))
+
+    def test_completion_only_names_starters_who_individually_qualify(self):
+        for yards, expected in [(24, None), (30, ['CeeDee Lamb']), (75, ['CeeDee Lamb', 'Dak Prescott'])]:
+            with self.subTest(yards=yards):
+                event = play(yards=yards)
+                event['play_stats'].append({'player_id': 'qb', 'stats': {'pass_yd': yards}})
+                alert = play_alert(event, {'receiver', 'qb'}, player)
+                self.assertEqual(alert['players'] if alert else None, expected)
+                qb_alert = play_alert(event, {'qb'}, player)
+                self.assertEqual(qb_alert is not None, yards >= 75)
+
+    def test_invalid_scoring_stats_do_not_alert(self):
+        for value in ('30', None, True, float('nan'), float('inf')):
+            with self.subTest(value=value):
+                event = play()
+                event['play_stats'][0]['stats']['rec_yd'] = value
+                self.assertIsNone(play_alert(event, {'receiver'}, player))
 
     def test_bench_players_opponents_and_tacklers_do_not_alert(self):
         event = play()
@@ -59,7 +98,8 @@ class EncodingTest(unittest.TestCase):
         self.assertIsNone(play_alert(event, {'defender'}, player))
         event['metadata']['type'] = 'FieldGoal'
         event['metadata']['yards_gained'] = 55
-        self.assertIsNone(play_alert(event, {'receiver'}, player))
+        event['play_stats'] = [{'player_id': 'kicker', 'stats': {'fgm': 1, 'fgm_50p': 1}}]
+        self.assertIsNone(play_alert(event, {'kicker'}, player))
 
     def test_one_play_can_name_two_starters_without_duplicate_alerts(self):
         event = play(td=True)
@@ -179,6 +219,14 @@ class SessionTest(AppTestCase):
         self.assertIsNone(self.session.status()['alert'])
         self.assertEqual(self.gateway.send.call_count, 4)  # scores, two identical-looking alerts, scores
         self.assertEqual(self.session.status()['characters'][0], text_row('TD 123 - 119'))
+
+    def test_tracking_skips_plays_below_the_half_ppr_cutoff(self):
+        self.start()
+        self.source.plays.return_value = [play('below', 1001, yards=24), play('qualifies', 1002, yards=25)]
+        self.tick_at(15)
+        self.assertEqual(self.session.status()['alert']['id'], 'qualifies')
+        self.assertEqual(self.session.status()['queuedAlerts'], 0)
+        self.assertEqual(self.gateway.send.call_count, 2)
 
     def test_shared_cooldown_delays_alert_without_shortening_its_hold(self):
         self.start()
