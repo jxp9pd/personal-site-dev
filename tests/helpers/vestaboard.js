@@ -28,18 +28,37 @@ export const nflState = (overrides = {}) => ({
   delivery: { status: 'idle' }, ...overrides,
 });
 
+export const fantasyState = (overrides = {}) => ({
+  configured: true, state: 'idle', week: 5, season: '2026',
+  leagues: [
+    { url: 'https://sleeper.com/leagues/1399168246661296128', username: 'pentakalos', label: 'TD', error: null,
+      matchup: { leagueName: 'Show Me Your TDs', you: { name: 'Bite me', points: 123.45 },
+        opponent: { name: 'Opponent one', points: 119.4 }, starters: ['1'], winChance: null } },
+    { url: 'https://sleeper.com/leagues/1389707496347697152', username: 'pentakalos', label: 'SH', error: null,
+      matchup: { leagueName: 'Shmeed League', you: { name: 'Ladd & the Lads', points: 98.6 },
+        opponent: { name: 'Opponent two', points: 101.2 }, starters: ['2'], winChance: null } },
+  ],
+  characters: layoutMessage('TD 123 - 119\nSH 99 - 101').characters,
+  source: { lastCheckedAt: '2026-10-09T03:00:00+00:00', playError: null, winChanceAvailable: false },
+  alert: null, queuedAlerts: 0, alertSecondsRemaining: null, delivery: { status: 'idle' }, ...overrides,
+});
+
 const pages = {
-  note: { file: 'vestaboard', boot: () => import('../../fe-artifacts/assets/js/vestaboard.js') },
-  pomodoro: { file: 'pomodoro', boot: () => import('../../fe-artifacts/assets/js/pomodoro.js') },
-  nfl: { file: 'nfl', boot: () => import('../../fe-artifacts/assets/js/nfl.js') },
+  note: { file: 'vestaboard', state: initial => ({ configured: true, retryAfter: 0, ...initial }), boot: () => import('../../fe-artifacts/assets/js/vestaboard.js') },
+  pomodoro: { file: 'pomodoro', state: pomodoroState, boot: () => import('../../fe-artifacts/assets/js/pomodoro.js') },
+  nfl: { file: 'nfl', state: nflState, boot: () => import('../../fe-artifacts/assets/js/nfl.js') },
+  fantasy: { file: 'fantasy', state: fantasyState, boot: () => import('../../fe-artifacts/assets/js/fantasy.js') },
 };
+
+export const boardState = (page, initial = {}) => pages[page].state(initial);
+export const postBodies = fetch => fetch.mock.calls.filter(([, options]) => options.method === 'POST')
+  .map(([, options]) => JSON.parse(options.body));
 
 export async function loadBoardPage(page, initial = {}) {
   vi.resetModules();
   vi.useFakeTimers();
   document.body.innerHTML = readFileSync(`fe-artifacts/tools/${pages[page].file}.html`, 'utf8');
-  const data = page === 'pomodoro' ? pomodoroState(initial)
-    : page === 'nfl' ? nflState(initial) : { configured: true, retryAfter: 0, ...initial };
+  const data = boardState(page, initial);
   const fetch = vi.fn().mockResolvedValue(reply(data));
   vi.stubGlobal('fetch', fetch);
   await pages[page].boot();

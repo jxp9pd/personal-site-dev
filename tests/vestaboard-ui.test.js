@@ -1,25 +1,25 @@
 import { describe, expect, it, vi } from 'vitest';
-import { loadBoardPage, pomodoroState, nflState, reply } from './helpers/vestaboard.js';
+import { boardState, loadBoardPage, reply } from './helpers/vestaboard.js';
 
 const $ = id => document.getElementById(id);
 const start = (configured = true) => loadBoardPage('note', { configured });
 
 // Each page wires its own disabled control and feedback, but the same connection
 // contract is checked here instead of copying a test into every feature suite.
-describe.each(['note', 'pomodoro', 'nfl'])('%s board connection', page => {
+describe.each(['note', 'pomodoro', 'nfl', 'fantasy'])('%s board connection', page => {
   it('blocks writes until configured and recovers when configuration becomes available', async () => {
     const fetch = await loadBoardPage(page, { configured: false });
     const button = $(page === 'note' ? 'send' : page === 'nfl' ? 'track' : 'start');
     expect(button.disabled).toBe(true);
-    if (page === 'nfl') {
+    if (['nfl', 'fantasy'].includes(page)) {
       expect($('delivery').textContent).toBe('');
       expect($('reconnect').hidden).toBe(true);
     } else {
       expect($(page === 'note' ? 'feedback' : 'delivery').textContent).toContain('not connected');
       expect($('reconnect').hidden).toBe(false);
     }
-    fetch.mockResolvedValue(reply(page === 'note' ? { configured: true } : page === 'nfl' ? nflState() : pomodoroState()));
-    if (page === 'nfl') await vi.advanceTimersByTimeAsync(5000);
+    fetch.mockResolvedValue(reply(boardState(page)));
+    if (['nfl', 'fantasy'].includes(page)) await vi.advanceTimersByTimeAsync(5000);
     else {
       $('reconnect').click();
       await vi.advanceTimersByTimeAsync(0);

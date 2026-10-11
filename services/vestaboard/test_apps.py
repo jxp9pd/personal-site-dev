@@ -1,42 +1,75 @@
 """Ownership, cancellation, and races use fake board and sports sources."""
 import threading
 import unittest
-from unittest.mock import Mock
 
-from apps import BoardApp, BoardController
-from fantasy import DEFAULT_LEAGUES, Fantasy
-from nfl import NFL
-from pomodoro import Pomodoro
-from test_fantasy import STATE, matchup, play, player
-from test_helpers import message
-from test_nfl import game
+from apps import BoardApp
+from fantasy import DEFAULT_LEAGUES
+from test_helpers import AppTestCase, STATE, background_task, game, matchup, message, play
 
 
-class OwnershipTest(unittest.TestCase):
-    def setUp(self):
-        self.now = 0
-        self.gateway = Mock(token='test-token')
-        self.gateway.status.return_value = {'retryAfter': 0}
-        self.gateway.send.return_value = (200, {'accepted': True})
-        self.controller = BoardController(self.gateway)
-        self.timer = Pomodoro(self.controller, lambda: self.now)
-        self.fetch_games = Mock(return_value=[game()])
-        self.nfl = NFL(self.controller, self.fetch_games, lambda: self.now)
-        self.source = Mock()
-        self.source.state.return_value = STATE
-        self.source.matchup.return_value = matchup()
-        self.source.plays.return_value = [play()]
-        self.source.player.side_effect = player
-        self.fantasy = Fantasy(self.controller, self.source, lambda: self.now, lambda: 1000)
-        self.nfl.status()
-        self.nfl.tick()
-        self.apps = [self.timer, self.nfl, self.fantasy]
+class LifecycleTest(AppTestCase):
+    def test_unconfigured_apps_never_start_or_send(self):
+        self.gateway.token = ''
+        for app in self.apps:
+            with self.subTest(app=type(app).__name__):
+                self.assertEqual(self.start_app(app)[0], 503)
+                app.tick()
+                self.assertEqual(app.status()['state'], 'idle')
+                self.gateway.send.assert_not_called()
 
+    def test_commands_queue_and_workers_send_without_browser_requests(self):
+        for app in self.apps:
+            with self.subTest(app=type(app).__name__):
+                sent = threading.Event()
+                self.gateway.send.side_effect = lambda frame: (sent.set() or (200, {'accepted': True}))
+                self.gateway.send.reset_mock()
+                self.assertEqual(self.start_app(app)[0], 200)
+                self.gateway.send.assert_not_called()
+                app.start_worker()
+                try:
+                    self.assertTrue(sent.wait(2))
+                finally:
+                    app.close()
+                self.assertFalse(app.worker.is_alive())
+                self.gateway.send.assert_called_once()
+
+    def test_rate_limits_defer_and_uncertain_failures_wait_for_a_changed_frame(self):
+        for app in self.apps:
+            with self.subTest(app=type(app).__name__):
+                self.gateway.send.return_value = (429, {'retryAfter': 15})
+                self.gateway.send.reset_mock()
+                self.assertEqual(self.start_app(app)[0], 200)
+                app.tick()
+                self.assertEqual(app.status()['delivery']['status'], 'pending')
+                self.gateway.status.return_value = {'retryAfter': 15}
+                app.tick()
+                self.gateway.send.assert_called_once()
+
+                self.gateway.status.return_value = {'retryAfter': 0}
+                self.gateway.send.return_value = (504, {'error': 'Delivery unconfirmed.'})
+                app.tick()
+                self.now += {self.timer: 299, self.nfl: 180, self.fantasy: 15}[app]
+                self.wall = 1000 + self.now
+                app.tick()
+                self.assertEqual(len(self.frames), 2)
+                self.assertEqual(app.status()['delivery'], {'status': 'error', 'error': 'Delivery unconfirmed.'})
+                previous = self.frames[-1]
+                if app is self.nfl:
+                    self.fetch.return_value = [game(away_score='28')]
+                elif app is self.fantasy:
+                    self.source.matchup.return_value = matchup(124.6)
+                self.now += 300
+                self.wall = 1000 + self.now
+                self.gateway.send.return_value = (200, {'accepted': True})
+                app.tick()
+                self.assertEqual(len(self.frames), 3)
+                self.assertNotEqual(self.frames[-1], previous)
+                self.assertEqual(app.status()['delivery']['status'], 'accepted')
+
+
+class OwnershipTest(AppTestCase):
     def start(self, app):
-        body = ({'action': 'start', 'focusMinutes': 25, 'breakMinutes': 5} if app is self.timer else
-                {'action': 'track', 'gameId': '401000001'} if app is self.nfl else
-                {'action': 'start', 'leagues': DEFAULT_LEAGUES})
-        self.assertEqual(app.command(body)[0], 200)
+        self.assertEqual(self.start_app(app)[0], 200)
 
     def test_every_app_switch_stops_the_previous_worker_and_cancels_pending_writes(self):
         for previous in self.apps:
@@ -76,7 +109,7 @@ class OwnershipTest(unittest.TestCase):
 
     def test_note_cancels_pending_nfl_final_and_fantasy_alerts(self):
         self.start(self.nfl)
-        self.fetch_games.return_value = [game(state='final')]
+        self.fetch.return_value = [game(state='final')]
         self.gateway.status.return_value = {'retryAfter': 1}
         self.now = 180
         self.nfl.tick()
@@ -87,10 +120,11 @@ class OwnershipTest(unittest.TestCase):
         self.nfl.tick()
         self.gateway.send.assert_not_called()
 
+        self.source.plays.return_value = [play('one'), play('two', 1002)]
         self.start(self.fantasy)
         self.fantasy.tick()
         self.assertIsNotNone(self.fantasy.status()['alert'])
-        self.fantasy.queue.append({'id': 'another'})
+        self.assertEqual(self.fantasy.status()['queuedAlerts'], 1)
         self.controller.send_note(message())
         self.assertIsNone(self.fantasy.status()['alert'])
         self.assertEqual(self.fantasy.status()['queuedAlerts'], 0)
@@ -103,7 +137,9 @@ class OwnershipTest(unittest.TestCase):
         self.start(self.nfl)
         for app in self.apps:
             app.status()
-            self.assertEqual(app.command({'action': 'invalid'})[0], 400)
+            for body in ([], None, {}, {'action': 'invalid'}):
+                with self.subTest(app=type(app).__name__, body=body):
+                    self.assertEqual(app.command(body)[0], 400)
         self.assertEqual(self.timer.command({'action': 'pause'})[0], 409)
         self.assertEqual(self.fantasy.command({'action': 'preview', 'leagues': DEFAULT_LEAGUES})[0], 200)
         self.fantasy.tick()
@@ -134,33 +170,34 @@ class OwnershipTest(unittest.TestCase):
         self.assertEqual(self.controller.send_note(message())[0], 504)
         self.assertEqual(self.nfl.status()['state'], 'stopped')
 
-    def test_sports_response_inflight_cannot_restore_tracking_after_a_note(self):
+    def test_late_sports_responses_cannot_restore_tracking_after_stop_or_takeover(self):
         for app in (self.nfl, self.fantasy):
-            with self.subTest(app=type(app).__name__):
-                self.start(app)
-                fetching, release = threading.Event(), threading.Event()
-                def fetch(*args):
-                    fetching.set()
-                    if not release.wait(2):
-                        raise AssertionError('UI takeover did not finish.')
-                    return [game()] if app is self.nfl else STATE
-                source = self.fetch_games if app is self.nfl else self.source.state
-                source.side_effect = fetch
-                self.now += 10000
-                worker = threading.Thread(target=app.tick)
-                worker.start()
-                try:
-                    self.assertTrue(fetching.wait(2))
-                    self.controller.send_note(message())
-                    attempts = self.gateway.send.call_count
-                finally:
-                    release.set()
-                    worker.join(2)
-                    source.side_effect = None
-                self.assertFalse(worker.is_alive())
-                self.assertEqual(app.status()['state'], 'stopped')
-                self.assertEqual(self.gateway.send.call_count, attempts)
-                self.assertEqual(self.fantasy.status()['queuedAlerts'], 0)
+            for action in ('stop', 'note'):
+                with self.subTest(app=type(app).__name__, action=action):
+                    self.start(app)
+                    fetching, release = threading.Event(), threading.Event()
+                    def fetch(*args):
+                        fetching.set()
+                        if not release.wait(2):
+                            raise AssertionError('UI cancellation did not finish.')
+                        return [game(away_score='28')] if app is self.nfl else STATE
+                    source = self.fetch if app is self.nfl else self.source.state
+                    source.side_effect = fetch
+                    self.source.plays.return_value = [play(timestamp=1000 + self.now + 1)]
+                    self.now += 10000
+                    with background_task(app.tick):
+                        try:
+                            self.assertTrue(fetching.wait(2))
+                            status, _ = (app.command({'action': 'stop'}) if action == 'stop'
+                                         else self.controller.send_note(message()))
+                            self.assertEqual(status, 200)
+                            attempts = self.gateway.send.call_count
+                        finally:
+                            release.set()
+                            source.side_effect = None
+                    self.assertEqual(app.status()['state'], 'stopped')
+                    self.assertEqual(self.gateway.send.call_count, attempts)
+                    self.assertEqual(self.fantasy.status()['queuedAlerts'], 0)
 
     def test_new_app_inherits_precedence_without_coordinator_changes(self):
         class NewApp(BoardApp):
@@ -191,17 +228,16 @@ class OwnershipTest(unittest.TestCase):
                         raise AssertionError('UI takeover did not finish.')
                     return original(revision, characters)
                 app.deliver = delayed
-                worker = threading.Thread(target=app.tick)
-                worker.start()
                 try:
-                    self.assertTrue(prepared.wait(2))
-                    self.assertEqual(self.controller.send_note(message())[0], 200)
-                    attempts = self.gateway.send.call_count
+                    with background_task(app.tick):
+                        try:
+                            self.assertTrue(prepared.wait(2))
+                            self.assertEqual(self.controller.send_note(message())[0], 200)
+                            attempts = self.gateway.send.call_count
+                        finally:
+                            release.set()
                 finally:
-                    release.set()
-                    worker.join(2)
                     app.deliver = original
-                self.assertFalse(worker.is_alive())
                 self.assertEqual(self.gateway.send.call_count, attempts)
                 self.assertEqual(app.status()['delivery']['status'], 'idle')
 
@@ -214,26 +250,19 @@ class OwnershipTest(unittest.TestCase):
                 raise AssertionError('Cloud send did not finish.')
             return 200, {'accepted': True}
         self.gateway.send.side_effect = slow_send
-        worker = threading.Thread(target=self.nfl.tick)
         results = []
         def ui():
             requested.set()
             results.append(self.timer.command({'action': 'start', 'focusMinutes': 25, 'breakMinutes': 5}))
             finished.set()
-        control = threading.Thread(target=ui)
-        worker.start()
-        try:
+        with background_task(self.nfl.tick):
             self.assertTrue(sending.wait(2))
-            control.start()
-            self.assertTrue(requested.wait(2))
-            self.assertFalse(finished.wait(.05))
-        finally:
-            release.set()
-            worker.join(2)
-            if control.ident:
-                control.join(2)
-        self.assertFalse(worker.is_alive())
-        self.assertFalse(control.is_alive())
+            with background_task(ui):
+                try:
+                    self.assertTrue(requested.wait(2))
+                    self.assertFalse(finished.wait(.05))
+                finally:
+                    release.set()
         self.assertEqual(results[0][0], 200)
         self.assertEqual(self.nfl.status()['state'], 'stopped')
         self.assertEqual(self.timer.status()['state'], 'running')

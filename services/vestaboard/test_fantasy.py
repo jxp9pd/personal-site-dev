@@ -1,38 +1,11 @@
 import copy
 import json
-import threading
 import unittest
-from unittest.mock import Mock
 
-from apps import BoardController
 from board import text_row, valid_characters
-from fantasy import (ALERT_SECONDS, DEFAULT_LEAGUES, Fantasy, SleeperSource, SourceError,
+from fantasy import (ALERT_SECONDS, DEFAULT_LEAGUES, SleeperSource, SourceError,
                      league_settings, play_alert, rounded_score, score_frame)
-from test_helpers import Response
-
-
-STATE = {'week': 5, 'season': '2026', 'season_type': 'regular'}
-
-
-def matchup(points=123.45, starters=None):
-    return {'week': 5, 'season': '2026', 'leagueName': 'League',
-            'you': {'rosterId': 1, 'name': 'Your team', 'points': points},
-            'opponent': {'rosterId': 2, 'name': 'Their team', 'points': 119.4},
-            'starters': starters or ['receiver', 'runner'], 'winChance': None}
-
-
-def play(play_id='one', timestamp=1001, yards=24, kind='PassCompleted', td=False, player_id='receiver'):
-    stats = {'rec': 1, 'rec_yd': yards, 'rec_td': int(td)} if kind == 'PassCompleted' else {
-        'rush_att': 1, 'rush_yd': yards, 'rush_td': int(td)}
-    return {'play_id': play_id, 'game_id': 'game', 'time': timestamp * 1000,
-            'metadata': {'type': kind, 'yards_gained': yards, 'is_scoring_play': td,
-                         'description': 'TOUCHDOWN.' if td else 'A long play.', 'fantasy_description': 'Play detail'},
-            'play_stats': [{'player_id': player_id, 'stats': stats}]}
-
-
-def player(player_id):
-    return {'name': {'receiver': 'CeeDee Lamb', 'runner': 'Bucky Irving', 'qb': 'Dak Prescott'}.get(player_id, player_id),
-            'lastName': {'receiver': 'Lamb', 'runner': 'Irving', 'qb': 'Prescott'}.get(player_id, player_id)}
+from test_helpers import AppTestCase, Response, STATE, matchup, play, player
 
 
 class EncodingTest(unittest.TestCase):
@@ -163,28 +136,17 @@ class SourceTest(unittest.TestCase):
         self.assertEqual(self.source.plays(STATE)[0]['play_id'], 'one')
 
 
-class SessionTest(unittest.TestCase):
+class SessionTest(AppTestCase):
     def setUp(self):
-        self.now, self.wall = 0, 1000
-        self.gateway = Mock(token='test-token')
-        self.gateway.status.return_value = {'retryAfter': 0}
-        self.gateway.send.return_value = (200, {'accepted': True})
-        self.source = Mock()
-        self.source.state.return_value = STATE.copy()
-        self.source.matchup.return_value = matchup()
-        self.source.plays.return_value = []
-        self.source.player.side_effect = player
-        self.session = Fantasy(BoardController(self.gateway), self.source, lambda: self.now, lambda: self.wall)
+        super().setUp()
+        self.app = self.session = self.fantasy
 
     def start(self):
         self.assertEqual(self.session.command({'action': 'start', 'leagues': DEFAULT_LEAGUES})[0], 200)
         self.session.tick()
 
-    def tick(self, now):
-        self.now, self.wall = now, 1000 + now
-        self.session.tick()
-
-    def test_opening_or_previewing_never_sends(self):
+    def test_opening_or_previewing_without_a_token_never_sends(self):
+        self.gateway.token = ''
         self.session.status()
         self.session.tick()
         self.assertIsNotNone(self.session.status()['leagues'][0]['matchup'])
@@ -196,24 +158,24 @@ class SessionTest(unittest.TestCase):
     def test_changed_scores_only_and_background_polling_without_browser(self):
         self.start()
         for now in (1, 15, 30):
-            self.tick(now)
+            self.tick_at(now)
         self.gateway.send.assert_called_once()
         self.source.matchup.return_value = matchup(124.6)
-        self.tick(45)
+        self.tick_at(45)
         self.assertEqual(self.gateway.send.call_count, 2)
         self.assertEqual(self.gateway.send.call_args.args[0][0], text_row('TD 125 - 119'))
 
     def test_alerts_queue_chronologically_and_hold_thirty_seconds_each(self):
         self.start()
         self.source.plays.return_value = [play('second', 1010), play('first', 1001)]
-        self.tick(15)
+        self.tick_at(15)
         self.assertEqual(self.session.status()['alert']['id'], 'first')
         self.assertEqual(self.session.status()['queuedAlerts'], 1)
-        self.tick(44)
+        self.tick_at(44)
         self.assertEqual(self.session.status()['alert']['id'], 'first')
-        self.tick(45)
+        self.tick_at(45)
         self.assertEqual(self.session.status()['alert']['id'], 'second')
-        self.tick(75)
+        self.tick_at(75)
         self.assertIsNone(self.session.status()['alert'])
         self.assertEqual(self.gateway.send.call_count, 4)  # scores, two identical-looking alerts, scores
         self.assertEqual(self.session.status()['characters'][0], text_row('TD 123 - 119'))
@@ -222,35 +184,30 @@ class SessionTest(unittest.TestCase):
         self.start()
         self.gateway.status.return_value = {'retryAfter': 1}
         self.source.plays.return_value = [play()]
-        self.tick(15)
+        self.tick_at(15)
         self.assertIsNone(self.session.status()['alertSecondsRemaining'])
         self.gateway.status.return_value = {'retryAfter': 0}
-        self.tick(25)
-        self.assertEqual(self.session.status()['alertSecondsRemaining'], ALERT_SECONDS)
-        self.tick(54)
-        self.assertIsNotNone(self.session.status()['alert'])
-        self.tick(55)
-        self.assertIsNone(self.session.status()['alert'])
-
-    def test_definite_rate_limit_retries_but_ambiguous_timeout_does_not(self):
-        self.start()
         self.gateway.send.return_value = (429, {'retryAfter': 15})
-        self.source.plays.return_value = [play()]
-        self.tick(15)
+        self.tick_at(25)
         self.assertEqual(self.session.status()['delivery']['status'], 'pending')
+        self.assertIsNone(self.session.status()['alertSecondsRemaining'])
         self.gateway.send.return_value = (504, {'error': 'May have sent.'})
-        self.tick(16)
+        self.tick_at(26)
         attempts = self.gateway.send.call_count
-        self.tick(30)
-        self.assertEqual(self.gateway.send.call_count, attempts)
+        self.assertEqual(self.session.status()['alertSecondsRemaining'], ALERT_SECONDS)
         self.assertEqual(self.session.status()['delivery']['status'], 'error')
-        self.tick(46)
+        self.tick_at(55)
+        self.assertIsNotNone(self.session.status()['alert'])
+        self.assertEqual(self.gateway.send.call_count, attempts)
+        self.gateway.send.return_value = (200, {'accepted': True})
+        self.tick_at(56)
+        self.assertIsNone(self.session.status()['alert'])
         self.assertEqual(self.gateway.send.call_count, attempts + 1)
 
     def test_historical_events_duplicates_and_other_players_do_not_alert(self):
         self.source.plays.return_value = [play('old', 999), play('other', player_id='bench')]
         self.start()
-        self.tick(15)
+        self.tick_at(15)
         self.assertIsNone(self.session.status()['alert'])
         self.gateway.send.assert_called_once()
 
@@ -258,66 +215,36 @@ class SessionTest(unittest.TestCase):
         self.start()
         self.source.matchup.side_effect = SourceError('Temporary outage.')
         self.source.plays.return_value = [play()]
-        self.tick(15)
+        self.tick_at(15)
         self.assertEqual(self.session.status()['leagues'][0]['matchup']['you']['points'], 123.45)
         self.assertIsNone(self.session.status()['alert'])
         self.source.matchup.side_effect = None
-        self.tick(30)
+        self.tick_at(30)
         self.assertEqual(self.session.status()['alert']['id'], 'one')
         self.assertIsNone(self.session.status()['leagues'][0]['error'])
-
-    def test_stop_discards_queue_and_late_fetch_without_a_board_write(self):
-        self.start()
-        def plays_during_stop(state):
-            self.session.command({'action': 'stop'})
-            return [play()]
-        self.source.plays.side_effect = plays_during_stop
-        self.tick(15)
-        self.assertEqual(self.session.status()['state'], 'stopped')
-        self.assertIsNone(self.session.status()['alert'])
-        self.assertEqual(self.session.status()['queuedAlerts'], 0)
-        self.tick(100)
-        self.gateway.send.assert_called_once()
 
     def test_stop_clears_current_alert_and_pending_queue(self):
         self.start()
         self.source.plays.return_value = [play('one'), play('two', 1002)]
-        self.tick(15)
+        self.tick_at(15)
         attempts = self.gateway.send.call_count
         self.session.command({'action': 'stop'})
-        self.tick(100)
+        self.tick_at(100)
         self.assertEqual(self.gateway.send.call_count, attempts)
+        self.assertIsNone(self.session.status()['alert'])
         self.assertEqual(self.session.status()['queuedAlerts'], 0)
 
     def test_rollover_discards_last_weeks_alerts_and_scores(self):
         self.start()
         self.source.plays.return_value = [play('one'), play('two', 1002)]
-        self.tick(15)
+        self.tick_at(15)
         self.source.state.return_value = dict(STATE, week=6)
         self.source.matchup.return_value = dict(matchup(0), week=6)
         self.source.plays.return_value = []
-        self.tick(30)
+        self.tick_at(30)
         self.assertIsNone(self.session.status()['alert'])
         self.assertEqual(self.session.status()['queuedAlerts'], 0)
         self.assertEqual(self.session.status()['week'], 6)
-
-    def test_no_board_token_allows_preview_but_not_tracking(self):
-        self.gateway.token = ''
-        self.assertEqual(self.session.command({'action': 'start', 'leagues': DEFAULT_LEAGUES})[0], 503)
-        self.assertEqual(self.session.command({'action': 'preview', 'leagues': DEFAULT_LEAGUES})[0], 200)
-        self.session.tick()
-        self.gateway.send.assert_not_called()
-
-    def test_worker_runs_without_any_status_requests(self):
-        sent = threading.Event()
-        self.gateway.send.side_effect = lambda chars: (sent.set() or 200, {'accepted': True})
-        self.session.start_worker()
-        try:
-            self.session.command({'action': 'start', 'leagues': DEFAULT_LEAGUES})
-            self.assertTrue(sent.wait(2))
-        finally:
-            self.session.close()
-        self.assertFalse(self.session.worker.is_alive())
 
 
 if __name__ == '__main__':

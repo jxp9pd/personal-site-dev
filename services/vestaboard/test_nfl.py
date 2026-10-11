@@ -1,32 +1,10 @@
 import json
-import threading
 import unittest
 from unittest.mock import Mock
 
-from apps import BoardController
 from board import text_row
-from nfl import NFL, NFLSource, normalize_game
-from test_helpers import Response
-
-
-def event(state='live', away_score='21', home_score='17', possession='25'):
-    status = {'scheduled': ('STATUS_SCHEDULED', 'pre', False),
-              'live': ('STATUS_IN_PROGRESS', 'in', False),
-              'final': ('STATUS_FINAL', 'post', True),
-              'halftime': ('STATUS_HALFTIME', 'in', False),
-              'delayed': ('STATUS_DELAYED', 'pre', False)}[state]
-    return {'id': '401000001', 'date': '2026-10-13T00:15Z',
-            'status': {'type': dict(zip(('name', 'state', 'completed'), status))},
-            'competitions': [{'competitors': [
-                {'homeAway': 'home', 'score': home_score, 'team': {
-                    'id': '26', 'abbreviation': 'SEA', 'displayName': 'Seattle Seahawks'}},
-                {'homeAway': 'away', 'score': away_score, 'team': {
-                    'id': '25', 'abbreviation': 'SF', 'displayName': 'San Francisco 49ers'}}],
-                'situation': {'possession': possession}}]}
-
-
-def game(**kwargs):
-    return normalize_game(event(**kwargs))
+from nfl import NFLSource, normalize_game
+from test_helpers import AppTestCase, Response, event, game
 
 
 class SourceTest(unittest.TestCase):
@@ -85,27 +63,13 @@ class SourceTest(unittest.TestCase):
                     source.games()
 
 
-class NFLTest(unittest.TestCase):
+class NFLTest(AppTestCase):
     def setUp(self):
-        self.now = 0
-        self.gateway = Mock(token='test-token')
-        self.gateway.status.return_value = {'retryAfter': 0}
-        self.gateway.send.return_value = (200, {'accepted': True})
-        self.fetch = Mock(return_value=[game()])
-        self.app = NFL(BoardController(self.gateway), self.fetch, lambda: self.now, lambda: 1_791_850_000 + self.now)
-        self.app.status()
-        self.app.tick()  # Load the picker, without starting board writes.
-
-    @property
-    def frames(self):
-        return [call.args[0] for call in self.gateway.send.call_args_list]
+        super().setUp()
+        self.app = self.nfl
 
     def track(self):
         return self.app.command({'action': 'track', 'gameId': '401000001'})
-
-    def tick_at(self, now):
-        self.now = now
-        self.app.tick()
 
     def test_track_queues_without_writing_then_polls_every_three_minutes_for_changed_frames(self):
         self.assertEqual(self.app.status()['state'], 'idle')
@@ -197,19 +161,6 @@ class NFLTest(unittest.TestCase):
         self.assertIsNone(self.app.status()['source']['error'])
         self.assertEqual(len(self.frames), 2)
 
-    def test_ambiguous_cloud_failure_is_not_retried_for_unchanged_frame(self):
-        self.track()
-        self.gateway.send.return_value = (504, {'error': 'Delivery unconfirmed.'})
-        self.app.tick()
-        self.tick_at(180)
-        self.tick_at(360)
-        self.assertEqual(len(self.frames), 1)
-        self.assertEqual(self.app.status()['delivery']['status'], 'error')
-        self.fetch.return_value = [game(possession='26')]
-        self.gateway.send.return_value = (200, {'accepted': True})
-        self.tick_at(540)
-        self.assertEqual(len(self.frames), 2)
-
     def test_rate_limited_sends_coalesce_to_the_latest_frame(self):
         self.track()
         self.gateway.send.return_value = (429, {'retryAfter': 600})
@@ -256,16 +207,6 @@ class NFLTest(unittest.TestCase):
         self.assertEqual(self.app.status()['games'][0]['id'], '401000002')
         self.assertEqual(self.frames, [])
 
-    def test_stop_during_a_feed_request_cannot_resume_tracking_or_send_old_data(self):
-        self.track()
-        def fetch(*args):
-            self.app.command({'action': 'stop'})
-            return [game(away_score='28')]
-        self.fetch.side_effect = fetch
-        self.tick_at(180)
-        self.assertEqual(self.app.state, 'stopped')
-        self.assertEqual(self.frames, [])
-
     def test_track_during_a_picker_refresh_uses_fresh_scores_from_that_request(self):
         def fetch(*args):
             self.track()
@@ -277,28 +218,13 @@ class NFLTest(unittest.TestCase):
         self.assertEqual(self.app.game['away']['score'], 28)
         self.assertEqual(self.frames, [game(away_score='28')['characters']])
 
-    def test_controls_reject_invalid_ids_ended_games_and_unconfigured_board(self):
-        for body in ([], None, {}, {'action': 'pause'}, {'action': 'track', 'gameId': 401000001},
+    def test_controls_reject_invalid_ids_and_ended_games(self):
+        for body in ({'action': 'track', 'gameId': 401000001},
                      {'action': 'track', 'gameId': 'https://example.com'}):
             self.assertEqual(self.app.command(body)[0], 400)
         self.assertEqual(self.app.command({'action': 'track', 'gameId': '999'})[0], 409)
-        self.gateway.token = ''
-        self.assertEqual(self.track()[0], 503)
-        self.assertEqual(self.frames, [])
-        self.gateway.token = 'test-token'
         self.app.games = [game(state='final')]
         self.assertEqual(self.track()[0], 409)
-
-    def test_background_worker_tracks_without_browser_status_requests(self):
-        sent = threading.Event()
-        self.gateway.send.side_effect = lambda frame: (sent.set() or (200, {'accepted': True}))
-        self.track()
-        self.app.start_worker()
-        try:
-            self.assertTrue(sent.wait(2))
-        finally:
-            self.app.close()
-        self.assertFalse(self.app.worker.is_alive())
 
 
 if __name__ == '__main__':

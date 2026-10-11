@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { loadBoardPage, pomodoroState as snapshot, reply } from './helpers/vestaboard.js';
+import { loadBoardPage, postBodies, pomodoroState as snapshot, reply } from './helpers/vestaboard.js';
 
 const $ = id => document.getElementById(id);
 const start = (initial = {}) => loadBoardPage('pomodoro', initial);
@@ -36,9 +36,9 @@ describe('Pomodoro controls and live countdown', () => {
     submit();
     submit();
     await vi.advanceTimersByTimeAsync(0);
-    const writes = fetch.mock.calls.filter(([, options]) => options.method === 'POST');
+    const writes = postBodies(fetch);
     expect(writes).toHaveLength(1);
-    expect(JSON.parse(writes[0][1].body)).toEqual({ action: 'start', focusMinutes: 50, breakMinutes: 10 });
+    expect(writes[0]).toEqual({ action: 'start', focusMinutes: 50, breakMinutes: 10 });
     expect($('durations').disabled).toBe(true);
     expect($('start').hidden).toBe(true);
     expect($('active-controls').hidden).toBe(false);
@@ -69,7 +69,7 @@ describe('Pomodoro controls and live countdown', () => {
     fetch.mockResolvedValue(reply(snapshot({ state: 'stopped', phase: 'break', remainingSeconds: 0 })));
     $('stop').click();
     await vi.advanceTimersByTimeAsync(0);
-    const actions = fetch.mock.calls.filter(([, options]) => options.method === 'POST').map(([, options]) => JSON.parse(options.body).action);
+    const actions = postBodies(fetch).map(body => body.action);
     expect(actions).toEqual(['resume', 'stop']);
     expect($('start').hidden).toBe(false);
     expect($('durations').disabled).toBe(false);
@@ -90,44 +90,5 @@ describe('Pomodoro controls and live countdown', () => {
     expect($('phase-label').textContent).toBe('Done');
     expect($('active-controls').hidden).toBe(true);
     expect(fetch.mock.calls.every(([, options]) => !options.method)).toBe(true);
-  });
-
-  it('ignores a stale poll that finishes after a pause command', async () => {
-    const fetch = await start({ state: 'running' });
-    let resolvePoll;
-    fetch.mockImplementationOnce(() => new Promise(resolve => { resolvePoll = resolve; }));
-    await vi.advanceTimersByTimeAsync(5000);
-    fetch.mockResolvedValue(reply(snapshot({ state: 'paused', remainingSeconds: 1495 })));
-    $('pause').click();
-    await vi.advanceTimersByTimeAsync(0);
-    resolvePoll(reply(snapshot({ state: 'running' })));
-    await vi.advanceTimersByTimeAsync(0);
-    expect($('phase-label').textContent).toBe('Focus paused');
-    expect($('pause').textContent).toBe('Resume');
-  });
-
-  it('reconciles a lost command response without automatically repeating it', async () => {
-    const fetch = await start();
-    fetch.mockRejectedValueOnce(new TypeError('offline'));
-    fetch.mockResolvedValue(reply(snapshot({ state: 'running', delivery: { status: 'error', error: 'Check the board before retrying.' } })));
-    submit();
-    await vi.advanceTimersByTimeAsync(0);
-    expect($('feedback').textContent).toContain('may have applied');
-    expect($('phase-label').textContent).toBe('Focus');
-    expect($('delivery').dataset.error).toBe('true');
-    expect($('delivery').textContent).toBe('Check the board before retrying.');
-    expect(fetch.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(1);
-  });
-
-  it('disables controls during an outage and recovers on the next status check', async () => {
-    const fetch = await start({ state: 'running', remainingSeconds: 100 });
-    fetch.mockRejectedValueOnce(new TypeError('offline'));
-    await vi.advanceTimersByTimeAsync(5000);
-    expect($('stop').disabled).toBe(true);
-    expect($('delivery').textContent).toContain('Reconnecting');
-    fetch.mockResolvedValue(reply(snapshot({ state: 'paused', remainingSeconds: 95 })));
-    await vi.advanceTimersByTimeAsync(5000);
-    expect($('stop').disabled).toBe(false);
-    expect($('pause').textContent).toBe('Resume');
   });
 });

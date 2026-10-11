@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { loadBoardPage, nflGame, nflState, reply } from './helpers/vestaboard.js';
+import { loadBoardPage, postBodies, nflGame, nflState, reply } from './helpers/vestaboard.js';
 
 const $ = id => document.getElementById(id);
 const submit = () => $('game-form').dispatchEvent(new Event('submit', { cancelable: true }));
@@ -24,9 +24,9 @@ describe('NFL game selection and shared tracking', () => {
     submit();
     submit();
     await vi.advanceTimersByTimeAsync(0);
-    const writes = fetch.mock.calls.filter(([, options]) => options.method === 'POST');
+    const writes = postBodies(fetch);
     expect(writes).toHaveLength(1);
-    expect(JSON.parse(writes[0][1].body)).toEqual({ action: 'track', gameId: '401000001' });
+    expect(writes[0]).toEqual({ action: 'track', gameId: '401000001' });
     expect($('stop').hidden).toBe(false);
     expect($('track').disabled).toBe(true);
     expect($('preview-title').textContent).toBe('Tracking');
@@ -64,42 +64,8 @@ describe('NFL game selection and shared tracking', () => {
     expect($('track').disabled).toBe(true);
   });
 
-  it('stops once without a replacement message and ignores an older tracking poll', async () => {
-    const fetch = await loadBoardPage('nfl', { state: 'tracking', game: nflGame() });
-    let resolvePoll;
-    fetch.mockImplementationOnce(() => new Promise(resolve => { resolvePoll = resolve; }));
-    await vi.advanceTimersByTimeAsync(5000);
-    fetch.mockResolvedValue(reply(nflState({ state: 'stopped', game: nflGame() })));
-    $('stop').click();
-    await vi.advanceTimersByTimeAsync(0);
-    const writes = fetch.mock.calls.filter(([, options]) => options.method === 'POST');
-    expect(writes).toHaveLength(1);
-    expect(JSON.parse(writes[0][1].body)).toEqual({ action: 'stop' });
-    expect($('stop').hidden).toBe(true);
-    expect($('tracking-status').textContent).toBe('Stopped');
-    resolvePoll(reply(nflState({ state: 'tracking', game: nflGame() })));
-    await vi.advanceTimersByTimeAsync(0);
-    expect($('stop').hidden).toBe(true);
-    expect($('tracking-status').textContent).toBe('Stopped');
-  });
-
-  it('reconciles a lost command response without repeating Track', async () => {
+  it('updates the picker when the refreshed schedule is empty', async () => {
     const fetch = await loadBoardPage('nfl');
-    fetch.mockRejectedValueOnce(new TypeError('offline'));
-    fetch.mockResolvedValue(reply(nflState({ state: 'tracking', game: nflGame() })));
-    submit();
-    await vi.advanceTimersByTimeAsync(0);
-    expect($('feedback').textContent).toContain('may have applied');
-    expect($('stop').hidden).toBe(false);
-    expect(fetch.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(1);
-  });
-
-  it('recovers from browser outages and handles an empty schedule', async () => {
-    const fetch = await loadBoardPage('nfl');
-    fetch.mockRejectedValueOnce(new TypeError('offline'));
-    await vi.advanceTimersByTimeAsync(5000);
-    expect($('track').disabled).toBe(true);
-    expect($('delivery').textContent).toContain('Reconnecting');
     fetch.mockResolvedValue(reply(nflState({ games: [] })));
     await vi.advanceTimersByTimeAsync(5000);
     expect(document.querySelectorAll('[data-game-id]')).toHaveLength(0);

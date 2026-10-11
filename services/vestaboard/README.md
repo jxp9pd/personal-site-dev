@@ -359,15 +359,23 @@ simultaneous sends, upstream failures, secret isolation, and rate limiting.
 Pomodoro tests also cover background execution, exact pause/resume timing,
 single-session completion, stable messages, phase-specific update intervals,
 delayed/rate-limited delivery, and browser reconnection/races. `test_apps.py`
-covers every app-to-app handoff, silent cancellation, stale frames, in-flight
-sends and sports fetches, and precedence inherited by a new app.
+parameterizes worker startup, missing credentials, and delivery policy across
+all background apps. It also covers every app-to-app handoff, silent cancellation,
+stale frames, in-flight sends and sports fetches, and precedence inherited by a
+new app. `test_helpers.py` owns fresh sports fixtures, the shared app setup and
+clock, and race-test thread cleanup that propagates worker exceptions.
 
 Cloud transport is tested in `test_board.py`; common HTTP validation and shared
-note/timer delivery are tested in `test_server.py`. `test_pomodoro.py` uses a
-fake gateway to focus on scheduling rather than repeat cloud contract tests.
+note/timer delivery are tested in `test_server.py`. The app routes share one
+parameterized command/status check. Feature suites retain their scheduling,
+feed parsing, rollover, rendering, and alert queue behavior.
+
 Browser request errors are covered once in `vestaboard-api.test.js`; connection
-checks use the same parameterized scenario for all three pages. Page-specific tests
-retain their distinct interactions and timer synchronization checks.
+checks use the same parameterized scenario for all four pages.
+`vestaboard-session-ui.test.js` covers stale polls, uncertain command responses,
+and outage recovery across Pomodoro, NFL, and Fantasy. All pages use the fixtures
+and cleanup in `tests/helpers/vestaboard.js`. Page-specific suites retain their
+distinct form validation, command payloads, previews, and countdown behavior.
 
 Official documentation checked October 7, 2026:
 - https://docs.vestaboard.com/docs/read-write-api/authentication

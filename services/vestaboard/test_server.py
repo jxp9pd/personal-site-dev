@@ -1,35 +1,26 @@
 import json
 import threading
 import unittest
-from unittest.mock import Mock
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer
 
-from apps import BoardController
 from board import BoardGateway
-from fantasy import DEFAULT_LEAGUES, Fantasy
-from nfl import NFL
-from pomodoro import Pomodoro
+from fantasy import DEFAULT_LEAGUES
 from server import handler_for
-from test_helpers import Response, message
-from test_nfl import game
+from test_helpers import AppTestCase, Response, message
 
 
-class HttpTest(unittest.TestCase):
-    def setUp(self):
-        self.now = 0
+class HttpTest(AppTestCase):
+    def make_gateway(self):
         self.forwarded = []
         def upstream(request, **kwargs):
             self.forwarded.append(json.loads(request.data))
             return Response(b'{"status":"ok"}')
-        gateway = BoardGateway('test-token', upstream, lambda: self.now)
-        self.controller = BoardController(gateway)
-        self.timer = Pomodoro(self.controller, lambda: self.now)
-        self.fantasy = Fantasy(self.controller, Mock(), lambda: self.now)
-        self.nfl = NFL(self.controller, lambda *args: [game()], lambda: self.now)
-        self.nfl.status()
-        self.nfl.tick()
+        return BoardGateway('test-token', upstream, lambda: self.now)
+
+    def setUp(self):
+        super().setUp()
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), handler_for(
             self.controller, {'https://jpentakalos.com'}, pomodoro=self.timer, nfl=self.nfl, fantasy=self.fantasy))
         self.thread = threading.Thread(target=self.server.serve_forever)
@@ -91,65 +82,38 @@ class HttpTest(unittest.TestCase):
         self.timer.tick()
         self.assertEqual(len(self.forwarded), 2)
         self.assertEqual(self.request(body)[0], 429)  # And vice versa.
-        self.now = 299
+        self.now = 30
         self.assertEqual(self.request(body)[0], 200)  # A note can replace an active timer.
-        self.now = 300
-        self.timer.tick()
-        self.assertEqual(self.forwarded[-1], {'characters': message()})
-        self.now = 314
-        self.timer.tick()
-        self.assertEqual(self.forwarded[-1], {'characters': message()})
         self.now = 10000
         self.timer.tick()
         self.assertEqual(self.timer.status()['state'], 'stopped')
         self.assertEqual(self.timer.status()['delivery']['status'], 'idle')
         self.assertEqual(len(self.forwarded), 3)
 
-    def test_pomodoro_commands_update_shared_state_without_synchronous_board_writes(self):
-        path = '/api/vestaboard/pomodoro'
-        for action, state in (('start', 'running'), ('pause', 'paused'), ('resume', 'running'), ('stop', 'stopped')):
-            body = {'action': action, 'focusMinutes': 25, 'breakMinutes': 5}
-            status, _, raw = self.request(json.dumps(body).encode(), path=path)
-            self.assertEqual(status, 200)
-            self.assertEqual(json.loads(raw)['state'], state)
-            self.assertEqual(json.loads(self.request(path=path)[2])['state'], state)
-        self.assertEqual(self.forwarded, [])
+    def test_all_app_routes_return_shared_state_and_queue_without_cloud_writes(self):
+        cases = (
+            ('pomodoro', [('start', 'running'), ('pause', 'paused'), ('resume', 'running'), ('stop', 'stopped')],
+             {'focusMinutes': 25, 'breakMinutes': 5}),
+            ('nfl', [('track', 'tracking'), ('stop', 'stopped')], {'gameId': '401000001'}),
+            ('fantasy', [('preview', 'idle'), ('start', 'tracking'), ('stop', 'stopped')], {'leagues': DEFAULT_LEAGUES}),
+        )
+        for app, commands, settings in cases:
+            path = '/api/vestaboard/' + app
+            other = self.nfl if app == 'pomodoro' else self.timer
+            self.assertEqual(self.start_app(other)[0], 200)
+            for action, state in commands:
+                with self.subTest(app=app, action=action):
+                    status, _, raw = self.request(json.dumps(dict(settings, action=action)).encode(), path=path)
+                    self.assertEqual(status, 200)
+                    self.assertEqual(json.loads(raw)['state'], state)
+                    self.assertEqual(json.loads(self.request(path=path)[2])['state'], state)
+                    if action in ('start', 'track'):
+                        self.assertEqual(other.status()['state'], 'stopped')
+                    self.assertEqual(self.forwarded, [])
 
     def test_production_does_not_serve_local_files(self):
         self.assertEqual(self.request(path='/server.py')[0], 404)
         self.assertEqual(self.request(path='/server.py', method='HEAD')[0], 405)
-
-    def test_nfl_routes_track_and_stop_using_the_same_board_cooldown(self):
-        path = '/api/vestaboard/nfl'
-        status, _, raw = self.request(b'{"action":"track","gameId":"401000001"}', path=path)
-        self.assertEqual(status, 200)
-        self.assertEqual(json.loads(raw)['state'], 'tracking')
-        self.assertEqual(self.forwarded, [])
-        self.assertEqual(self.request(json.dumps({'characters': message()}).encode())[0], 200)
-        self.nfl.tick()
-        self.assertEqual(len(self.forwarded), 1)
-        self.now = 15
-        self.nfl.tick()
-        self.assertEqual(len(self.forwarded), 1)
-        self.assertEqual(self.request(b'{"action":"stop"}', path=path)[0], 409)
-        self.assertEqual(json.loads(self.request(path=path)[2])['state'], 'stopped')
-
-    def test_fantasy_controls_take_over_from_other_apps(self):
-        self.timer.command({'action': 'start', 'focusMinutes': 25, 'breakMinutes': 5})
-        self.nfl.command({'action': 'track', 'gameId': '401000001'})
-        path = '/api/vestaboard/fantasy'
-        body = {'action': 'start', 'leagues': DEFAULT_LEAGUES}
-        status, _, raw = self.request(json.dumps(body).encode(), path=path)
-        self.assertEqual(status, 200)
-        self.assertEqual(json.loads(raw)['state'], 'tracking')
-        self.assertEqual(self.timer.status()['state'], 'stopped')
-        self.assertEqual(self.nfl.status()['state'], 'stopped')
-        self.assertEqual(self.forwarded, [])
-        self.assertEqual(json.loads(self.request(path=path)[2])['state'], 'tracking')
-        self.assertEqual(self.request(b'{"action":"stop"}', path=path)[0], 200)
-        self.assertEqual(self.timer.status()['state'], 'stopped')
-        self.assertEqual(self.nfl.status()['state'], 'stopped')
-        self.assertEqual(self.forwarded, [])
 
 
 if __name__ == '__main__':

@@ -1,34 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { describe, expect, it, vi } from 'vitest';
+import { fantasyState as snapshot, loadBoardPage, postBodies, reply } from './helpers/vestaboard.js';
 import { layoutMessage } from '../fe-artifacts/assets/js/vestaboard-layout.js';
 
 const $ = id => document.getElementById(id);
-const reply = (data, ok = true) => ({ ok, json: async () => data });
-const snapshot = (overrides = {}) => ({
-  configured: true, state: 'idle', week: 5, season: '2026',
-  leagues: [
-    { url: 'https://sleeper.com/leagues/1399168246661296128', username: 'pentakalos', label: 'TD', error: null,
-      matchup: { leagueName: 'Show Me Your TDs', you: { name: 'Bite me', points: 123.45 },
-        opponent: { name: 'Opponent one', points: 119.4 }, starters: ['1'], winChance: null } },
-    { url: 'https://sleeper.com/leagues/1389707496347697152', username: 'pentakalos', label: 'SH', error: null,
-      matchup: { leagueName: 'Shmeed League', you: { name: 'Ladd & the Lads', points: 98.6 },
-        opponent: { name: 'Opponent two', points: 101.2 }, starters: ['2'], winChance: null } },
-  ],
-  characters: layoutMessage('TD 123 - 119\nSH 99 - 101').characters,
-  source: { lastCheckedAt: '2026-10-09T03:00:00+00:00', playError: null, winChanceAvailable: false },
-  alert: null, queuedAlerts: 0, alertSecondsRemaining: null, delivery: { status: 'idle' }, ...overrides,
-});
-
-async function load(initial = {}) {
-  vi.resetModules();
-  vi.useFakeTimers();
-  document.body.innerHTML = readFileSync('fe-artifacts/tools/fantasy.html', 'utf8');
-  const fetch = vi.fn().mockResolvedValue(reply(snapshot(initial)));
-  vi.stubGlobal('fetch', fetch);
-  await import('../fe-artifacts/assets/js/fantasy.js');
-  await vi.advanceTimersByTimeAsync(0);
-  return fetch;
-}
+const load = (initial = {}) => loadBoardPage('fantasy', initial);
 
 function edit(id, value) {
   $(id).value = value;
@@ -36,13 +11,6 @@ function edit(id, value) {
 }
 
 const submit = () => $('league-form').dispatchEvent(new Event('submit', { cancelable: true }));
-
-afterEach(() => {
-  vi.clearAllTimers();
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
-  document.body.innerHTML = '';
-});
 
 describe('Fantasy matchups and tracking controls', () => {
   it('loads real defaults, rounds scores, and only reads until an explicit command', async () => {
@@ -71,8 +39,7 @@ describe('Fantasy matchups and tracking controls', () => {
     expect($('preview').disabled).toBe(false);
     $('preview').click();
     await vi.advanceTimersByTimeAsync(0);
-    const post = fetch.mock.calls.find(([, options]) => options.method === 'POST');
-    expect(JSON.parse(post[1].body)).toEqual({ action: 'preview', leagues: [
+    expect(postBodies(fetch)[0]).toEqual({ action: 'preview', leagues: [
       { url: 'https://sleeper.com/leagues/123/matchup', username: 'someoneelse', label: 'ABC' },
       { url: 'https://sleeper.com/leagues/1389707496347697152', username: 'pentakalos', label: 'SH' },
     ] });
@@ -96,17 +63,17 @@ describe('Fantasy matchups and tracking controls', () => {
     submit();
     submit();
     await vi.advanceTimersByTimeAsync(0);
-    expect(fetch.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(1);
+    expect(postBodies(fetch)).toHaveLength(1);
     expect($('league-fields').disabled).toBe(true);
     expect($('start').hidden).toBe(true);
     expect($('stop').hidden).toBe(false);
     expect($('delivery').textContent).toBe('Board update queued.');
     submit();
-    expect(fetch.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(1);
+    expect(postBodies(fetch)).toHaveLength(1);
     fetch.mockResolvedValue(reply(snapshot({ state: 'stopped' })));
     $('stop').click();
     await vi.advanceTimersByTimeAsync(0);
-    expect(JSON.parse(fetch.mock.calls.findLast(([, options]) => options.method === 'POST')[1].body)).toEqual({ action: 'stop' });
+    expect(postBodies(fetch).at(-1)).toEqual({ action: 'stop' });
     expect($('league-fields').disabled).toBe(false);
     expect($('tracking-status').textContent).toBe('Stopped');
   });
@@ -132,32 +99,5 @@ describe('Fantasy matchups and tracking controls', () => {
     expect($('source-status').textContent).toContain('Feed unavailable.');
     expect($('matchups').querySelector('img')).toBeNull();
     expect($('matchups').textContent).toContain('<img src=x onerror=alert(1)>');
-  });
-
-  it('reconciles ambiguous starts without repeating the POST', async () => {
-    const fetch = await load();
-    fetch.mockImplementation(async (url, options) => {
-      if (options.method === 'POST') throw new Error('Disconnected');
-      return reply(snapshot({ state: 'tracking' }));
-    });
-    submit();
-    await vi.advanceTimersByTimeAsync(0);
-    expect($('feedback').textContent).toContain('may have applied');
-    expect($('tracking-status').textContent).toBe('Live');
-    expect(fetch.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(1);
-  });
-
-  it('does not let a stale poll overwrite a newer start response', async () => {
-    const fetch = await load();
-    let resolvePoll;
-    fetch.mockImplementation((url, options) => options.method === 'POST'
-      ? Promise.resolve(reply(snapshot({ state: 'tracking' })))
-      : new Promise(resolve => { resolvePoll = resolve; }));
-    await vi.advanceTimersByTimeAsync(5000);
-    submit();
-    await vi.advanceTimersByTimeAsync(0);
-    resolvePoll(reply(snapshot({ state: 'stopped' })));
-    await vi.advanceTimersByTimeAsync(0);
-    expect($('tracking-status').textContent).toBe('Live');
   });
 });

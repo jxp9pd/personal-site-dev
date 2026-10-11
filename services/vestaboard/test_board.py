@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
 from board import BoardGateway, api_token, cloud_tls_context, valid_characters
-from test_helpers import Response, message
+from test_helpers import Response, background_task, message
 
 
 class EnvironmentTest(unittest.TestCase):
@@ -86,14 +86,12 @@ class GatewayTest(unittest.TestCase):
             release.wait(2)
             return Response(b'{"status":"ok"}')
         gateway = BoardGateway('test-token', upstream)
-        worker = threading.Thread(target=lambda: gateway.send(message()))
-        worker.start()
-        self.assertTrue(started.wait(2))
-        try:
-            self.assertEqual(gateway.send(message())[0], 429)
-        finally:
-            release.set()
-            worker.join()
+        with background_task(lambda: gateway.send(message())):
+            try:
+                self.assertTrue(started.wait(2))
+                self.assertEqual(gateway.send(message())[0], 429)
+            finally:
+                release.set()
 
     def test_failures_do_not_claim_success_or_leak_upstream_body(self):
         for raw in (b'{"status":"error","secret":"private"}', b'not json', b'[]'):

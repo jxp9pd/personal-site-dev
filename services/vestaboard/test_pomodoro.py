@@ -1,49 +1,23 @@
-import threading
-import unittest
-from unittest.mock import Mock
 
-from apps import BoardController
 from board import text_row, valid_characters
-from pomodoro import BREAK_MESSAGE, FOCUS_MESSAGES, Pomodoro, board_frame
+from pomodoro import BREAK_MESSAGE, FOCUS_MESSAGES, board_frame
+from test_helpers import AppTestCase
 
 
-class PomodoroTest(unittest.TestCase):
+class PomodoroTest(AppTestCase):
     def setUp(self):
-        self.now = 0
-        self.choose = Mock(return_value='YOU GOT THIS')
-        # Transport, token handling, and cooldown implementation are tested once
-        # in test_board. These tests exercise the scheduler's delivery policy.
-        self.gateway = Mock(token='test-token')
-        self.gateway.status.return_value = {'retryAfter': 0}
-        self.gateway.send.return_value = (200, {'accepted': True})
-        self.timer = Pomodoro(BoardController(self.gateway), lambda: self.now, self.choose)
-
-    @property
-    def frames(self):
-        return [call.args[0] for call in self.gateway.send.call_args_list]
+        super().setUp()
+        self.app = self.timer
 
     def start(self, focus=2, rest=1):
         return self.timer.command({'action': 'start', 'focusMinutes': focus, 'breakMinutes': rest})
 
-    def tick_at(self, now):
-        self.now = now
-        self.timer.tick()
-
-    def test_minutes_and_actions_are_strictly_validated(self):
+    def test_minutes_are_strictly_validated(self):
         for value in (0, 181, True, 1.5, '25', None):
             self.assertEqual(self.start(focus=value)[0], 400, repr(value))
             self.assertEqual(self.start(rest=value)[0], 400, repr(value))
-        for value in ([], None, {}, {'action': 'skip'}):
-            self.assertEqual(self.timer.command(value)[0], 400)
         self.assertEqual(self.start(180, 180)[0], 200)
         self.assertEqual(self.frames, [])  # Commands queue; only the worker sends.
-
-    def test_unconfigured_start_never_schedules_a_session(self):
-        self.gateway.token = ''
-        self.assertEqual(self.start()[0], 503)
-        self.timer.tick()
-        self.assertEqual(self.timer.status()['state'], 'idle')
-        self.assertEqual(self.frames, [])
 
     def test_focus_updates_every_five_minutes_break_every_minute_and_transitions_on_time(self):
         self.start(focus=12, rest=3)
@@ -124,17 +98,6 @@ class PomodoroTest(unittest.TestCase):
         self.assertEqual(self.timer.status()['remainingSeconds'], 180)
         self.assertEqual(self.choose.call_count, 2)
 
-    def test_ambiguous_failure_is_visible_and_never_retried_for_the_same_frame(self):
-        self.start(focus=6)
-        self.gateway.send.return_value = (504, {'error': 'Delivery unconfirmed.'})
-        for second in range(300):
-            self.tick_at(second)
-        self.gateway.send.assert_called_once()
-        self.assertEqual(self.timer.status()['delivery'], {'status': 'error', 'error': 'Delivery unconfirmed.'})
-        self.gateway.send.return_value = (200, {'accepted': True})
-        self.tick_at(300)
-        self.assertEqual(self.timer.status()['delivery']['status'], 'accepted')
-
     def test_deferred_updates_skip_old_frames_without_extending_phase_deadlines(self):
         self.start()
         self.gateway.send.return_value = (429, {'retryAfter': 130})
@@ -151,17 +114,3 @@ class PomodoroTest(unittest.TestCase):
         self.tick_at(10000)
         self.assertEqual(len(self.frames), 3)
         self.assertEqual(self.frames[-1][0], text_row('ALL DONE'))
-
-    def test_actual_background_worker_sends_without_status_requests(self):
-        sent = threading.Event()
-        def send(characters):
-            sent.set()
-            return 200, {'accepted': True}
-        self.gateway.send.side_effect = send
-        self.timer.start_worker()
-        try:
-            self.start()
-            self.assertTrue(sent.wait(2))
-        finally:
-            self.timer.close()
-        self.assertFalse(self.timer.worker.is_alive())
