@@ -10,6 +10,7 @@ install -m 644 history.py /opt/vestaboard-note/history.py
 install -m 644 pomodoro.py /opt/vestaboard-note/pomodoro.py
 install -m 644 nfl.py /opt/vestaboard-note/nfl.py
 install -m 644 fantasy.py /opt/vestaboard-note/fantasy.py
+install -m 644 fantasy_store.py /opt/vestaboard-note/fantasy_store.py
 install -m 644 vestaboard-note.service /etc/systemd/system/vestaboard-note.service
 install -m 644 nginx.conf /etc/nginx/snippets/vestaboard-note.conf
 install -m 644 cloudflare-real-ip.conf /etc/nginx/snippets/vestaboard-cloudflare-real-ip.conf

@@ -100,4 +100,24 @@ describe('Fantasy matchups and tracking controls', () => {
     expect($('matchups').querySelector('img')).toBeNull();
     expect($('matchups').textContent).toContain('<img src=x onerror=alert(1)>');
   });
+
+  it('waits for saved settings and leaves Stop available when score storage fails', async () => {
+    const fetch = await load({ storage: { enabled: true, ready: false, error: 'Loading saved leagues…' } });
+    expect($('league-fields').disabled).toBe(true);
+    expect($('preview').disabled).toBe(true);
+    expect($('start').disabled).toBe(true);
+    expect($('source-status').textContent).toContain('Loading saved leagues');
+    const restored = snapshot({ storage: { enabled: true, ready: true, error: null } });
+    restored.leagues[0].username = 'saveduser';
+    fetch.mockResolvedValue(reply(restored));
+    await vi.advanceTimersByTimeAsync(5000);
+    expect($('username-1').value).toBe('saveduser');
+    expect($('start').disabled).toBe(false);
+    fetch.mockResolvedValue(reply(snapshot({ state: 'tracking',
+      storage: { enabled: true, ready: true, error: 'Latest scores could not be saved. Retrying shortly.' },
+    })));
+    await vi.advanceTimersByTimeAsync(5000);
+    expect($('stop').disabled).toBe(false);
+    expect($('source-status').textContent).toContain('could not be saved');
+  });
 });

@@ -59,13 +59,14 @@ function renderMatchups() {
 }
 
 function render() {
+  const storageReady = session?.storage?.ready !== false;
   $('preview-title').textContent = session?.alert ? 'Big Play' : 'Scores';
   $('tracking-status').dataset.active = String(!!active());
   $('tracking-status').textContent = active() ? 'Live' : session?.state === 'stopped' ? 'Stopped' : 'Ready';
-  $('league-fields').disabled = busy || !!active();
+  $('league-fields').disabled = busy || !!active() || !storageReady;
   $('preview').hidden = $('start').hidden = !!active();
-  $('preview').disabled = busy || !connected || !valid();
-  $('start').disabled = busy || !connected || !session?.configured || !valid();
+  $('preview').disabled = busy || !connected || !storageReady || !valid();
+  $('start').disabled = busy || !connected || !storageReady || !session?.configured || !valid();
   $('stop').hidden = !active();
   $('stop').disabled = busy || !connected;
   $('reconnect').hidden = connected;
@@ -88,6 +89,7 @@ function render() {
   $('source-status').textContent = [...new Set([
     ...(session?.leagues || []).filter(league => league.error).map(league => `${league.label}: ${league.error}`),
     session?.source.playError,
+    session?.storage?.error,
   ].filter(Boolean))].join(' ');
   $('updated').textContent = $('source-status').textContent && session?.source.lastCheckedAt
     ? `Checked ${checked.format(new Date(session.source.lastCheckedAt))}` : '';

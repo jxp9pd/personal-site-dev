@@ -11,9 +11,11 @@ import unicodedata
 from urllib.error import HTTPError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
+from uuid import UUID
 
 from board import BLANK, CODES, GREEN, text_row
 from apps import BoardApp
+from fantasy_store import StorageUnavailable
 
 POLL_SECONDS = 15
 ALERT_SECONDS = 30
@@ -67,6 +69,44 @@ def league_settings(value):
 def board_text(value):
     text = unicodedata.normalize('NFKD', str(value)).encode('ascii', 'ignore').decode().upper()
     return ''.join(char for char in text if char in CODES).strip()
+
+
+def saved_dashboard(record):
+    """Validate stored data before it can replace the live dashboard."""
+    if not isinstance(record.get('config_version'), str):
+        raise ValueError('Invalid saved version.')
+    configs = league_settings(record['leagues'])
+    version = str(UUID(record['config_version']))
+    week, season, matchups = record['week'], record['season'], record['matchups']
+    if week is None:
+        if season is not None or matchups != [None, None] or record['last_checked_at'] is not None:
+            raise ValueError('Invalid saved week.')
+    elif (type(week) is not int or not 1 <= week <= 18 or not isinstance(season, str)
+          or not re.fullmatch(r'[0-9]{4}', season)):
+        raise ValueError('Invalid saved week.')
+    if not isinstance(matchups, list) or len(matchups) != 2:
+        raise ValueError('Invalid saved matchups.')
+    for matchup in matchups:
+        if matchup is None:
+            continue
+        if (not isinstance(matchup, dict) or matchup.get('week') != week or matchup.get('season') != season
+                or not isinstance(matchup.get('leagueName'), str) or 'opponent' not in matchup
+                or not isinstance(matchup.get('starters'), list)
+                or not all(isinstance(player, str) for player in matchup['starters'])
+                or matchup.get('winChance') is not None):
+            raise ValueError('Invalid saved matchup.')
+        for side in ('you', 'opponent'):
+            team = matchup.get(side)
+            if team is None and side == 'opponent':
+                continue
+            if (not isinstance(team, dict) or not isinstance(team.get('name'), str)
+                    or type(team.get('points')) not in (int, float)
+                    or not math.isfinite(team['points']) or not -998 <= team['points'] <= 9998):
+                raise ValueError('Invalid saved score.')
+    checked = record['last_checked_at']
+    if checked is not None and (not isinstance(checked, str) or datetime.fromisoformat(checked).tzinfo is None):
+        raise ValueError('Invalid saved timestamp.')
+    return configs, version, matchups, week, season, checked
 
 
 def rounded_score(value):
@@ -240,7 +280,7 @@ def play_alert(play, starters, player_lookup):
 class Fantasy(BoardApp):
     passive_actions = frozenset({'preview', 'stop'})
 
-    def __init__(self, controller, source, clock=time.monotonic, wall_clock=time.time):
+    def __init__(self, controller, source, clock=time.monotonic, wall_clock=time.time, store=None):
         super().__init__(controller)
         self.source = source
         self.clock, self.wall_clock = clock, wall_clock
@@ -260,6 +300,55 @@ class Fantasy(BoardApp):
         self.characters = IDLE_FRAME
         self.display_key, self.last_attempt = None, None
         self.delivery = {'status': 'idle'}
+        self.store, self.storage_ready = store, store is None
+        self.storage_error = 'Loading saved leagues…' if store else None
+        self.config_version, self.pending_snapshot = None, None
+        self.next_storage_attempt = 0
+
+    def _load_saved(self):
+        with self.lock:
+            if self.storage_ready:
+                return True
+            if self.clock() < self.next_storage_attempt:
+                return False
+            self.next_storage_attempt = self.clock() + POLL_SECONDS
+        try:
+            record = self.store.load()
+            if record is None:
+                record = self.store.save_settings(league_settings(DEFAULT_LEAGUES), initialize=True)
+            restored = saved_dashboard(record)
+        except (StorageUnavailable, ValueError, TypeError, KeyError):
+            with self.lock:
+                self.storage_error = 'Saved leagues are unavailable. Retrying shortly.'
+            return False
+        with self.lock:
+            (self.configs, self.config_version, self.matchups,
+             self.week, self.season, self.last_checked) = restored
+            self.storage_ready, self.storage_error = True, None
+            self.errors = [None, None]
+            self.next_refresh, self.refresh_requested = 0, True
+            self.next_storage_attempt = 0
+            self._prepare_display()
+        return True
+
+    def _save_snapshot(self):
+        with self.lock:
+            if not self.store or not self.storage_ready or not self.pending_snapshot or self.clock() < self.next_storage_attempt:
+                return
+            version, snapshot = self.config_version, self.pending_snapshot
+            self.next_storage_attempt = self.clock() + POLL_SECONDS
+        try:
+            saved = self.store.save_matchups(version, snapshot)
+        except StorageUnavailable:
+            saved = False
+        with self.lock:
+            if version != self.config_version or snapshot is not self.pending_snapshot:
+                return
+            if saved:
+                self.pending_snapshot, self.storage_error = None, None
+                self.next_storage_attempt = 0
+            else:
+                self.storage_error = 'Latest scores could not be saved. Retrying shortly.'
 
     def _prepare_display(self):
         if self.alert and self.alert_until is not None and self.clock() >= self.alert_until:
@@ -286,7 +375,9 @@ class Fantasy(BoardApp):
                                           if self.alert_until is not None else None),
                 'source': {'lastCheckedAt': self.last_checked, 'playError': self.play_error,
                            'refreshing': self.refresh_requested, 'pollSeconds': POLL_SECONDS,
-                           'winChanceAvailable': False}, 'delivery': dict(self.delivery)}
+                           'winChanceAvailable': False}, 'delivery': dict(self.delivery),
+                'storage': {'enabled': self.store is not None, 'ready': self.storage_ready,
+                            'error': self.storage_error}}
 
     def status(self):
         with self.lock:
@@ -319,6 +410,26 @@ class Fantasy(BoardApp):
                 return 400, {'error': str(error)}
             if action == 'start' and not self.gateway.token:
                 return 503, {'error': 'The board is not connected yet. Preview your matchups instead.'}
+            # Controller serializes commands; database I/O stays outside the app
+            # lock so status reads and Stop do not wait on a background save.
+            with self.lock:
+                if self.state == 'tracking':
+                    return 409, {'error': 'Stop tracking before changing the leagues.'}
+                if not self.storage_ready:
+                    return 503, {'error': 'Saved leagues are unavailable. Try again shortly.'}
+            if self.store:
+                try:
+                    record = self.store.save_settings(configs)
+                    saved_dashboard(record)
+                except (StorageUnavailable, ValueError, TypeError, KeyError):
+                    with self.lock:
+                        # A timed-out write may have committed. Read it back
+                        # before accepting another change; never overwrite it.
+                        self.storage_ready = False
+                        self.storage_error = 'Could not confirm the league save. Reloading saved settings shortly.'
+                        self.next_storage_attempt = self.clock() + POLL_SECONDS
+                    self.wake.set()
+                    return 503, {'error': 'Could not confirm the league save. Tracking was not started. Try again shortly.'}
         with self.lock:
             if action == 'stop':
                 if self.state != 'tracking':
@@ -332,6 +443,10 @@ class Fantasy(BoardApp):
                 if self.state == 'tracking':
                     return 409, {'error': 'Stop tracking before changing the leagues.'}
                 self.configs, self.matchups, self.errors = configs, [None, None], [None, None]
+                if self.store:
+                    self.config_version = record['config_version']
+                    self.pending_snapshot, self.storage_error = None, None
+                    self.next_storage_attempt = 0
                 self.revision += 1
                 self.state = 'tracking' if action == 'start' else 'idle'
                 self.started_at = self.wall_clock() if action == 'start' else None
@@ -404,6 +519,7 @@ class Fantasy(BoardApp):
                 self.queue.clear()
                 self.alert, self.alert_until = None, None
                 self.matchups = [None, None]
+                self.last_checked = None
             self.week, self.season = state['week'], state['season']
             self.matchups = [new if new is not None else old for new, old in zip(results, self.matchups)]
             self.errors, self.play_error, self.seen = errors, play_error, seen
@@ -412,6 +528,9 @@ class Fantasy(BoardApp):
                 self.last_checked = datetime.fromtimestamp(self.wall_clock(), timezone.utc).isoformat()
             self.next_refresh = self.clock() + (POLL_SECONDS if tracking else 60)
             self._prepare_display()
+            if self.store:
+                self.pending_snapshot = {'matchups': self.matchups, 'week': self.week,
+                                         'season': self.season, 'last_checked_at': self.last_checked}
 
     def _deliver(self):
         with self.lock:
@@ -439,9 +558,12 @@ class Fantasy(BoardApp):
                 self.alert_until = self.clock() + ALERT_SECONDS
 
     def tick(self):
+        if not self._load_saved():
+            return
         self._deliver()
         self._refresh()
         self._deliver()
+        self._save_snapshot()
 
     def start_worker(self):
         def run():

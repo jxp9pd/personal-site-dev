@@ -10,8 +10,8 @@ Public apps for a 3 × 15 Vestaboard Note:
 
 Vanilla HTML/CSS/JS pages call a Python gateway. nginx proxies
 `/api/vestaboard/` to the loopback-only service, which holds the token and
-calls Vestaboard's Cloud API. Optional Supabase storage keeps private Leave a
-Note history; there are no npm production dependencies.
+calls Vestaboard's Cloud API. Supabase stores private Leave a Note history and
+Fantasy settings/matchups; there are no npm production dependencies.
 
 ## Shared behavior
 
@@ -28,8 +28,10 @@ Note history; there are no npm production dependencies.
   unchanged frame. An in-flight cloud write finishes before a new command takes
   effect; stale worker frames cannot write afterward.
 - Background sessions continue when the browser closes. Pages poll status every
-  five seconds while visible. State is in memory: restarting the gateway ends
-  sessions and tracking, while the physical display remains until another write.
+  five seconds while visible. Restarting the gateway ends sessions and tracking,
+  while the physical display remains until another write. Fantasy restores its
+  saved league settings and latest scores from Supabase; Start tracking is still
+  required to take over the board again.
 - Previews show intended content, not physical readback. Cloud acceptance does
   not confirm physical delivery; Wi-Fi, quiet hours, or other integrations may
   delay or replace a message. Configured history records Leave a Note submissions;
@@ -107,6 +109,37 @@ The server resolves league membership, co-owners, and matchups.
   `plays/nfl/recent` endpoint, limited to the newest 1,000 plays. Prolonged
   outages may miss events. No sports credentials are needed. The public API
   supplies no win probabilities, so the third row stays blank.
+
+### Fantasy persistence
+
+`vestaboard_fantasy` holds one shared dashboard: two league URLs/usernames/labels,
+the latest matchups (including scores and starters), season/week, and the time
+of the last complete score refresh. It uses the same private Supabase environment
+settings as Note history. RLS and grants allow only the server's service role;
+the browser continues to use `/api/vestaboard/fantasy` and never receives a secret.
+
+Preview and Start save settings before applying them. Score refreshes save their
+latest snapshot in the background. A configuration UUID prevents old refreshes
+from overwriting newer leagues. Status reads use the server's cached copy; the
+service restores it from Supabase on startup. This stores the latest snapshot,
+not a historical score series. Board ownership, running sessions, and play
+queues are not restored.
+
+If the database is unavailable at startup, settings changes wait while the worker
+retries every 15 seconds; defaults cannot overwrite the saved leagues. Failed
+settings saves do not start tracking and are read back before another change.
+Score-save outages keep live tracking and Stop available, show a warning, and
+retry the latest snapshot. With both Supabase settings omitted, local previews
+remain temporary and report `storage.enabled: false`.
+
+First production migration, in this order:
+
+1. Apply `supabase/migrations/0010_vestaboard_fantasy.sql` with `supabase db push`.
+2. Publish the new code, then seed the still-running gateway's data on the host:
+   `python3 /var/www/personal-site-dev/scripts/migrate-fantasy.py --env-file /etc/vestaboard-history.env`.
+   This is safe to repeat and never replaces an existing database row.
+3. Run the gateway install below. Check the Fantasy API for `storage.enabled`
+   and `storage.ready` both true, no storage error, and the saved leagues/scores.
 
 ## Connect the Note
 
@@ -208,6 +241,7 @@ sports refresh without writing to the board.
 | `board.py` | Encoding, validation, credentials, TLS, cloud transport, cooldown |
 | `apps.py` | `BoardController` ownership and `BoardApp` command/delivery contract |
 | `history.py` | Private Note submission records and delivery outcomes |
+| `fantasy_store.py` | Private saved Fantasy settings and matchup snapshots |
 | `server.py` | HTTP routes and shared-controller wiring |
 | `pomodoro.py`, `nfl.py`, `fantasy.py` | App state, scheduling, feeds, rendering |
 

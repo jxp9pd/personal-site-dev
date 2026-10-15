@@ -8,6 +8,12 @@ Vestaboard's optional private Note history is defined in
 read, insert, or update it; no public or authenticated-user access is granted.
 See `services/vestaboard/README.md` for capture and configuration details.
 
+Fantasy dashboard persistence is defined in `migrations/0010_vestaboard_fantasy.sql`.
+The private `vestaboard_fantasy` singleton stores the shared league settings and
+latest matchup snapshot. Only the gateway service role has access. See the
+Fantasy persistence section in `services/vestaboard/README.md` for backfill,
+restart behavior, and outage handling.
+
 - `migrations/0001_profiles_and_plays.sql` — `profiles` and `plays` tables, RLS
   policies, and the `auth.users` → `profiles` creation trigger.
 - `migrations/0007_leaderboard.sql` — the read-only `leaderboard` view (best

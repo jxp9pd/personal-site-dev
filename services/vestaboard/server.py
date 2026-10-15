@@ -12,6 +12,7 @@ from urllib.request import urlopen
 from board import BoardGateway, api_token, cloud_tls_context, valid_characters
 from apps import BoardController
 from fantasy import Fantasy, SleeperSource
+from fantasy_store import FantasyStore
 from nfl import NFL, NFLSource
 from pomodoro import Pomodoro
 from history import HistoryUnavailable, MessageHistory, sender_ip
@@ -136,7 +137,8 @@ def main():
     controller = BoardController(gateway)
     pomodoro = Pomodoro(controller)
     nfl = NFL(controller, NFLSource(opener=partial(urlopen, context=cloud_tls_context())).games)
-    fantasy = Fantasy(controller, SleeperSource(opener=partial(urlopen, context=cloud_tls_context())))
+    fantasy = Fantasy(controller, SleeperSource(opener=partial(urlopen, context=cloud_tls_context())),
+                      store=FantasyStore.from_environment(env_file, opener=partial(urlopen, context=cloud_tls_context())))
     server = ThreadingHTTPServer(('127.0.0.1', args.port), handler_for(
         controller, origins, args.preview, pomodoro=pomodoro, nfl=nfl, fantasy=fantasy, history=history))
     pomodoro.start_worker()

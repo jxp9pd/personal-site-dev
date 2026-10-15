@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--history', action='store_true', help='Configure Supabase message history instead of the board token.')
+    parser.add_argument('--history', action='store_true', help='Configure Supabase message history and Fantasy storage instead of the board token.')
     args = parser.parse_args()
     if args.history:
         url = input('Supabase project URL: ').strip().rstrip('/')
