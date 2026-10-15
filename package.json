@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "fantasy:refresh": "python3 scripts/refresh-fantasy.py",
     "atlas:import": "node scripts/import-ohm.mjs",
     "atlas:audit": "node scripts/audit-atlas.mjs",
     "atlas:publish": "node scripts/publish-atlas.mjs",

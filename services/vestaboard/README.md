@@ -121,9 +121,9 @@ the browser continues to use `/api/vestaboard/fantasy` and never receives a secr
 Preview and Start save settings before applying them. Score refreshes save their
 latest snapshot in the background. A configuration UUID prevents old refreshes
 from overwriting newer leagues. Status reads use the server's cached copy; the
-service restores it from Supabase on startup. This stores the latest snapshot,
-not a historical score series. Board ownership, running sessions, and play
-queues are not restored.
+service restores it from Supabase on startup. The live table stores the latest
+snapshot; the weekly refresh command below saves separate historical snapshots.
+Board ownership, running sessions, and play queues are not restored.
 
 If the database is unavailable at startup, settings changes wait while the worker
 retries every 15 seconds; defaults cannot overwrite the saved leagues. Failed
@@ -140,6 +140,59 @@ First production migration, in this order:
    This is safe to repeat and never replaces an existing database row.
 3. Run the gateway install below. Check the Fantasy API for `storage.enabled`
    and `storage.ready` both true, no storage error, and the saved leagues/scores.
+
+### Refresh or rebuild a week
+
+From the repository root on John's Mac:
+
+```sh
+# Current regular-season week:
+npm run fantasy:refresh
+
+# A specific week, safe to repeat:
+npm run fantasy:refresh -- --season 2026 --week 5
+
+# Export the existing week, delete it, rebuild from Sleeper, and compare:
+npm run fantasy:refresh -- --season 2026 --week 5 --verify-rebuild
+```
+
+Apply `supabase/migrations/0011_vestaboard_fantasy_weeks.sql` once before use.
+The script gets a service key from the authenticated, linked Supabase CLI in
+memory; it never prints or persists the key. On the server, run the same Python
+script with `--env-file /etc/vestaboard-history.env` instead. No extra Python
+packages are required.
+
+`vestaboard_fantasy_weeks` has one record per `(season, week)`. The first refresh
+uses the dashboard's saved leagues. Later refreshes reuse that week's archived
+league settings, even if the live dashboard has changed. Both matchups must
+succeed before a write. Each run reads the result back to verify it. Refreshing
+an old week does not replace the live dashboard, affect other weeks, or write
+to the board. A historical season requires league IDs from that season.
+
+CSV output is under `data/fantasy-runs/<season>-week-<week>/<UTC run time>/`,
+excluded from Git. `--output-dir <empty-directory>` chooses another location.
+The rebuild check requires an existing week and explicit season/week arguments.
+It writes and verifies `before.csv` and a complete `backup.json` before deleting
+only the backed-up version of that week. It then fetches Sleeper again, saves
+and reads back the rebuilt record, and writes `after.csv` and `comparison.json`.
+Scores retain their exact decimals; league/team fields, roster IDs, and starter
+order are compared too. Only storage versions and fetch timestamps are ignored.
+Exit codes: `0` success/match, `1` failed operation, `2` data differences.
+
+Stat corrections or changes to team/league names can legitimately produce
+differences; the report lists each changed field and retains both CSVs. Sleeper
+returns historical scores and starters but current league/user metadata. A
+rebuild failure automatically restores the backup if the week is still absent.
+After an interrupted run, recovery can also be run explicitly:
+
+```sh
+npm run fantasy:refresh -- --restore-backup /absolute/path/to/run/backup.json
+```
+
+Recovery never replaces an existing week. Each update/delete checks the saved
+version so concurrent runs cannot overwrite a newer result unnoticed. A missing
+week must be imported with a regular refresh before running the rebuild check;
+that check then measures reproducibility, not agreement with a prior capture.
 
 ## Connect the Note
 
