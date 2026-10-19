@@ -1,0 +1,6 @@
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# This Ubuntu host uses UTC. The Pacific-time check permits exactly one refresh
+# at 06:00 Wednesday across daylight saving changes (13:00 or 14:00 UTC).
+0 13,14 * * 3 root /usr/bin/flock -n /run/lock/fantasy-refresh.lock /usr/bin/python3 /usr/local/lib/fantasy-refresh/weekly-fantasy-refresh.py --scheduled --refresh-script /var/www/personal-site-dev/scripts/refresh-fantasy.py --env-file /etc/vestaboard-history.env >> /var/log/fantasy-refresh.log 2>&1

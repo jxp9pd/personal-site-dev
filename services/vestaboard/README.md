@@ -194,6 +194,41 @@ version so concurrent runs cannot overwrite a newer result unnoticed. A missing
 week must be imported with a regular refresh before running the rebuild check;
 that check then measures reproducibility, not agreement with a prior capture.
 
+### Weekly server refresh
+
+The Hetzner host runs the existing refresh script every **Wednesday at 6 a.m.
+Pacific**, selecting the previous regular-season week after Monday's games.
+It also captures week 18 during the first postseason week, and skips preseason,
+the opening week, and later postseason weeks. Each new season still needs its
+league URLs saved in the dashboard.
+
+Install or update the schedule as root from a checkout containing these files:
+
+```sh
+sudo bash scripts/install-fantasy-cron.sh
+```
+
+The installer expects the existing UTC server timezone, an active `cron` service,
+the deployed refresh at `/var/www/personal-site-dev/scripts/refresh-fantasy.py`,
+and `/etc/vestaboard-history.env`. It installs `/etc/cron.d/fantasy-refresh` and
+a small wrapper in `/usr/local/lib/fantasy-refresh/`, so later site deployments
+preserve the schedule. UTC cron checks at both possible Pacific offsets; the
+wrapper runs only at 6 a.m. Pacific. `flock` prevents overlapping scheduled runs.
+
+Logs are in `/var/log/fantasy-refresh.log`, rotated weekly with eight archives.
+Verified CSVs are under `/var/lib/fantasy-refresh/runs/`, outside the public site.
+To check the selected week without writing, or run it manually under the same
+lock (omit `--dry-run`), use:
+
+```sh
+sudo flock -n /run/lock/fantasy-refresh.lock python3 /usr/local/lib/fantasy-refresh/weekly-fantasy-refresh.py \
+  --refresh-script /var/www/personal-site-dev/scripts/refresh-fantasy.py \
+  --env-file /etc/vestaboard-history.env --dry-run
+```
+
+Read recent runs with `sudo tail -n 30 /var/log/fantasy-refresh.log`. Remove
+`/etc/cron.d/fantasy-refresh` to disable the weekly job.
+
 ## Connect the Note
 
 1. Pair the Note with Wi-Fi in the official Vestaboard app and send a message
