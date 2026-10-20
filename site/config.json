@@ -1,0 +1,68 @@
+{
+  "brand": {
+    "name": "Penta Projects",
+    "href": "/"
+  },
+  "navigation": [
+    {
+      "id": "games",
+      "label": "Games",
+      "href": "/games"
+    },
+    {
+      "id": "tools",
+      "label": "Tools",
+      "href": "/tools"
+    },
+    {
+      "id": "reports",
+      "label": "Reports",
+      "href": "/reports/"
+    }
+  ],
+  "assetBundles": {
+    "site": {
+      "fonts": "site",
+      "styles": [
+        "/assets/tokens.css",
+        "/assets/site-components.css",
+        "/assets/site.css"
+      ]
+    },
+    "game": {
+      "fonts": "site",
+      "styles": [
+        "/assets/tokens.css",
+        "/assets/site-components.css",
+        "/assets/css/game-theme.css"
+      ]
+    },
+    "profile": {
+      "fonts": "site",
+      "styles": [
+        "/assets/tokens.css",
+        "/assets/site-components.css"
+      ]
+    },
+    "hub": {
+      "fonts": "hub",
+      "styles": [
+        "/assets/tokens.css",
+        "/assets/css/board-tile-colors.css"
+      ]
+    },
+    "calculator": {
+      "styles": []
+    },
+    "board": {
+      "fonts": "site",
+      "styles": [
+        "/assets/tokens.css",
+        "/assets/site-components.css",
+        "/assets/site.css",
+        "/assets/css/board-tile-colors.css",
+        "/assets/css/vestaboard.css"
+      ]
+    }
+  }
+}

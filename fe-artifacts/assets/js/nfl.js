@@ -1,6 +1,7 @@
 import { layoutMessage } from './vestaboard-layout.js?v=1';
-import { requestBoard } from './vestaboard-api.js?v=1';
+import { createBoardSession } from './vestaboard-session.js?v=1';
 import { createBoardPreview } from './vestaboard-preview.js?v=1';
+import { BOARD_TILE_COLORS as tileColors } from './ui-theme-tokens.js';
 
 const $ = id => document.getElementById(id);
 const preview = createBoardPreview($('board'));
@@ -8,16 +9,15 @@ const kickoff = new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: 'nu
 const dayName = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
 const dayDate = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 const kickoffTime = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
-const tileColors = { 63: '#cf5146', 64: '#e89344', 65: '#e8c950', 66: '#559f77', 67: '#4b8cc5', 68: '#8c73ae', 69: '#eeeee3', 70: '#151515' };
 const idleCharacters = layoutMessage('NFL SCORES\nPICK A GAME').characters;
 
 let session = null;
 let selectedId = '';
-let connected = null;
-let busy = false;
-let polling = false;
-let requestVersion = 0;
 let pickerVersion = '';
+const controller = createBoardSession({
+  resource: 'nfl', accept, render, feedback, initialConnected: null,
+  uncertainMessage: 'Connection interrupted. The action may have applied; checking tracking…',
+});
 
 const selected = () => session?.games.find(game => game.id === selectedId)
   || (session?.game?.id === selectedId ? session.game : null);
@@ -111,11 +111,12 @@ function renderPicker() {
   }
   for (const button of $('games').querySelectorAll('[data-game-id]')) {
     button.setAttribute('aria-pressed', String(button.dataset.gameId === selectedId));
-    button.disabled = busy;
+    button.disabled = controller.busy;
   }
 }
 
 function render() {
+  const { connected, busy } = controller;
   const game = selected();
   const trackingThis = active() && session.game?.id === selectedId;
   const characters = game?.characters || session?.characters || idleCharacters;
@@ -150,47 +151,16 @@ function accept(data) {
         || !Number.isFinite(Date.parse(game.startsAt)))) throw new Error('Invalid NFL status.');
   const first = !session;
   session = data;
-  connected = true;
   if (first && data.game) selectedId = data.game.id;
   if (!data.games.some(game => game.id === selectedId)
       && !(data.state === 'tracking' && data.game?.id === selectedId)) {
     selectedId = data.games[0]?.id || '';
   }
-  render();
 }
 
-async function sync() {
-  if (polling || busy) return;
-  polling = true;
-  const version = requestVersion;
-  try {
-    const data = await requestBoard('nfl');
-    if (version === requestVersion) accept(data);
-  } catch {
-    if (version === requestVersion) {
-      connected = false;
-      render();
-    }
-  } finally {
-    polling = false;
-  }
-}
-
-async function command(action) {
-  if (busy || !connected || (action === 'track' ? $('track').disabled : $('stop').disabled || !active())) return;
-  busy = true;
-  requestVersion += 1;
-  feedback('');
-  render();
-  try {
-    accept(await requestBoard('nfl', { body: action === 'track' ? { action, gameId: selectedId } : { action }, timeoutMs: 12000 }));
-  } catch (error) {
-    feedback(error.uncertain ? 'Connection interrupted. The action may have applied; checking tracking…' : error.message, true);
-  } finally {
-    busy = false;
-    render();
-    void sync();
-  }
+function command(action) {
+  if (action === 'track' ? $('track').disabled : $('stop').disabled || !active()) return;
+  return controller.command(action === 'track' ? { action, gameId: selectedId } : { action });
 }
 
 $('games').addEventListener('click', event => {
@@ -202,9 +172,5 @@ $('games').addEventListener('click', event => {
 });
 $('game-form').addEventListener('submit', event => { event.preventDefault(); void command('track'); });
 $('stop').addEventListener('click', () => void command('stop'));
-$('reconnect').addEventListener('click', () => void sync());
-document.addEventListener('visibilitychange', () => { if (!document.hidden) void sync(); });
-window.addEventListener('online', () => void sync());
-render();
-void sync();
-setInterval(() => { if (!document.hidden) void sync(); }, 5000);
+$('reconnect').addEventListener('click', () => void controller.sync());
+controller.start();

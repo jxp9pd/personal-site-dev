@@ -1,4 +1,4 @@
-import { requestBoard } from './vestaboard-api.js?v=1';
+import { createBoardSession } from './vestaboard-session.js?v=1';
 import { createBoardPreview } from './vestaboard-preview.js?v=1';
 import { layoutMessage } from './vestaboard-layout.js?v=1';
 
@@ -7,11 +7,11 @@ const preview = createBoardPreview($('board'));
 const idle = layoutMessage('FANTASY\nPICK YOUR TEAMS').characters;
 const checked = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' });
 let session = null;
-let connected = false;
-let busy = false;
-let polling = false;
-let requestVersion = 0;
 let edited = false;
+const controller = createBoardSession({
+  resource: 'fantasy', accept, render, feedback,
+  uncertainMessage: 'Connection interrupted. The action may have applied; checking tracking…',
+});
 
 const active = () => session?.state === 'tracking';
 const rounded = value => Math.sign(value) * Math.round(Math.abs(value));
@@ -59,6 +59,7 @@ function renderMatchups() {
 }
 
 function render() {
+  const { connected, busy } = controller;
   const storageReady = session?.storage?.ready !== false;
   $('preview-title').textContent = session?.alert ? 'Big Play' : 'Scores';
   $('tracking-status').dataset.active = String(!!active());
@@ -95,7 +96,7 @@ function render() {
     ? `Checked ${checked.format(new Date(session.source.lastCheckedAt))}` : '';
 }
 
-function accept(data) {
+function accept(data, { command }) {
   const frame = value => Array.isArray(value) && value.length === 3
     && value.every(row => Array.isArray(row) && row.length === 15 && row.every(Number.isInteger));
   if (!data || !['idle', 'tracking', 'stopped'].includes(data.state) || !frame(data.characters)
@@ -105,55 +106,22 @@ function accept(data) {
           || league.matchup.opponent && !Number.isFinite(league.matchup.opponent.points)))) throw new Error('Invalid fantasy status.');
   const wasActive = active();
   session = data;
-  connected = true;
+  if (command) edited = false;
   if (active() || wasActive || !edited) fillFields(data.leagues);
-  render();
 }
 
-async function sync() {
-  if (polling || busy) return;
-  polling = true;
-  const version = requestVersion;
-  try {
-    const data = await requestBoard('fantasy');
-    if (version === requestVersion) accept(data);
-  } catch {
-    if (version === requestVersion) { connected = false; render(); }
-  } finally { polling = false; }
-}
-
-async function command(action) {
-  if (busy || !connected || $(action).disabled
-      || (action === 'stop' ? !active() : active())) return;
-  busy = true;
-  requestVersion += 1;
-  const leagues = draft();
-  feedback('');
-  render();
-  try {
-    const data = await requestBoard('fantasy', { body: action === 'stop' ? { action } : { action, leagues }, timeoutMs: 12000 });
-    edited = false;
-    accept(data);
-  } catch (error) {
-    feedback(error.uncertain ? 'Connection interrupted. The action may have applied; checking tracking…' : error.message, true);
-  } finally {
-    busy = false;
-    render();
-    void sync();
-  }
+function command(action) {
+  if ($(action).disabled || (action === 'stop' ? !active() : active())) return;
+  return controller.command(action === 'stop' ? { action } : { action, leagues: draft() });
 }
 
 $('league-form').addEventListener('submit', event => { event.preventDefault(); void command('start'); });
 $('preview').addEventListener('click', () => void command('preview'));
 $('stop').addEventListener('click', () => void command('stop'));
-$('reconnect').addEventListener('click', () => void sync());
+$('reconnect').addEventListener('click', () => void controller.sync());
 $('league-fields').addEventListener('input', () => {
   edited = true;
   feedback(draft()[0].label === draft()[1].label ? 'Give the leagues different board labels.' : '', true);
   render();
 });
-document.addEventListener('visibilitychange', () => { if (!document.hidden) void sync(); });
-window.addEventListener('online', () => void sync());
-render();
-void sync();
-setInterval(() => { if (!document.hidden) void sync(); }, 5000);
+controller.start();

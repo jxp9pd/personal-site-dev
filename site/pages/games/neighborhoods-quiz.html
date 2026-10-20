@@ -1,0 +1,50 @@
+<section id="select">
+  {{header}}
+  <div class="select-body">
+    <div class="select-head">
+      <h1>Neighborhoods Quiz</h1>
+    </div>
+    <div class="city-grid" id="cityGrid"></div>
+  </div>
+</section>
+
+<div id="app">
+  <header>
+    <a class="back" href="?">&larr; Home</a>
+    <h1 id="title">Neighborhoods</h1>
+    <div class="mode-tabs" id="modeTabs">
+      <button data-mode="name" class="active">Name it</button>
+      <button data-mode="find">Find it</button>
+      <button data-mode="learn">Learn</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="stat" id="stat"></div>
+    <button class="btn lb" id="leaderboardBtn" hidden>Leaderboard</button>
+    <button class="btn" id="restart" aria-label="Restart"><span class="restart-label">Restart</span><span class="restart-icon" aria-hidden="true">↻</span></button>
+    <div id="profileMount"></div>
+  </header>
+  <main>
+    <div id="map"></div>
+    <div class="prompt" id="prompt">
+      <div class="label" id="pLabel">Find</div>
+      <div class="target" id="pTarget">—</div>
+      <div class="fb" id="pFb"></div>
+    </div>
+    <div class="prompt name-pregame" id="namePregame" hidden>
+      <div class="label">Name it</div>
+      <div class="target" id="namePregameCount">— neighborhoods</div>
+      <p class="name-pregame-sub">Type as many as you can before the 10:00 clock runs out.</p>
+      <button class="btn" id="nameStart">Start</button>
+    </div>
+    <div class="name-play" id="namePlay" hidden>
+      <input type="text" id="nameInput" placeholder="Type a neighborhood…"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <button class="btn" id="nameGiveUp">Give up</button>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+import { start } from "../assets/js/neighborhoods-quiz.js";
+start().catch(err => console.error('Neighborhoods quiz failed to start', err));
+</script>

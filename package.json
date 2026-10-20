@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build:site": "node scripts/build-site.mjs",
+    "check:site": "node scripts/build-site.mjs --check",
     "fantasy:refresh": "python3 scripts/refresh-fantasy.py",
     "atlas:import": "node scripts/import-ohm.mjs",
     "atlas:audit": "node scripts/audit-atlas.mjs",

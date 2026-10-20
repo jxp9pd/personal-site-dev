@@ -1,0 +1,18 @@
+.game-page {
+  --button-gap: 8px;
+  --button-padding: 8px 16px;
+  --button-font-size: 11px;
+  --button-font-weight: 500;
+  --button-tracking: .14em;
+}
+.game-page .site-head .logo { padding-bottom: 0; }
+
+@media (max-width: 640px) {
+  .game-page .site-head { padding: 16px 18px; gap: 12px; }
+}
+/* Games keep compact controls at their original size on small screens. */
+@media (max-width: 560px) {
+  .game-page .site-head .logo { font-size: 1.75rem; }
+  .game-page .site-head .nav { gap: 14px; }
+  .game-page .site-head .btn { padding: var(--button-padding); font-size: var(--button-font-size); }
+}

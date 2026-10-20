@@ -1,5 +1,5 @@
 import { layoutMessage, SYMBOLS } from './vestaboard-layout.js?v=1';
-import { requestBoard } from './vestaboard-api.js?v=1';
+import { createBoardSession } from './vestaboard-session.js?v=1';
 import { createBoardPreview } from './vestaboard-preview.js?v=1';
 
 const $ = id => document.getElementById(id);
@@ -9,10 +9,10 @@ const preview = createBoardPreview($('board'));
 
 let session = null;
 let receivedAt = performance.now();
-let connected = false;
-let busy = false;
-let requestVersion = 0;
-let polling = false;
+const controller = createBoardSession({
+  resource: 'pomodoro', accept, render, feedback,
+  uncertainMessage: 'Connection interrupted. The action may have applied; checking the session…',
+});
 
 const active = () => session && ['running', 'paused'].includes(session.state);
 const validMinutes = input => Number.isInteger(input.valueAsNumber) && input.valueAsNumber >= 1 && input.valueAsNumber <= 180;
@@ -43,12 +43,13 @@ function renderClock() {
   $('countdown').textContent = time;
   document.title = active() ? `${time} · ${state === 'paused' ? 'Paused' : session.phase === 'focus' ? 'Focus' : 'Break'} — Pomodoro` : 'Pomodoro — Penta Projects';
   if (state === 'running' && seconds === 0) {
-    const label = connected ? 'Switching…' : 'Reconnecting…';
+    const label = controller.connected ? 'Switching…' : 'Reconnecting…';
     if ($('phase-label').textContent !== label) $('phase-label').textContent = label;
   }
 }
 
 function render() {
+  const { connected, busy } = controller;
   const state = session?.state || 'idle';
   const phase = session?.phase || 'focus';
   $('pomodoro').dataset.phase = ['paused', 'completed', 'stopped'].includes(state) ? state : phase;
@@ -80,61 +81,23 @@ function accept(data) {
   const wasActive = active();
   session = data;
   receivedAt = performance.now();
-  connected = true;
   if (active() || wasActive) {
     focusInput.value = data.focusMinutes;
     breakInput.value = data.breakMinutes;
   }
-  render();
 }
 
-async function sync() {
-  if (polling || busy) return;
-  polling = true;
-  const version = requestVersion;
-  try {
-    const data = await requestBoard('pomodoro');
-    if (version === requestVersion) accept(data);
-  } catch {
-    if (version === requestVersion) {
-      connected = false;
-      render();
-    }
-  } finally {
-    polling = false;
-  }
-}
-
-async function command(action) {
-  if (busy || !connected || (action === 'start' && $('start').disabled)) return;
-  busy = true;
-  requestVersion += 1; // A poll started before this command cannot overwrite its response.
-  feedback('');
-  render();
+function command(action) {
+  if (action === 'start' && $('start').disabled) return;
   const body = { action };
   if (action === 'start') Object.assign(body, { focusMinutes: focusInput.valueAsNumber, breakMinutes: breakInput.valueAsNumber });
-  try {
-    accept(await requestBoard('pomodoro', { body, timeoutMs: 12000 }));
-  } catch (error) {
-    feedback(error.uncertain
-      ? 'Connection interrupted. The action may have applied; checking the session…' : error.message, true);
-  } finally {
-    busy = false;
-    render();
-    // Reconcile ambiguous responses and changes from other visitors, without
-    // ever automatically repeating a start/pause/resume/stop command.
-    void sync();
-  }
+  return controller.command(body);
 }
 
 $('timer-form').addEventListener('submit', event => { event.preventDefault(); void command('start'); });
 $('pause').addEventListener('click', () => void command(session?.state === 'paused' ? 'resume' : 'pause'));
 $('stop').addEventListener('click', () => void command('stop'));
-$('reconnect').addEventListener('click', () => void sync());
+$('reconnect').addEventListener('click', () => void controller.sync());
 [focusInput, breakInput].forEach(input => input.addEventListener('input', render));
-document.addEventListener('visibilitychange', () => { if (!document.hidden) void sync(); });
-window.addEventListener('online', () => void sync());
-render();
-void sync();
+controller.start();
 setInterval(renderClock, 250);
-setInterval(() => { if (!document.hidden) void sync(); }, 5000);

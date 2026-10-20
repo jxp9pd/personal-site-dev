@@ -1,0 +1,58 @@
+{{header}}
+  <main class="election-report">
+
+<a class="report-back" href="/reports/">← All reports</a>
+<p class="report-date">Published <time datetime="2026-10-19">October 19, 2026</time></p>
+<div class="eyebrow">U.S. federal elections · 13 election cycles · 2000–2024</div>
+<h1>How much election spending is associated with each party?</h1>
+<p class="intro">Campaigns, party committees, and reported outside groups—including Super PACs—using OpenSecrets’ broad election-cost estimates. Each bar covers a two-year cycle, with presidential cycles also including congressional elections.</p>
+<div class="badges"><span class="badge">Includes reported Super PAC spending</span><span class="badge">Counts spending, not fundraising</span><span class="badge">Federal elections only</span></div>
+<div class="cards">
+ <div class="card"><div class="label">2024 · Democrats</div><div class="value dem">$7.29B</div><small>Published party-attributed estimate</small></div>
+ <div class="card"><div class="label">2024 · Republicans</div><div class="value rep">$6.36B</div><small>Published party-attributed estimate</small></div>
+ <div class="card"><div class="label">2024 · Reported outside spending</div><div class="value">$4.22B</div><small>All alignments; separate overlapping series</small></div>
+</div>
+<div class="controls">
+ <div class="control"><span>Dollar basis</span><div class="segmented" role="group" aria-label="Dollar basis"><button data-basis="nominal" aria-pressed="true">Reported dollars</button><button data-basis="real" aria-pressed="false">2024 dollars</button></div></div>
+ <div class="control"><span>Show cycles</span><div class="segmented" role="group" aria-label="Election cycles"><button data-filter="All" aria-pressed="true">All</button><button data-filter="Presidential" aria-pressed="false">Presidential</button><button data-filter="Midterm" aria-pressed="false">Midterm</button></div></div>
+</div>
+<section class="panel" aria-labelledby="party-title">
+ <h2 id="party-title">Democrats and Republicans, cycle by cycle</h2>
+ <p class="caption">Published party totals include more than the party organizations’ own spending. Hover for exact reported amounts; shaded columns mark presidential cycles.</p>
+ <p class="footnote mobile-hint">Scroll horizontally to see every cycle.</p>
+ <div class="chart-scroll" tabindex="0" role="region" aria-label="Party spending chart"><div id="party-chart" class="chart" role="img" aria-label="Grouped bar chart comparing Democratic and Republican federal election spending"></div></div>
+ <p class="footnote" id="basis-note"></p>
+ <p class="footnote">P = presidential cycle, including House and Senate. M = midterm. Each cycle runs January 1 of the preceding year through December 31 of the labeled year.</p>
+ <div class="callout"><strong>Why the party bars are not stacked:</strong> a consistent party-by-source breakdown reconciling to these broad totals was not established for all 13 cycles. Adding fundraising, PAC donations, and outside expenditures would count some money more than once. The separate chart below shows the outside-spending categories that can be sourced consistently.</div>
+ <p class="footnote">Source: <a href="https://www.opensecrets.org/elections-hub/cost-of-election">OpenSecrets, Cost of Election</a>. Method changes from 2010; PAC overhead added from 2014; joint fundraising committee overhead from 2022.</p>
+</section>
+<section class="panel" aria-labelledby="outside-title">
+ <h2 id="outside-title">Reported outside spending, by expenditure type</h2>
+ <p class="caption">All party alignments combined, excluding party committees. Independent expenditures include Super PACs and other groups. These are spending categories, not the original sources of donor money.</p>
+ <p class="footnote mobile-hint">Scroll horizontally to see every cycle.</p>
+ <div class="chart-scroll" tabindex="0" role="region" aria-label="Outside spending chart"><div id="outside-chart" class="outside-chart" role="img" aria-label="Stacked bar chart of reported outside spending by expenditure type"></div></div>
+ <p class="footnote">Overlaps with the broad election-cost estimate; do not add this chart to the party bars. These separate source snapshots are not guaranteed to reconcile.</p>
+ <p class="footnote">Source: <a href="https://www.opensecrets.org/outside-spending/by_cycle">OpenSecrets, Outside Spending by Election Cycle</a>. The 2012 components sum to $66,912 more than the published total; stacks use components. Zero electioneering-communication values before 2004 reflect reporting categories, not proof that comparable ads did not exist.</p>
+</section>
+<section class="panel">
+<h2>What is counted—and what remains unknown</h2>
+<div class="sources">
+ <div><h3>Broad reported federal election activity</h3><p>OpenSecrets includes candidate campaigns, party election activity, 527 groups’ federal spending, reported outside spending, PAC overhead, and conventions, subject to its historical methodology changes. It removes major candidate and party transfers to avoid double counting.</p><p>Disclosed spending by a “dark money” organization can be counted even when its donors are unknown. Super PAC fundraising that remains unspent is not added to expenditures.</p></div>
+ <div><h3>A public-data estimate with coverage limits</h3><p>State and local races, ballot measures, lobbying, and unreported political activity are outside this series. Many issue ads do not have to be reported to the FEC. These charts therefore cannot represent every dollar spent in politics.</p><p>The source’s Democratic, Republican, and third-party amounts do not always add to the national total. The residual is preserved below rather than assigned to either major party.</p></div>
+</div>
+<details><summary>View the numbers and reconciliation</summary><p class="footnote" style="margin-top:13px">Dollar basis follows the control above. “Other/unallocated” is the national total minus the three published party amounts. The outside-spending series is listed separately.</p><div class="table-scroll" tabindex="0" role="region" aria-label="Spending data table"><table><caption class="visually-hidden">Federal election spending, 2000–2024; values follow the dollar basis and cycle controls.</caption><thead><tr><th>Cycle</th><th>Democrats</th><th>Republicans</th><th>Third party</th><th>Other / unallocated</th><th>National total</th><th>Outside spending*</th></tr></thead><tbody id="data-table"></tbody></table></div><p class="footnote">*Separate overlapping source series; never added to the national total.</p></details>
+<details><summary>Methodology, source links, and downloads</summary>
+ <ul>
+ <li><strong>Party totals:</strong> <a href="https://www.opensecrets.org/elections-hub/cost-of-election">current OpenSecrets overview</a>, cross-checked against the <a href="https://www.opensecrets.org/elections-overview/cost-of-election?cycle=2024&amp;display=P&amp;infl=N">exact-dollar historical table and export</a>. Party attribution is OpenSecrets’ published attribution, not a reconstruction from donor identities.</li>
+ <li><strong>Outside categories:</strong> <a href="https://www.opensecrets.org/outside-spending/by_cycle">OpenSecrets historical table excluding party committees</a>. Independent expenditures explicitly advocate election or defeat without coordination. Electioneering communications cover certain candidate mentions in broadcasts near an election. Communication costs cover reportable candidate advocacy directed to restricted audiences such as members or employees.</li>
+ <li><strong>Inflation:</strong> <a href="https://www.minneapolisfed.org/about-us/monetary-policy/inflation-calculator/consumer-price-index-1913-">Minneapolis Fed / BLS annual CPI-U</a>, using the displayed one-decimal values. Reported dollars × 313.7 ÷ the ending year’s CPI = approximate 2024 dollars. One ending-year CPI is applied to the full two-year cycle; this is not transaction-level deflation.</li>
+ <li><strong>Comparability:</strong> detailed cost methodology changes from 2010; PAC overhead from 2014; JFC overhead from 2022. Pre-2010 outside spending is not zero: Super PACs began in 2010, but other groups existed earlier.</li>
+ <li><strong>Snapshot status:</strong> retrieved October 19, 2026. OpenSecrets does not state a clear filing cutoff for this historical cost snapshot. These are its currently published historical estimates, not a guarantee of final or exhaustive 2024 spending.</li>
+ </ul>
+ <div class="downloads"><a href="party_spending_reported_dollars.png" download>Party chart · PNG</a><a href="party_spending_2024_dollars.png" download>Inflation-adjusted · PNG</a><a href="party_spending_reported_dollars.pdf" download>Party chart · PDF</a><a href="outside_spending_by_type.png" download>Outside spending · PNG</a><a href="election_spending_2000_2024.csv" download>All data · CSV</a><a href="methodology.md" download>Full methodology · MD</a><a href="election-spending-source.zip" download>Reproduce · source ZIP</a></div>
+</details>
+</section>
+<p class="footer">Sources: OpenSecrets and the Federal Reserve Bank of Minneapolis / BLS. Retrieved October 19, 2026. The charts use a locally hosted library. Download the data, figures, and source bundle to explore the report yourself.</p>
+
+<noscript><p class="callout">The interactive charts require JavaScript. You can <a href="party_spending_reported_dollars.png">view the party chart</a>, <a href="outside_spending_by_type.png">view outside spending</a>, or <a href="election_spending_2000_2024.csv">download all data</a>.</p></noscript>
+  </main>

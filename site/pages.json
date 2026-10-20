@@ -1,0 +1,335 @@
+[
+  {
+    "output": "games/guess-the-price.html",
+    "title": "Guess the Price",
+    "viewport": "width=device-width, initial-scale=1, viewport-fit=cover",
+    "assets": "game",
+    "bodyAttributes": {
+      "class": "game-page"
+    },
+    "section": "games",
+    "header": {
+      "profileMount": "selectProfileMount"
+    },
+    "inlineStyles": "styles/games/guess-the-price.css",
+    "source": "pages/games/guess-the-price.html"
+  },
+  {
+    "output": "games/index.html",
+    "title": "Games — Penta Projects",
+    "description": "Games and interactive experiments from Penta Projects.",
+    "assets": "site",
+    "section": "games",
+    "header": {
+      "class": "reveal d1"
+    },
+    "listing": {
+      "class": "content",
+      "title": "Games",
+      "entries": [
+        {
+          "href": "/games/neighborhoods-quiz.html",
+          "title": "Neighborhoods Quiz",
+          "description": "Do you know your own backyard?"
+        },
+        {
+          "href": "/games/guess-the-price.html",
+          "title": "Guess the Price",
+          "description": "It's one banana, Michael. What could it cost?"
+        }
+      ]
+    },
+    "source": "pages/games/index.html"
+  },
+  {
+    "output": "games/neighborhoods-quiz.html",
+    "title": "Neighborhoods Quiz",
+    "viewport": "width=device-width, initial-scale=1, viewport-fit=cover",
+    "assets": "game",
+    "bodyAttributes": {
+      "class": "game-page"
+    },
+    "section": "games",
+    "header": {
+      "profileMount": "selectProfileMount"
+    },
+    "inlineStyles": "styles/games/neighborhoods-quiz.css",
+    "styles": [
+      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+    ],
+    "scripts": [
+      {
+        "src": "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
+      }
+    ],
+    "source": "pages/games/neighborhoods-quiz.html"
+  },
+  {
+    "output": "index.html",
+    "title": "Penta Projects",
+    "description": "Penta Projects — games, tools, and reports.",
+    "assets": "site",
+    "header": {
+      "class": "reveal d1",
+      "arrows": true
+    },
+    "source": "pages/index.html"
+  },
+  {
+    "output": "profile.html",
+    "title": "Your Profile",
+    "assets": "profile",
+    "bodyAttributes": {
+      "class": "profile-page"
+    },
+    "header": {
+      "variant": "profile"
+    },
+    "inlineStyles": "styles/profile.css",
+    "source": "pages/profile.html"
+  },
+  {
+    "output": "reports/election-spending/index.html",
+    "title": "Federal election spending, 2000–2024 — Penta Projects",
+    "description": "Compare Democratic and Republican spending across 13 federal election cycles, including reported Super PAC and other outside spending. Explore the charts, sources, and data.",
+    "canonical": "https://jpentakalos.com/reports/election-spending/",
+    "meta": [
+      {
+        "property": "og:type",
+        "content": "article"
+      },
+      {
+        "property": "og:title",
+        "content": "Federal election spending, 2000–2024"
+      },
+      {
+        "property": "og:description",
+        "content": "Campaigns, parties, and reported outside spending across 13 election cycles, with interactive charts and downloadable data."
+      },
+      {
+        "property": "og:url",
+        "content": "https://jpentakalos.com/reports/election-spending/"
+      },
+      {
+        "property": "og:image",
+        "content": "https://jpentakalos.com/reports/election-spending/party_spending_reported_dollars.png"
+      },
+      {
+        "property": "article:published_time",
+        "content": "2026-10-19"
+      },
+      {
+        "name": "twitter:card",
+        "content": "summary_large_image"
+      }
+    ],
+    "assets": "site",
+    "section": "reports",
+    "header": {},
+    "styles": [
+      "report.css?v=1"
+    ],
+    "scripts": [
+      {
+        "src": "/assets/vendor/plotly-4.1.1.min.js",
+        "defer": true
+      },
+      {
+        "src": "report.js?v=1",
+        "defer": true
+      }
+    ],
+    "source": "pages/reports/election-spending/index.html"
+  },
+  {
+    "output": "reports/index.html",
+    "title": "Reports — Penta Projects",
+    "description": "Data, charts, and research from Penta Projects. Explore federal election spending from 2000 through 2024.",
+    "canonical": "https://jpentakalos.com/reports/",
+    "assets": "site",
+    "section": "reports",
+    "header": {
+      "class": "reveal d1"
+    },
+    "listing": {
+      "class": "content",
+      "title": "Reports",
+      "entries": [
+        {
+          "href": "/reports/election-spending/",
+          "title": "Federal election spending, 2000–2024",
+          "description": "Compare the two major parties across 13 election cycles, including reported Super PAC and other outside spending.",
+          "date": {
+            "iso": "2026-10-19",
+            "label": "October 19, 2026"
+          }
+        }
+      ],
+      "description": "Data, charts, and a closer look at the numbers."
+    },
+    "source": "pages/reports/index.html"
+  },
+  {
+    "output": "tools/fantasy.html",
+    "title": "Fantasy football — Penta Projects",
+    "description": "Live Sleeper fantasy scores and Big Play alerts on the Vestaboard Note.",
+    "assets": "board",
+    "section": "tools",
+    "header": {},
+    "styles": [
+      "/assets/css/fantasy.css?v=1"
+    ],
+    "scripts": [
+      {
+        "type": "module",
+        "src": "/assets/js/fantasy.js?v=3"
+      }
+    ],
+    "source": "pages/tools/fantasy.html"
+  },
+  {
+    "output": "tools/hand-calculator-tools.html",
+    "title": "Prediction market tools",
+    "viewport": "width=device-width, initial-scale=1.0",
+    "assets": "calculator",
+    "section": "tools",
+    "inlineStyles": "styles/tools/hand-calculator-tools.css",
+    "source": "pages/tools/hand-calculator-tools.html"
+  },
+  {
+    "output": "tools/index.html",
+    "title": "Tools — Penta Projects",
+    "description": "Small, useful tools from Penta Projects.",
+    "assets": "site",
+    "section": "tools",
+    "header": {
+      "class": "reveal d1"
+    },
+    "listing": {
+      "class": "content tools-page",
+      "title": "Tools",
+      "entries": [
+        {
+          "href": "/tools/vestaboard/",
+          "title": "Vestaboard",
+          "description": "Apps for John's Vestaboard"
+        },
+        {
+          "href": "/fantasy-dashboard/",
+          "title": "Fantasy Football Dashboard",
+          "description": "Weekly tracker of key FF stats"
+        },
+        {
+          "href": "/tools/time-atlas.html",
+          "title": "Time Atlas",
+          "description": "Explore how San Francisco changed across historical checkpoints."
+        },
+        {
+          "href": "/tools/hand-calculator-tools.html",
+          "title": "Hand Calculator Tools",
+          "description": "Prediction market calculator"
+        }
+      ]
+    },
+    "source": "pages/tools/index.html"
+  },
+  {
+    "output": "tools/nfl.html",
+    "title": "NFL scores — Penta Projects",
+    "description": "Follow an NFL game on John's Vestaboard Note.",
+    "assets": "board",
+    "section": "tools",
+    "header": {},
+    "styles": [
+      "/assets/css/nfl.css?v=3"
+    ],
+    "scripts": [
+      {
+        "type": "module",
+        "src": "/assets/js/nfl.js?v=4"
+      }
+    ],
+    "source": "pages/tools/nfl.html"
+  },
+  {
+    "output": "tools/pomodoro.html",
+    "title": "Pomodoro — Penta Projects",
+    "description": "A Pomodoro timer for John's Vestaboard Note.",
+    "assets": "board",
+    "section": "tools",
+    "header": {},
+    "styles": [
+      "/assets/css/pomodoro.css?v=3"
+    ],
+    "scripts": [
+      {
+        "type": "module",
+        "src": "/assets/js/pomodoro.js?v=4"
+      }
+    ],
+    "source": "pages/tools/pomodoro.html"
+  },
+  {
+    "output": "tools/time-atlas.html",
+    "title": "Time Atlas — Penta Projects",
+    "description": "Walk through San Francisco history by decade.",
+    "assets": "site",
+    "bodyAttributes": {
+      "class": "atlas-body"
+    },
+    "section": "tools",
+    "header": {
+      "class": "atlas-site-head reveal d1"
+    },
+    "styles": [
+      "https://esm.sh/maplibre-gl@5/dist/maplibre-gl.css",
+      "/assets/css/time-atlas.css"
+    ],
+    "source": "pages/tools/time-atlas.html"
+  },
+  {
+    "output": "tools/vestaboard/index.html",
+    "title": "Vestaboard — Penta Projects",
+    "description": "Notes, Pomodoro, NFL scores, and fantasy football on John's Vestaboard.",
+    "meta": [
+      {
+        "name": "theme-color",
+        "content": "#151614"
+      }
+    ],
+    "assets": "hub",
+    "htmlAttributes": {
+      "data-theme": "board-hub"
+    },
+    "section": "tools",
+    "header": {
+      "variant": "hub"
+    },
+    "styles": [
+      "/assets/css/vestaboard-hub.css?v=3"
+    ],
+    "scripts": [
+      {
+        "type": "module",
+        "src": "/assets/js/vestaboard-hub.js?v=2"
+      }
+    ],
+    "source": "pages/tools/vestaboard/index.html"
+  },
+  {
+    "output": "tools/vestaboard.html",
+    "title": "Leave a note — Penta Projects",
+    "description": "Send a little note from the internet to John's Vestaboard Note.",
+    "assets": "board",
+    "section": "tools",
+    "header": {},
+    "styles": [],
+    "scripts": [
+      {
+        "type": "module",
+        "src": "/assets/js/vestaboard.js?v=6"
+      }
+    ],
+    "source": "pages/tools/vestaboard.html"
+  }
+]
