@@ -46,6 +46,7 @@ a { color: inherit; }
 /* ---------- header ---------- */
 .site-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
@@ -62,7 +63,7 @@ a { color: inherit; }
   white-space: nowrap;
 }
 
-.nav { display: flex; gap: 14px; align-items: center; }
+.nav { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
 
 .btn {
   display: inline-flex;

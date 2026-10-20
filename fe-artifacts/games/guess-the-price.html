@@ -44,11 +44,11 @@
 
   /* Shared top bar — mirrors the homepage (/assets/site.css) so every portal
      opens with the same Penta Projects logo (left) + nav (right). */
-  .site-head{display:flex;align-items:center;justify-content:space-between;gap:20px;
+  .site-head{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;
     padding:28px clamp(24px,5vw,64px)}
   .site-head .logo{font-family:var(--font-display);font-weight:400;font-size:1.75rem;
     letter-spacing:.01em;text-decoration:none;line-height:1.3;white-space:nowrap}
-  .site-head .nav{display:flex;gap:14px;align-items:center}
+  .site-head .nav{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 
   /* ---- Pack selection screen ---- */
   #select{display:none;min-height:100vh;min-height:100dvh;flex-direction:column;
@@ -173,9 +173,10 @@
 <section id="select">
   <header class="site-head">
     <a class="logo gradient-text" href="/">Penta Projects</a>
-    <nav class="nav">
+    <nav class="nav" aria-label="Main navigation">
       <a class="btn" href="/games" aria-current="page">Games</a>
       <a class="btn" href="/tools">Tools</a>
+      <a class="btn" href="/reports/">Reports</a>
       <div id="selectProfileMount"></div>
     </nav>
   </header>

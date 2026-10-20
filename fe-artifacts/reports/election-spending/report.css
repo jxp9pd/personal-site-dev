@@ -1,0 +1,91 @@
+.election-report {
+  --blue: #2870b8;
+  --red: #d35b59;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px clamp(20px, 4vw, 56px) 64px;
+  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.election-report .report-back {
+  display: inline-block;
+  margin-bottom: 24px;
+  color: var(--muted);
+  font: 12px var(--font-mono);
+  text-decoration: none;
+}
+.election-report .report-back:hover { color: var(--ink); }
+.election-report .report-date { margin-bottom: 12px; color: var(--muted); font-size: 12px; }
+.election-report .eyebrow { font: 11px/1.6 var(--font-mono); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.election-report h1, .election-report h2 { font-family: var(--font-display); font-weight: 400; }
+.election-report h1 { font-size: clamp(38px, 4.8vw, 64px); line-height: 1.05; max-width: 1000px; margin: 16px 0 22px; }
+.election-report h2 { font-size: 32px; line-height: 1.15; margin: 0 0 12px; }
+.election-report h3 { font-size: 17px; margin: 0 0 8px; }
+.election-report p { margin: 0 0 15px; }
+.election-report .intro { max-width: 980px; font-size: 18px; color: var(--muted); }
+.election-report .badges { display: flex; gap: 9px; flex-wrap: wrap; margin: 22px 0 28px; }
+.election-report .badge { border: 1px solid var(--line); border-radius: 20px; padding: 4px 12px; font-size: 12px; background: var(--paper-2); }
+.election-report .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 30px; }
+.election-report .card { border: 1px solid var(--line); background: white; border-radius: 10px; padding: 19px 22px; }
+.election-report .card .label { font-size: 13px; color: var(--muted); }
+.election-report .value { font-size: 32px; line-height: 1.4; font-weight: 700; letter-spacing: -.03em; }
+.election-report .card small { color: var(--muted); font-size: 12px; }
+.election-report .dem { color: var(--blue); }
+.election-report .rep { color: var(--red); }
+.election-report .controls { display: flex; gap: 25px; justify-content: space-between; align-items: center; flex-wrap: wrap; margin: 8px 0 20px; }
+.election-report .control { display: flex; gap: 10px; align-items: center; font-size: 13px; }
+.election-report .segmented { display: flex; padding: 3px; background: #eeece2; border-radius: 7px; }
+.election-report button { font: inherit; cursor: pointer; color: var(--muted); border: 0; border-radius: 5px; background: transparent; padding: 7px 14px; }
+.election-report button[aria-pressed=true] { color: var(--ink); background: white; box-shadow: 0 1px 4px #14130f16; }
+.election-report :is(button, summary, a, .chart-scroll, .table-scroll):focus-visible { outline: 3px solid #2870b8; outline-offset: 3px; }
+.election-report .panel { background: white; border: 1px solid var(--line); border-radius: 12px; padding: 25px 26px 16px; margin-bottom: 27px; }
+.election-report .caption { font-size: 14px; color: var(--muted); max-width: 1100px; }
+.election-report .chart-scroll { overflow-x: auto; }
+.election-report .chart { height: 490px; min-width: 820px; }
+.election-report .outside-chart { height: 390px; min-width: 820px; }
+.election-report .footnote { font-size: 12px; color: var(--muted); margin: 5px 0 10px; }
+.election-report .callout { border-left: 3px solid #b68a42; background: var(--paper-2); padding: 12px 16px; margin: 18px 0 12px; font-size: 14px; }
+.election-report .sources { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 20px; }
+.election-report .sources p, .election-report li { font-size: 14px; color: var(--muted); }
+.election-report ul { padding-left: 20px; }
+.election-report li { margin: 8px 0; }
+.election-report a { color: #205d91; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.election-report details { border-top: 1px solid var(--line); padding-top: 18px; margin-top: 22px; }
+.election-report summary { cursor: pointer; font-weight: 600; }
+.election-report .table-scroll { overflow-x: auto; margin-top: 18px; }
+.election-report table { border-collapse: collapse; width: 100%; font-size: 13px; white-space: nowrap; }
+.election-report th, .election-report td { text-align: right; padding: 10px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.election-report th { color: var(--muted); font-weight: 600; }
+.election-report th:first-child, .election-report td:first-child { text-align: left; }
+.election-report .downloads { display: flex; gap: 12px 20px; flex-wrap: wrap; margin: 18px 0 5px; font-size: 14px; }
+.election-report .footer { margin-top: 34px; font-size: 12px; color: var(--muted); }
+.election-report .mobile-hint { display: none; }
+.election-report .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.election-report .js-plotly-plot .plotly .modebar { top: 4px !important; }
+@media (max-width: 750px) {
+  .election-report { padding: 24px 16px 40px; }
+  .election-report .cards { gap: 8px; }
+  .election-report .card { padding: 13px 10px; }
+  .election-report .value { font-size: 25px; }
+  .election-report .card small { font-size: 11px; }
+  .election-report .panel { padding: 20px 13px 13px; }
+  .election-report .control { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .election-report .sources { grid-template-columns: 1fr; gap: 15px; }
+  .election-report .controls { gap: 14px; }
+  .election-report .chart { height: 440px; }
+  .election-report .intro { font-size: 16px; }
+  .election-report button { padding: 7px 10px; }
+  .election-report .mobile-hint { display: block; }
+}
+@media (max-width: 480px) {
+  .election-report .cards { grid-template-columns: 1fr; }
+  .election-report .card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; align-items: center; }
+  .election-report .card small { grid-column: 1 / -1; }
+}
+@media print {
+  .site-head, .election-report .report-back, .election-report .controls, .election-report .downloads, .election-report .modebar { display: none !important; }
+  .election-report { padding: 20px; }
+  .election-report .panel { break-inside: avoid; }
+  .election-report .chart { min-width: 0; }
+  .election-report .sources { display: block; }
+}
