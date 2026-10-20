@@ -1,0 +1,88 @@
+<section id="select">
+  {{header}}
+  <div class="select-body">
+    <div class="select-head">
+      <h1>Guess the Price</h1>
+    </div>
+    <div class="pack-grid" id="packGrid"></div>
+  </div>
+</section>
+
+<div id="play">
+  <header>
+    <a class="back" href="?">&larr; Packs</a>
+    <div class="eyebrow" id="playEyebrow"></div>
+    <div class="spacer"></div>
+    <button class="btn lb" id="leaderboardBtn" hidden>Leaderboard</button>
+    <div id="playProfileMount"></div>
+  </header>
+  <main>
+    <!-- Guessing stage -->
+    <section class="stage guess-stage" id="guessStage" hidden>
+      <div class="timer-row">
+        <span class="eyebrow">Time left</span>
+        <span class="countdown" id="countdown">20</span>
+      </div>
+      <div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
+      <div class="guess-card">
+        <div class="ask">What’s the price of</div>
+        <div class="product" id="productName">—</div>
+        <div class="image-frame" id="imageFrame"><span class="chip">No image</span></div>
+        <div class="guess-input-wrap">
+          <span class="dollar">$</span>
+          <input id="guessInput" type="text" inputmode="decimal" autocomplete="off"
+            placeholder="0.00" aria-label="Your price guess" />
+        </div>
+        <div class="lock-row">
+          <button class="btn" id="lockIn">Lock it in &rarr;</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Reveal stage -->
+    <section class="stage reveal-stage" id="revealStage" hidden>
+      <div class="reveal-card">
+        <div class="actual-label">Actual price</div>
+        <div class="actual" id="revealActual">—</div>
+        <div class="reveal-stats">
+          <div><div class="k">Your guess</div><div class="v" id="revealGuess">—</div></div>
+          <div><div class="k">Off by</div><div class="v" id="revealOff">—</div></div>
+        </div>
+        <div class="points-line gradient-text" id="revealPoints">+0</div>
+        <div class="points-bar"><div class="points-fill" id="revealPointsFill"></div></div>
+        <button class="btn" id="revealNext">Next &rarr;</button>
+      </div>
+    </section>
+
+    <!-- Summary stage -->
+    <section class="stage summary-stage" id="summaryStage" hidden>
+      <div class="summary-card">
+        <div class="total gradient-text" id="summaryTotal">0</div>
+        <div class="out-of" id="summaryOutOf">out of 0 points</div>
+        <div class="accuracy" id="summaryAccuracy"></div>
+        <div class="per-item">
+          <h3>Points per item</h3>
+          <div id="summaryItems"></div>
+        </div>
+        <div class="save-nudge" id="saveNudge" hidden>
+          <span>Log in to save this score to your profile.</span>
+          <button class="btn" id="saveLogin">Log in to save</button>
+        </div>
+        <div class="saved-note" id="savedNote" hidden>Saved to your profile</div>
+        <div class="save-error" id="saveError" hidden>
+          <span>Couldn’t save this score — check your connection.</span>
+          <button class="btn" id="saveRetry">Retry</button>
+        </div>
+        <div class="summary-actions">
+          <button class="btn" id="playAgain">Play again</button>
+          <a class="btn" id="changePack" href="?">Change pack</a>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script type="module">
+import { start } from "../assets/js/guess-the-price.js";
+start().catch(err => console.error('Guess the Price failed to start', err));
+</script>

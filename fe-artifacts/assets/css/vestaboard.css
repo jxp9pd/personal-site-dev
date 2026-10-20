@@ -12,14 +12,6 @@
 .tile::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #1119; }
 .tile.changed { animation: flip .22s ease-out; }
 @keyframes flip { from { transform: perspective(200px) rotateX(-38deg); opacity: .55; } to { transform: none; opacity: 1; } }
-.tile[data-code="63"], .red { background: #cf5146; }
-.tile[data-code="64"], .orange { background: #e89344; }
-.tile[data-code="65"], .yellow { background: #e8c950; }
-.tile[data-code="66"], .green { background: #559f77; }
-.tile[data-code="67"], .blue { background: #4b8cc5; }
-.tile[data-code="68"], .violet { background: #8c73ae; }
-.tile[data-code="69"], .white { background: #eeeee3; }
-.tile[data-code="70"] { background: #151515; }
 .composer { margin-top: 40px; padding-top: 28px; border-top: 1px solid var(--line); }
 .field-heading { margin-bottom: 10px; font-size: .75rem; }
 .secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px; border: 1px solid #c9ccbf; border-radius: 6px; padding: 10px 15px; font: 400 .875rem/1.4 var(--font-mono); color: var(--ink); background: #f2f3e9; cursor: pointer; }

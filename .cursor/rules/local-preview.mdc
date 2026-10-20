@@ -5,7 +5,8 @@ alwaysApply: true
 
 # Local static preview after FE changes
 
-After making any change under `fe-artifacts/` (HTML, CSS, or JS), spin up a local
+After changing `site/`, the build scripts, or `fe-artifacts/`, run
+`npm run build:site`, then spin up a local
 static server so the user can preview it — unless one is already running.
 
 The web root is `fe-artifacts/` (pages use root-relative paths like `/assets`,
@@ -22,7 +23,7 @@ process. Then give the user the URLs they can open, e.g.
 Notes:
 - Before starting, check the terminals folder for an existing `http.server` on
   8000; reuse it instead of starting a duplicate.
-- This is a static site with no build step — edits are picked up on refresh, so
-  the server does not need restarting after further FE edits.
+- The server serves generated static files. Rebuild after source changes and
+  refresh; the server does not need restarting.
 - Game data loads from Supabase at runtime; layout/styling still previews fine
   even if data calls fail locally.

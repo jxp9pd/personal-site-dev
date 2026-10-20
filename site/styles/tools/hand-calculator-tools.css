@@ -1,0 +1,212 @@
+:root {
+    --bg: #faf9f5;
+    --surface: #ffffff;
+    --surface-2: #f1efe8;
+    --border: rgba(0, 0, 0, 0.12);
+    --text: #1a1a1a;
+    --text-muted: #5f5e5a;
+    --text-faint: #888780;
+    --success: #0f6e56;
+    --danger: #a32d2d;
+    --danger-bg: #fcebeb;
+    --danger-text: #791f1f;
+    --accent: #185fa5;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a;
+      --surface: #262624;
+      --surface-2: #30302e;
+      --border: rgba(255, 255, 255, 0.14);
+      --text: #f1efe8;
+      --text-muted: #b4b2a9;
+      --text-faint: #888780;
+      --success: #5dcaa5;
+      --danger: #f09595;
+      --danger-bg: #501313;
+      --danger-text: #f7c1c1;
+      --accent: #85b7eb;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  .page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 500;
+    margin: 0 0 1.25rem;
+  }
+  .nav {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+    margin-bottom: 1.5rem;
+  }
+  .nav button {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 400;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s, font-weight 0.15s;
+  }
+  .nav button.active {
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 500;
+  }
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 1.25rem;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  input[type="number"], select {
+    width: 100%;
+    height: 36px;
+    padding: 0 10px;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input[type="number"]:hover, select:hover {
+    border-color: rgba(0, 0, 0, 0.25);
+  }
+  input[type="number"]:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(24, 95, 165, 0.18);
+  }
+  .toggle {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+    margin-bottom: 8px;
+  }
+  .toggle button {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 400;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s, font-weight 0.15s;
+  }
+  .toggle button.active {
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 500;
+  }
+  .section-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-faint);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin: 1rem 0 8px;
+  }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .metric {
+    background: var(--surface-2);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+  }
+  .metric-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .metric-label[data-tooltip] {
+    cursor: help;
+    border-bottom: 1px dashed var(--text-faint);
+    display: inline-block;
+  }
+  .metric-label[data-tooltip] {
+    position: relative;
+  }
+  .metric-label[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text);
+    color: var(--bg);
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 6px 10px;
+    border-radius: 6px;
+    white-space: pre-line;
+    width: max-content;
+    max-width: 220px;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .metric-value {
+    font-size: 20px;
+    font-weight: 500;
+  }
+  .metric-value .pct {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+  .error {
+    display: none;
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: var(--danger-bg);
+    color: var(--danger-text);
+    font-size: 13px;
+    border-radius: var(--radius-md);
+  }
+  .view { display: none; }
+  .view.active { display: block; }

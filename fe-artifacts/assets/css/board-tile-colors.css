@@ -1,0 +1,9 @@
+/* Generated from site/theme.json by scripts/build-theme.mjs. Do not edit. */
+:is(.board, .app-board) .tile[data-code="63"], .palette .red { background: var(--board-red); }
+:is(.board, .app-board) .tile[data-code="64"], .palette .orange { background: var(--board-orange); }
+:is(.board, .app-board) .tile[data-code="65"], .palette .yellow { background: var(--board-yellow); }
+:is(.board, .app-board) .tile[data-code="66"], .palette .green { background: var(--board-green); }
+:is(.board, .app-board) .tile[data-code="67"], .palette .blue { background: var(--board-blue); }
+:is(.board, .app-board) .tile[data-code="68"], .palette .violet { background: var(--board-violet); }
+:is(.board, .app-board) .tile[data-code="69"], .palette .white { background: var(--board-white); }
+:is(.board, .app-board) .tile[data-code="70"], .palette .black { background: var(--board-black); }

@@ -1,0 +1,516 @@
+<div class="page">
+  <div class="shell">
+    <div class="card">
+      {{header}}
+      <div class="body" id="content"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { Profiles } from "./assets/js/profiles.js";
+import { getSession, fetchPlays, fetchProfileByUsername, updateProfile, onAuthStateChange }
+  from "./assets/js/dataClient.js";
+import { computeStats } from "./assets/js/stats.js";
+import { getGame, getModeLabel, gamesByCategory } from "./assets/js/manifest.js";
+import { initialsAvatar } from "./assets/js/avatar.js";
+import { paginate } from "./assets/js/pagination.js";
+
+const BIO_MAX = 200;
+const LOG_PAGE_SIZE = 10;
+
+const content = document.getElementById("content");
+const navTitle = document.getElementById("navTitle");
+
+// The shared login modal + logged-out auto-prompt come from the facade, but this
+// page opts out of the header profile button (headerMount: null) — linking to
+// the profile from the profile itself is a no-op. Logout lives in its own button.
+Profiles.init({ headerMount: null })
+  .catch(err => console.error("Profiles init failed", err));
+
+const logoutBtn = document.getElementById("logoutBtn");
+logoutBtn.addEventListener("click", () => Profiles.logout());
+
+function esc(value) {
+  return String(value)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function fmtDateTime(iso) {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleString();
+}
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString();
+}
+
+function gameName(gameId) {
+  return getGame(gameId)?.name ?? gameId;
+}
+
+function modeLabel(gameId, mode) {
+  return getModeLabel(gameId, mode) ?? mode;
+}
+
+function scoreText(play) {
+  return `${play.score}/${play.total}`;
+}
+
+function percent(ratio) {
+  return Number.isFinite(ratio) ? `${Math.round(ratio * 100)}%` : "—";
+}
+
+function ratioOf(play) {
+  return play.total > 0 ? play.score / play.total : NaN;
+}
+
+// ---- whole-body message states (no person header / tabs) ----
+
+function messageHtml({ title, body, actionHtml = "" }) {
+  return `
+    <div class="msg">
+      <h2>${esc(title)}</h2>
+      <p>${body}</p>
+      ${actionHtml}
+    </div>`;
+}
+
+function renderLoggedOut() {
+  navTitle.textContent = "Your Profile";
+  content.innerHTML = messageHtml({
+    title: "Log in to see your profile",
+    body: "Your best scores and full play history live here once you're signed in.",
+    actionHtml: `<button class="prompt" id="loginBtn" type="button">Log in</button>`,
+  });
+  document.getElementById("loginBtn")?.addEventListener("click", () => Profiles.promptLogin());
+}
+
+function renderError() {
+  navTitle.textContent = "Your Profile";
+  content.innerHTML = messageHtml({
+    title: "Couldn't load your profile",
+    body: "Something went wrong fetching your play history. Please refresh and try again.",
+  });
+}
+
+// Distinct from the empty state: the requested username matched no profile.
+function renderNotFound(username) {
+  navTitle.textContent = "Profile";
+  content.innerHTML = messageHtml({
+    title: "No profile found",
+    body: `We couldn't find a profile for "${esc(username)}".`,
+  });
+}
+
+// ---- person header ----
+
+// avatar_url is a dormant seam (always null in v1): when present it would win,
+// otherwise fall back to the deterministic generated initials avatar.
+function avatarHtml(profile) {
+  if (profile.avatar_url) {
+    return `<img class="avatar" src="${esc(profile.avatar_url)}" alt="">`;
+  }
+  const { initials, color } = initialsAvatar(profile.username || profile.user_id);
+  return `<div class="avatar" style="background:${esc(color)}">${esc(initials)}</div>`;
+}
+
+// Email is private: only shown on the viewer's own profile, never in public mode.
+function personHtml(profile, session, isOwnProfile) {
+  const joined = fmtDate(profile.created_at);
+  const email = isOwnProfile ? session?.user?.email : null;
+  const meta = [];
+  if (email) meta.push(esc(email));
+  if (joined) meta.push(`Joined ${esc(joined)}`);
+  return `
+    <div class="person">
+      ${avatarHtml(profile)}
+      <div class="who">
+        <div class="uname">${esc(profile.username)}</div>
+        <div class="meta">${meta.join(" · ")}</div>
+      </div>
+    </div>`;
+}
+
+// ---- Games tab: records + activity ----
+
+// stats is a flat list of per-(gameId, mode) summaries; collapse it to
+// gameId -> Map(mode -> summary) so each game renders as one records row.
+function groupByGame(stats) {
+  const byGame = new Map();
+  for (const g of stats) {
+    if (!byGame.has(g.gameId)) byGame.set(g.gameId, new Map());
+    byGame.get(g.gameId).set(g.mode, g);
+  }
+  return byGame;
+}
+
+// Modes with plays, ordered by the manifest's declared mode order when the game
+// is known, else by insertion order.
+function orderedModes(gameId, modesMap) {
+  const game = getGame(gameId);
+  if (game?.modes) return Object.keys(game.modes).filter((m) => modesMap.has(m));
+  return [...modesMap.keys()];
+}
+
+// Selected mode per game for the records row, kept across toggle clicks.
+const selectedModes = new Map();
+
+// Played games in manifest order (category, then declaration), unknown slugs last.
+function orderedGameIds(byGame) {
+  const ids = [];
+  const seen = new Set();
+  for (const { games } of gamesByCategory()) {
+    for (const g of games) {
+      if (byGame.has(g.slug)) { ids.push(g.slug); seen.add(g.slug); }
+    }
+  }
+  for (const gameId of byGame.keys()) if (!seen.has(gameId)) ids.push(gameId);
+  return ids;
+}
+
+function recordRowHtml(gameId, modesMap) {
+  const modes = orderedModes(gameId, modesMap);
+  if (!selectedModes.has(gameId)) {
+    selectedModes.set(gameId, modes.includes("find") ? "find" : modes[0]);
+  }
+  const selected = selectedModes.get(gameId);
+  const g = modesMap.get(selected);
+  const toggle = modes.length > 1
+    ? `<button class="act-pill rec-toggle" type="button" data-game="${esc(gameId)}">${esc(modeLabel(gameId, selected))}</button>`
+    : `<span class="act-pill">${esc(modeLabel(gameId, selected))}</span>`;
+  return `
+    <tr>
+      <td class="game">${esc(gameName(gameId))}</td>
+      <td class="attempts num">${g.count}</td>
+      <td class="best num">${percent(ratioOf(g.best))}</td>
+      <td class="avg num">${percent(g.average)}</td>
+      <td class="act">${toggle}</td>
+    </tr>`;
+}
+
+function recordsHtml() {
+  const rows = orderedGameIds(viewCtx.byGame)
+    .map((gameId) => recordRowHtml(gameId, viewCtx.byGame.get(gameId)))
+    .join("");
+  return `
+    <div>
+      <div class="sec-label">RECORDS</div>
+      <table class="grid rec">
+        <thead>
+          <tr>
+            <th>GAME</th>
+            <th class="num">ATTEMPTS</th>
+            <th class="num">BEST</th>
+            <th class="num">AVERAGE</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// Current 1-based page of the activity log; clamped by paginate() on render.
+let logPage = 1;
+
+function activityHtml() {
+  const { pageItems, page, pageCount } = paginate(viewCtx.logPlays, logPage, LOG_PAGE_SIZE);
+  logPage = page;
+  const rows = pageItems.map((play) => `
+    <tr>
+      <td class="game">${esc(gameName(play.game_id))}</td>
+      <td class="mode">${esc(modeLabel(play.game_id, play.mode))}</td>
+      <td class="score num">${esc(scoreText(play))}</td>
+      <td class="date num">${esc(fmtDateTime(play.created_at))}</td>
+    </tr>`).join("");
+  const pager = pageCount > 1 ? `
+    <div class="pager">
+      <button class="btn-sm" id="logPrev" type="button" ${page <= 1 ? "disabled" : ""}>&larr; Prev</button>
+      <span class="info">Page ${page} of ${pageCount}</span>
+      <button class="btn-sm" id="logNext" type="button" ${page >= pageCount ? "disabled" : ""}>Next &rarr;</button>
+    </div>` : "";
+  return `
+    <div>
+      <div class="sec-label">ACTIVITY</div>
+      <table class="grid log">
+        <thead>
+          <tr>
+            <th>GAME</th>
+            <th>MODE</th>
+            <th class="num">SCORE</th>
+            <th class="num">DATE</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      ${pager}
+    </div>`;
+}
+
+function gamesPanelHtml() {
+  if (viewCtx.stats.length === 0) {
+    return messageHtml({
+      title: "No games recorded yet",
+      body: `Go play a round and it'll show up here. <a class="link" href="/games">Browse games &rarr;</a>`,
+    });
+  }
+  return `<div class="sections">${recordsHtml()}${activityHtml()}</div>`;
+}
+
+// ---- Profile tab (own profile only) ----
+
+function profilePanelHtml(profile) {
+  const bio = (profile.bio ?? "").trim();
+  return `
+    <div class="form">
+      <div class="row">
+        <label>Display name</label>
+        <input value="${esc(profile.username)}" disabled>
+        <span class="hint">Your username identifies you and can't be changed.</span>
+      </div>
+      <div class="row">
+        <label>Bio</label>
+        <textarea id="bioTa" rows="3" maxlength="${BIO_MAX}">${esc(bio)}</textarea>
+      </div>
+      <div class="actions">
+        <button class="btn" id="bioSave" type="button">Save changes</button>
+        <button class="btn-ghost" id="bioCancel" type="button">Cancel</button>
+        <span class="note" id="bioNote"></span>
+      </div>
+    </div>`;
+}
+
+// ---- render + wiring ----
+
+// Render context for the profile currently on screen (own or public), kept so
+// tab switches / toggles / paging re-render without re-fetching.
+let viewCtx = null;
+let activeTab = "games";
+
+function renderContent() {
+  const { session, profile, isOwnProfile, stats } = viewCtx;
+  navTitle.textContent = isOwnProfile ? "Your Profile" : profile.username;
+  viewCtx.byGame = groupByGame(stats);
+
+  const header = personHtml(profile, session, isOwnProfile);
+
+  // Bio reads directly under the header (i.e. beneath the email/joined meta) on
+  // both own and public profiles. Own profiles still edit it in the Profile tab.
+  const bioText = (profile.bio ?? "").trim();
+  const bioBlock = bioText
+    ? `<div class="bio-public">${esc(bioText)}</div>`
+    : "";
+
+  const tabs = isOwnProfile ? `
+    <div class="tabs">
+      <button class="tab ${activeTab === "games" ? "on" : ""}" id="tabGames" type="button">Games</button>
+      <button class="tab ${activeTab === "profile" ? "on" : ""}" id="tabProfile" type="button">Profile</button>
+    </div>` : "";
+
+  const panel = (isOwnProfile && activeTab === "profile")
+    ? profilePanelHtml(profile)
+    : gamesPanelHtml();
+
+  content.innerHTML = `${header}${bioBlock}${tabs}${panel}`;
+
+  wireTabs();
+  wireRecordToggles();
+  wirePager();
+  if (isOwnProfile && activeTab === "profile") wireProfileForm();
+}
+
+function wireTabs() {
+  document.getElementById("tabGames")?.addEventListener("click", () => {
+    activeTab = "games";
+    renderContent();
+  });
+  document.getElementById("tabProfile")?.addEventListener("click", () => {
+    activeTab = "profile";
+    renderContent();
+  });
+}
+
+function wireRecordToggles() {
+  content.querySelectorAll(".rec-toggle").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const gameId = btn.dataset.game;
+      const modes = orderedModes(gameId, viewCtx.byGame.get(gameId));
+      const idx = modes.indexOf(selectedModes.get(gameId));
+      selectedModes.set(gameId, modes[(idx + 1) % modes.length]);
+      renderContent();
+    });
+  });
+}
+
+function wirePager() {
+  document.getElementById("logPrev")?.addEventListener("click", () => { logPage -= 1; renderContent(); });
+  document.getElementById("logNext")?.addEventListener("click", () => { logPage += 1; renderContent(); });
+}
+
+function wireProfileForm() {
+  const ta = document.getElementById("bioTa");
+  const note = document.getElementById("bioNote");
+  const saveBtn = document.getElementById("bioSave");
+  const cancelBtn = document.getElementById("bioCancel");
+
+  cancelBtn.addEventListener("click", () => {
+    ta.value = (viewCtx.profile.bio ?? "").trim();
+    note.className = "note";
+    note.textContent = "";
+  });
+
+  saveBtn.addEventListener("click", async () => {
+    const next = ta.value.trim().slice(0, BIO_MAX);
+    saveBtn.disabled = true;
+    cancelBtn.disabled = true;
+    note.className = "note";
+    note.textContent = "Saving…";
+    try {
+      const updated = await updateProfile({ bio: next });
+      viewCtx.profile.bio = updated?.bio ?? next;
+    } catch (err) {
+      console.error("updateProfile failed", err);
+      saveBtn.disabled = false;
+      cancelBtn.disabled = false;
+      note.className = "note err";
+      note.textContent = "Couldn't save — try again.";
+      return;
+    }
+    saveBtn.disabled = false;
+    cancelBtn.disabled = false;
+    note.className = "note ok";
+    note.textContent = "Saved";
+    syncHeaderBio();
+  });
+}
+
+// Reflects a bio edit in the read-only block under the header without a full
+// re-render, so the "Saved" note below the form is preserved.
+function syncHeaderBio() {
+  const text = (viewCtx.profile.bio ?? "").trim();
+  let block = content.querySelector(".bio-public");
+  if (text) {
+    if (!block) {
+      block = document.createElement("div");
+      block.className = "bio-public";
+      content.querySelector(".person")?.insertAdjacentElement("afterend", block);
+    }
+    block.textContent = text;
+  } else if (block) {
+    block.remove();
+  }
+}
+
+function fallbackProfile(session) {
+  return {
+    user_id: session.user.id,
+    username: sessionUsername(session),
+    bio: null,
+    created_at: session.user.created_at,
+    avatar_url: null,
+  };
+}
+
+function sessionUsername(session) {
+  return session.user.user_metadata?.username || session.user.email || "You";
+}
+
+function requestedUsername() {
+  try {
+    return new URLSearchParams(location.search).get("u");
+  } catch {
+    return null;
+  }
+}
+
+// Guards against out-of-order async renders when auth events and the initial
+// load race: only the newest invocation is allowed to paint.
+let renderSeq = 0;
+
+async function refresh(sessionArg) {
+  const seq = ++renderSeq;
+
+  let session = sessionArg;
+  if (session === undefined) {
+    try {
+      session = await getSession();
+    } catch {
+      session = null;
+    }
+    if (seq !== renderSeq) return;
+  }
+
+  // Logout only makes sense while signed in; the logged-out body has its own
+  // login prompt, so the top-right stays empty then.
+  logoutBtn.hidden = !session;
+
+  const requested = requestedUsername();
+
+  // Self mode with no session and no ?u= keeps the existing login prompt.
+  if (!requested && !session) {
+    renderLoggedOut();
+    return;
+  }
+
+  let profile;
+  let plays;
+  try {
+    if (requested) {
+      profile = await fetchProfileByUsername(requested);
+      if (seq !== renderSeq) return;
+      if (!profile) {
+        renderNotFound(requested);
+        return;
+      }
+      plays = await fetchPlays(profile.user_id);
+    } else {
+      // A brand-new signup's profile row can briefly lag; fall back to session-
+      // derived identity so the page still renders rather than erroring.
+      const uname = session.user.user_metadata?.username;
+      [profile, plays] = await Promise.all([
+        uname ? fetchProfileByUsername(uname) : Promise.resolve(null),
+        fetchPlays(session.user.id),
+      ]);
+      profile = profile ?? fallbackProfile(session);
+    }
+  } catch (err) {
+    if (seq !== renderSeq) return;
+    console.error("profile load failed", err);
+    renderError();
+    return;
+  }
+  if (seq !== renderSeq) return;
+
+  // Ownership (by user_id) gates email + the editable Profile tab; a ?u= that
+  // resolves to the signed-in user's own row is therefore treated as self mode.
+  const isOwnProfile = !!session && session.user.id === profile.user_id;
+
+  viewCtx = {
+    session,
+    profile,
+    isOwnProfile,
+    stats: computeStats(plays),
+    logPlays: sortNewestFirst(plays),
+  };
+  activeTab = "games";
+  selectedModes.clear();
+  logPage = 1;
+  renderContent();
+}
+
+// Global newest-first ordering across all games/modes, matching stats.js recency
+// (created_at desc, then id desc as a deterministic tiebreak).
+function sortNewestFirst(plays) {
+  return plays.slice().sort((a, b) => {
+    if (a.created_at !== b.created_at) return a.created_at < b.created_at ? 1 : -1;
+    return String(a.id) < String(b.id) ? 1 : -1;
+  });
+}
+
+onAuthStateChange((_event, session) => refresh(session ?? null));
+
+refresh();
+</script>

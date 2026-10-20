@@ -21,8 +21,8 @@ describe('Time Atlas public placement', () => {
     const page = read('fe-artifacts/tools/time-atlas.html');
     const map = read('fe-artifacts/assets/js/time-atlas-map.js');
 
-    expect(page).toContain('href="/assets/site.css?v=3"');
-    expect(page).toContain('href="/assets/css/time-atlas.css"');
+    expect(page).toMatch(/href="\/assets\/site\.css(?:\?[^"\s]*)?"/);
+    expect(page).toMatch(/href="\/assets\/css\/time-atlas\.css(?:\?[^"\s]*)?"/);
     expect(page).toContain("from '/assets/js/time-atlas.js'");
     expect(page).not.toContain('/src/');
     expect(map).toContain('https://basemaps.cartocdn.com/gl/positron-gl-style/style.json');

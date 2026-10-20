@@ -1,0 +1,126 @@
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:var(--font-mono);font-size:15px;line-height:1.45;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  /* dvh with vh fallback: mobile browser chrome makes 100vh overflow behind the
+     address bar, clipping the map bottom; dvh tracks the visible viewport. */
+  #app{display:none;flex-direction:column;height:100vh;height:100dvh}
+  header{padding:12px clamp(16px,3vw,24px);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:16px;flex-wrap:wrap;background:var(--paper)}
+  header h1{font-family:var(--font-display);font-size:22px;margin:0;font-weight:400;
+    letter-spacing:.01em;line-height:1.2}
+  .back{color:var(--muted);text-decoration:none;font-size:11px;font-weight:500;
+    text-transform:uppercase;letter-spacing:.14em}
+  .back:hover{color:var(--ink)}
+  .mode-tabs{display:flex;gap:4px;background:var(--paper-2);border:1px solid var(--line);
+    border-radius:999px;padding:4px}
+  .mode-tabs button{background:none;border:0;color:var(--muted);padding:6px 14px;
+    border-radius:999px;cursor:pointer;font-family:var(--font-mono);font-size:11px;
+    font-weight:500;text-transform:uppercase;letter-spacing:.12em;
+    transition:color .2s,background .2s}
+  .mode-tabs button:hover{color:var(--ink)}
+  .mode-tabs button.active{background:var(--brand);color:#fff}
+  .spacer{flex:1}
+  .stat{font-size:12px;color:var(--muted);letter-spacing:.02em}
+  .stat b{color:var(--ink)}
+  main{flex:1;position:relative}
+  #map{position:absolute;inset:0;background:var(--paper-2)}
+  .leaflet-container{background:var(--paper-2)}
+  .prompt{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:500;
+    background:var(--paper);border:1px solid var(--line);border-radius:14px;
+    padding:12px 20px;min-width:260px;text-align:center;
+    box-shadow:0 10px 30px -12px rgba(20,19,15,.35)}
+  .prompt .label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.16em}
+  .prompt .target{font-family:var(--font-display);font-size:26px;font-weight:400;
+    margin-top:2px;line-height:1.1}
+  .prompt .fb{font-size:13px;margin-top:4px;min-height:17px}
+  .fb.good{color:var(--good)} .fb.bad{color:var(--bad)}
+
+  /* NAME mode (timed type-to-recall). Pre-game panel reuses the .prompt card;
+     the play input is a centered pill floating over the map. */
+  .name-pregame .name-pregame-sub{font-size:12px;color:var(--muted);
+    margin:8px 0 12px;line-height:1.4}
+  .name-pregame[hidden]{display:none}
+  .name-play{position:absolute;top:14px;left:50%;transform:translateX(-50%);
+    z-index:500;width:min(340px,calc(100% - 24px))}
+  .name-play[hidden]{display:none}
+  #nameInput{width:100%;background:var(--paper);border:1px solid var(--line);
+    border-radius:14px;padding:12px 18px;font-family:var(--font-mono);font-size:16px;
+    color:var(--ink);text-align:center;
+    box-shadow:0 10px 30px -12px rgba(20,19,15,.35);
+    transition:border-color .15s,box-shadow .15s}
+  #nameInput:focus{outline:none;border-color:var(--accent)}
+  /* Miss cue on Enter: color only, no movement. */
+  #nameInput.flash-bad{border-color:var(--bad);
+    box-shadow:0 0 0 2px var(--bad),0 10px 30px -12px rgba(20,19,15,.35)}
+  #nameGiveUp{margin-top:8px;width:100%;justify-content:center}
+  /* Low-time countdown turns red at ≤60s (color only, no pulse). */
+  #stat .time.low{color:var(--bad);font-weight:500}
+  .leaflet-interactive{transition:fill .25s,fill-opacity .25s}
+  .answer-tip{background:var(--paper);border:1px solid var(--line);color:var(--ink);
+    font-family:var(--font-mono);font-size:12px;padding:2px 7px;border-radius:6px;
+    box-shadow:0 4px 14px -8px rgba(20,19,15,.4)}
+  .answer-tip::before{display:none}
+
+  /* City selection screen */
+  #select{display:none;min-height:100vh;min-height:100dvh;flex-direction:column;
+    background-image:var(--page-background)}
+  .select-body{flex:1;width:100%;max-width:860px;margin:0 auto;
+    padding:4vh clamp(24px,5vw,64px) 64px}
+  #select .select-head{margin:0 0 32px}
+  #select h1{font-family:var(--font-display);font-size:clamp(2.4rem,6vw,3.2rem);
+    margin:0 0 4px;font-weight:400;line-height:1}
+  .city-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+  .city-card{position:relative;display:flex;align-items:center;justify-content:center;
+    min-height:130px;background:var(--paper-2);overflow:hidden;
+    border:1px solid var(--line);border-radius:16px;padding:18px;
+    text-decoration:none;color:var(--ink)}
+  /* Translucent landmark art fills the card; currentColor lets it inherit the ink tint. */
+  .city-card .art{position:absolute;inset:0;color:var(--ink);opacity:.12;
+    pointer-events:none;display:block}
+  .city-card .art svg{width:100%;height:100%;display:block}
+  .city-card .name{position:relative;font-family:var(--font-display);font-size:24px;
+    font-weight:400;text-align:center;letter-spacing:.01em;transition:color .2s}
+  .city-card:hover .name{color:var(--accent)}
+  .select-msg{grid-column:1/-1;color:var(--muted);font-size:14px;margin:8px 2px}
+  /* Restart shows its label by default; the compact icon is mobile-only. */
+  #restart .restart-icon{display:none}
+
+  /* ---- Mobile (single breakpoint). Desktop above is the default. ---- */
+  @media (max-width:640px){
+    /* Slim top bar: back · title · stat · restart · profile on one row. */
+    header{gap:10px;flex-wrap:nowrap;padding:10px 14px}
+    header h1{font-size:17px;flex:1;min-width:0;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .back{flex-shrink:0}
+    .spacer{display:none}
+    #profileMount{flex-shrink:0}
+    .stat{flex-shrink:0;font-size:11px;white-space:nowrap}
+    /* Stat collapses to "<correct>/<total> correct". */
+    #stat .s-left,#stat .s-acc{display:none}
+    /* Learn mode: no instruction text on mobile (tap is self-evident). */
+    #app[data-mode="learn"] #stat{display:none}
+    /* Restart becomes a compact circular icon button. */
+    #restart{padding:8px;width:38px;height:38px;justify-content:center}
+    #restart .restart-label{display:none}
+    #restart .restart-icon{display:inline;font-size:16px}
+
+    /* Mode tabs relocate to a fixed, thumb-zone bottom bar (CSS only). */
+    #modeTabs{position:fixed;left:0;right:0;bottom:0;z-index:700;
+      gap:0;border:0;border-top:1px solid var(--line);border-radius:0;
+      background:var(--paper);padding:6px 8px;
+      padding-bottom:calc(6px + env(safe-area-inset-bottom));
+      justify-content:space-around;
+      box-shadow:0 -6px 20px -12px rgba(20,19,15,.4)}
+    #modeTabs button{flex:1;padding:12px 8px;border-radius:12px;font-size:11px}
+
+    /* Prompt near full-width, pinned top; Name-it controls match its width. */
+    .prompt{left:12px;right:12px;transform:none;min-width:0;width:auto;padding:10px 14px}
+    .prompt .target{font-size:22px}
+    .prompt .btn{padding:12px 10px;min-height:44px}
+    .name-play{left:12px;right:12px;transform:none;width:auto}
+
+    /* Selector polish: slimmer top bar, less padding, full-width heading. */
+    .select-body{padding:20px 18px 40px}
+    #select .select-head{margin-bottom:20px}
+    #select h1{font-size:2rem}
+  }
