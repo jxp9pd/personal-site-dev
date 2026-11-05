@@ -1,7 +1,7 @@
 import { createDeck, evaluateAnswer } from './challenge-24-engine.js';
 
-function formatTime(milliseconds) {
-  const seconds = Math.round(milliseconds / 1000);
+function formatTime(milliseconds, rounding = Math.round) {
+  const seconds = rounding(milliseconds / 1000);
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
@@ -16,6 +16,7 @@ export function mountGame({ root = document, deck = createDeck(), now = () => pe
   const feedback = find('feedback');
   const reset = find('reset-session');
   const card = find('challenge-card');
+  const timer = find('card-time');
   let puzzle;
   let finished = false;
   let played = 0;
@@ -23,6 +24,11 @@ export function mountGame({ root = document, deck = createDeck(), now = () => pe
   let solveTime = 0;
   let elapsed = 0;
   let resumedAt = null;
+
+  function renderClock() {
+    const currentElapsed = elapsed + (resumedAt === null ? 0 : Math.max(0, now() - resumedAt));
+    timer.textContent = formatTime(currentElapsed, Math.floor);
+  }
 
   function renderStats() {
     find('played-count').textContent = played;
@@ -42,6 +48,7 @@ export function mountGame({ root = document, deck = createDeck(), now = () => pe
     finished = false;
     elapsed = 0;
     resumedAt = doc.visibilityState === 'hidden' ? null : now();
+    renderClock();
     const description = `Numbers: ${puzzle.numbers.join(', ')}. Estimated difficulty: ${puzzle.difficulty} of 3.`;
     card.setAttribute('aria-label', description);
     find('card-description').textContent = description;
@@ -62,6 +69,7 @@ export function mountGame({ root = document, deck = createDeck(), now = () => pe
   function pauseClock() {
     if (resumedAt !== null) elapsed += Math.max(0, now() - resumedAt);
     resumedAt = null;
+    renderClock();
   }
 
   function finishCard(solved) {
@@ -128,9 +136,11 @@ export function mountGame({ root = document, deck = createDeck(), now = () => pe
   doc.addEventListener('visibilitychange', onVisibilityChange);
   renderStats();
   beginCard();
+  const clockInterval = setInterval(renderClock, 250);
 
   return {
     destroy() {
+      clearInterval(clockInterval);
       form.removeEventListener('submit', onSubmit);
       reveal.removeEventListener('click', onReveal);
       next.removeEventListener('click', onNext);

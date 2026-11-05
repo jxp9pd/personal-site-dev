@@ -41,6 +41,42 @@ afterEach(() => {
 });
 
 describe('Challenge 24 session', () => {
+  it('shows elapsed time, freezes on reveal, and restarts for the next card or session', () => {
+    vi.useFakeTimers();
+    const { at } = start();
+    expect(text('card-time')).toBe('0:00');
+    at(999);
+    vi.advanceTimersByTime(250);
+    expect(text('card-time')).toBe('0:00');
+    at(1_500);
+    vi.advanceTimersByTime(250);
+    expect(text('card-time')).toBe('0:01');
+    submit('1 + 2 + 3 + 4');
+    at(2_500);
+    vi.advanceTimersByTime(250);
+    expect(text('card-time')).toBe('0:02');
+    $('show-answer').click();
+    at(30_000);
+    vi.advanceTimersByTime(5_000);
+    expect(text('card-time')).toBe('0:02');
+
+    $('next-card').click();
+    expect(text('card-time')).toBe('0:00');
+    at(32_000);
+    vi.advanceTimersByTime(250);
+    expect(text('card-time')).toBe('0:02');
+    submit(cards[1].solution);
+    at(40_000);
+    vi.advanceTimersByTime(250);
+    expect(text('card-time')).toBe('0:02');
+    $('reset-session').click();
+    expect(text('card-time')).toBe('0:00');
+    game.destroy();
+    at(45_000);
+    vi.advanceTimersByTime(1_000);
+    expect(text('card-time')).toBe('0:00');
+  });
+
   it('keeps invalid and incorrect attempts on the same card and preserves solve time', () => {
     const { deck, at } = start();
     expect(deck.next).toHaveBeenCalledTimes(1);
@@ -117,6 +153,7 @@ describe('Challenge 24 session', () => {
   });
 
   it('excludes time while the page is hidden from a correct solve', () => {
+    vi.useFakeTimers();
     let visibility = 'visible';
     vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
     vi.spyOn(document, 'hidden', 'get').mockImplementation(() => visibility === 'hidden');
@@ -125,10 +162,13 @@ describe('Challenge 24 session', () => {
     visibility = 'hidden';
     document.dispatchEvent(new Event('visibilitychange'));
     at(110_000);
+    vi.advanceTimersByTime(250);
+    expect(text('card-time')).toBe('0:10');
     visibility = 'visible';
     document.dispatchEvent(new Event('visibilitychange'));
     at(115_000);
     submit(cards[0].solution);
+    expect(text('card-time')).toBe('0:15');
     expectCounts(1, 1);
     expect(text('average-time')).toBe('0:15');
   });

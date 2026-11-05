@@ -21,7 +21,10 @@
     </svg>
 
     <span id="card-description" class="visually-hidden"></span>
-    <p id="answer-hint" class="answer-hint">Use all four once. + − × ÷ ( )</p>
+    <div class="card-meta">
+      <span id="answer-hint">+ − × ÷ ( )</span>
+      <span class="card-clock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 6v6l4 2" /></svg><span id="card-time" role="timer" aria-label="Time on this card" aria-live="off">0:00</span></span>
+    </div>
     <form id="answer-form" class="answer-form" novalidate>
       <div class="answer-field">
         <input id="answer" name="answer" type="text" placeholder="Your answer" aria-label="Your answer" aria-describedby="card-description answer-hint feedback" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" maxlength="160" disabled />

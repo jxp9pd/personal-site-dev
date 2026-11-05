@@ -29,7 +29,9 @@
 .difficulty-dots .unused { fill: #e6e2da; }
 .challenge-page .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-.answer-hint { margin: 20px 0 14px; color: var(--muted); font-size: .68rem; line-height: 1.5; }
+.card-meta { display: flex; align-items: center; justify-content: space-between; max-width: 336px; margin: 20px auto 14px; color: var(--muted); font-size: .68rem; line-height: 1.5; }
+.card-clock { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.card-clock svg { width: 15px; height: 15px; }
 .answer-form { margin: 0; }
 .answer-field { position: relative; display: flex; align-items: center; }
 .answer-field input {
@@ -81,7 +83,7 @@
   .challenge-page { padding-top: 16px; }
   .challenge-page h1 { margin-bottom: 20px; }
   .challenge-card { max-width: 296px; }
-  .answer-hint { margin-top: 16px; }
+  .card-meta { max-width: 296px; margin-top: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .game-button { transition: none; }
