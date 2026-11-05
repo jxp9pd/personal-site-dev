@@ -1,5 +1,17 @@
 [
   {
+    "output": "games/challenge-24.html",
+    "title": "Challenge 24 — Penta Projects",
+    "description": "Four numbers. Make 24.",
+    "assets": "site",
+    "section": "games",
+    "header": {},
+    "styles": [
+      "/assets/css/challenge-24.css"
+    ],
+    "source": "pages/games/challenge-24.html"
+  },
+  {
     "output": "games/guess-the-price.html",
     "title": "Guess the Price",
     "viewport": "width=device-width, initial-scale=1, viewport-fit=cover",
@@ -36,6 +48,11 @@
           "href": "/games/guess-the-price.html",
           "title": "Guess the Price",
           "description": "It's one banana, Michael. What could it cost?"
+        },
+        {
+          "href": "/games/challenge-24.html",
+          "title": "Challenge 24",
+          "description": "Four numbers. Make 24."
         }
       ]
     },

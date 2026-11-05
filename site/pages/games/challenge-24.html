@@ -1,0 +1,49 @@
+{{header}}
+  <main class="challenge-page">
+    <h1>Challenge 24</h1>
+
+    <svg id="challenge-card" class="challenge-card" viewBox="0 0 400 400" role="img" aria-label="Challenge 24 card">
+      <rect class="card-paper" x="1" y="1" width="398" height="398" rx="12" />
+      <path class="card-lines" d="M26 26 374 374M374 26 26 374" />
+      <circle class="card-center" cx="200" cy="200" r="32" />
+      <text class="card-target" x="200" y="201">24</text>
+      <g id="card-numbers" class="card-numbers" aria-hidden="true">
+        <text data-number x="200" y="86"></text>
+        <text data-number x="86" y="202"></text>
+        <text data-number x="314" y="202"></text>
+        <text data-number x="200" y="316"></text>
+      </g>
+      <g class="difficulty-dots" aria-hidden="true">
+        <circle data-difficulty cx="174" cy="373" r="4" />
+        <circle data-difficulty cx="200" cy="373" r="4" />
+        <circle data-difficulty cx="226" cy="373" r="4" />
+      </g>
+    </svg>
+
+    <span id="card-description" class="visually-hidden"></span>
+    <p id="answer-hint" class="answer-hint">Use all four once. + − × ÷ ( )</p>
+    <form id="answer-form" class="answer-form" novalidate>
+      <div class="answer-field">
+        <input id="answer" name="answer" type="text" placeholder="Your answer" aria-label="Your answer" aria-describedby="card-description answer-hint feedback" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" maxlength="160" disabled />
+        <span aria-hidden="true">= 24</span>
+      </div>
+      <p id="feedback" class="answer-feedback" role="status" aria-live="polite" aria-atomic="true"></p>
+      <div class="answer-actions">
+        <button id="submit-answer" class="game-button primary-action" type="submit" disabled>Submit</button>
+        <button id="show-answer" class="game-button" type="button" disabled>Show Answer</button>
+        <button id="next-card" class="game-button primary-action next-card" type="button" hidden>Next Card <span aria-hidden="true">→</span></button>
+      </div>
+    </form>
+
+    <dl class="session-stats" aria-label="This session">
+      <div><dt>Played</dt><dd id="played-count">0</dd></div>
+      <div><dt>Correct</dt><dd id="correct-count">0</dd></div>
+      <div><dt>Avg. time</dt><dd id="average-time">—</dd></div>
+    </dl>
+    <button id="reset-session" class="reset-session" type="button">Reset session</button>
+    <noscript><p>Enable JavaScript to play.</p></noscript>
+  </main>
+  <script type="module">
+    import { mountGame } from '/assets/js/challenge-24.js';
+    mountGame();
+  </script>
