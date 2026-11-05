@@ -11,26 +11,26 @@
         <p id="free-description" class="free-description" hidden>Unlimited practice. No time limit.</p>
         <div id="time-settings">
           <div class="puzzle-setting">
-            <label for="puzzle-count">Puzzles</label>
+            <label for="puzzle-count">Correct solves</label>
             <div class="puzzle-stepper">
-              <button id="decrease-count" type="button" aria-label="Fewer puzzles">−</button>
-              <input id="puzzle-count" type="number" min="1" step="1" value="5" aria-label="Number of puzzles" aria-describedby="setup-error" />
-              <button id="increase-count" type="button" aria-label="More puzzles">+</button>
+              <button id="decrease-count" type="button" aria-label="Fewer solves">−</button>
+              <input id="puzzle-count" type="number" min="1" step="1" value="5" aria-label="Target correct solves" aria-describedby="setup-error" />
+              <button id="increase-count" type="button" aria-label="More solves">+</button>
             </div>
           </div>
-          <fieldset class="difficulty-setting">
-            <legend>Difficulty</legend>
-            <div class="difficulty-options">
-              <button id="difficulty-1" type="button" data-level="1" aria-pressed="false">1</button>
-              <button id="difficulty-2" type="button" data-level="2" aria-pressed="false">2</button>
-              <button id="difficulty-3" type="button" data-level="3" aria-pressed="false">3</button>
-              <button id="difficulty-random" type="button" data-level="random" aria-pressed="true">Random</button>
-            </div>
-          </fieldset>
-          <p class="mode-rules">60s per puzzle. Reveal or timeout counts as 60s.<br>Score: total time.</p>
         </div>
+        <fieldset class="difficulty-setting">
+          <legend>Difficulty</legend>
+          <div class="difficulty-options">
+            <button id="difficulty-1" type="button" data-level="1" aria-pressed="false">1</button>
+            <button id="difficulty-2" type="button" data-level="2" aria-pressed="false">2</button>
+            <button id="difficulty-3" type="button" data-level="3" aria-pressed="false">3</button>
+            <button id="difficulty-random" type="button" data-level="random" aria-pressed="true">Random</button>
+          </div>
+        </fieldset>
+        <p id="time-rules" class="mode-rules">60s per puzzle. Reveal or timeout counts as 60s.<br>Score: total time.</p>
         <p id="setup-error" class="setup-error" role="alert" hidden></p>
-        <button id="start-game" class="game-button primary-action start-game" type="submit" disabled>Start 5 puzzles</button>
+        <button id="start-game" class="game-button primary-action start-game" type="submit" disabled>Solve 5 puzzles</button>
       </form>
     </section>
 

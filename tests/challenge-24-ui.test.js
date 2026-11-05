@@ -33,8 +33,8 @@ function begin({ mode = 'free', count = 5, difficulty = 'random' } = {}) {
   $(`mode-${mode}`).click();
   if (mode === 'time') {
     $('puzzle-count').value = String(count);
-    $(`difficulty-${difficulty}`).click();
   }
+  $(`difficulty-${difficulty}`).click();
   $('start-form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
 }
 
@@ -55,8 +55,8 @@ function expectCounts(played, correct) {
 }
 
 function expectTimedCounts(played, correct, count) {
-  expect(text('played-count').replace(/\s/g, '')).toBe(`${played}/${count}`);
-  expect(text('correct-count')).toBe(String(correct));
+  expect(text('played-count')).toBe(String(played));
+  expect(text('correct-count').replace(/\s/g, '')).toBe(`${correct}/${count}`);
 }
 
 function expectSolution(card) {
@@ -241,18 +241,26 @@ describe('Challenge 24 start menu', () => {
     expect($('results-screen').hidden).toBe(true);
     expect($('mode-time').getAttribute('aria-pressed')).toBe('true');
     expect($('puzzle-count').value).toBe('5');
+    expect(text('start-game')).toBe('Solve 5 puzzles');
+    expect(document.querySelector('label[for="puzzle-count"]').textContent.trim()).toBe('Correct solves');
     expect($('difficulty-random').getAttribute('aria-pressed')).toBe('true');
     expect($('time-settings').hidden).toBe(false);
+    expect($('time-rules').hidden).toBe(false);
     expect($('free-description').hidden).toBe(true);
     expect(deck.next).not.toHaveBeenCalled();
     expect(deckFactory).not.toHaveBeenCalled();
 
     $('mode-free').click();
     expect($('time-settings').hidden).toBe(true);
+    expect($('time-rules').hidden).toBe(true);
     expect($('free-description').hidden).toBe(false);
+    expect($('difficulty-3').closest('fieldset').closest('[hidden]')).toBeNull();
+    $('difficulty-3').click();
     $('mode-time').click();
     expect($('time-settings').hidden).toBe(false);
+    expect($('time-rules').hidden).toBe(false);
     expect($('free-description').hidden).toBe(true);
+    expect($('difficulty-3').getAttribute('aria-pressed')).toBe('true');
     $('decrease-count').click();
     expect($('puzzle-count').value).toBe('4');
     $('increase-count').click();
@@ -265,17 +273,25 @@ describe('Challenge 24 start menu', () => {
     expect(text('total-time')).toBe('0:00.0');
   });
 
-  it.each([1, 2, 3, 'random'])('constructs the selected difficulty %s only when starting', difficulty => {
+  it.each(['free', 'time'].flatMap(mode => [1, 2, 3, 'random'].map(difficulty => ({ mode, difficulty }))))('$mode constructs selected difficulty $difficulty only when starting and retains it on reset', ({ mode, difficulty }) => {
     const deck = { next: vi.fn(() => structuredClone(cards[0])) };
     const deckFactory = vi.fn(() => deck);
     mount({ injectDeck: false, deckFactory });
     expect(deckFactory).not.toHaveBeenCalled();
-    begin({ mode: 'time', count: 2, difficulty });
+    begin({ mode, count: 2, difficulty });
     expect(deckFactory).toHaveBeenCalledExactlyOnceWith({ difficulty });
     expect(deck.next).toHaveBeenCalledTimes(1);
-    expectTimedCounts(0, 0, 2);
+    if (mode === 'time') expectTimedCounts(0, 0, 2);
+    else expectCounts(0, 0);
+    const modeLabel = `${mode === 'free' ? 'Free Play' : 'Time to 2'} · ${difficulty === 'random' ? 'Random' : `Level ${difficulty}`}`;
+    expect(text('mode-label')).toBe(modeLabel);
     expect($('start-menu').hidden).toBe(true);
     expect($('play-screen').hidden).toBe(false);
+    $('reset-session').click();
+    expect(deckFactory).toHaveBeenCalledTimes(2);
+    expect(deckFactory).toHaveBeenLastCalledWith({ difficulty });
+    expect(deck.next).toHaveBeenCalledTimes(2);
+    expect(text('mode-label')).toBe(modeLabel);
   });
 
   it.each(['', '0', '-1', '1.5', '9007199254740992'])('rejects invalid puzzle count %j without starting', count => {
@@ -334,35 +350,56 @@ describe('Challenge 24 Time to K session', () => {
     expect(deck.next).toHaveBeenCalledTimes(1);
   });
 
-  it('charges one minute for an early reveal and one minute for a timeout, each only once', () => {
+  it('charges each reveal and timeout once and keeps dealing after more than k failed attempts', () => {
     vi.useFakeTimers();
-    const { at, deck } = start({ mode: 'time', count: 2 });
+    const { at, deck } = start({ mode: 'time', count: 1 });
     at(4_567);
     $('show-answer').click();
-    expectTimedCounts(1, 0, 2);
+    expectTimedCounts(1, 0, 1);
     expect(text('total-time')).toBe('1:00.0');
     expectSolution(cards[0]);
     $('show-answer').dispatchEvent(new MouseEvent('click', { bubbles: true }));
     submit(cards[0].solution);
-    expectTimedCounts(1, 0, 2);
+    expectTimedCounts(1, 0, 1);
+    expect(text('next-card')).toContain('Next Card');
 
     at(100_000);
     $('next-card').click();
     at(160_000);
     vi.advanceTimersByTime(250);
-    expectTimedCounts(2, 0, 2);
+    expectTimedCounts(2, 0, 1);
     expect(text('total-time')).toBe('2:00.0');
     expect(text('card-time')).toBe('0:00');
     expectSolution(cards[1]);
     $('show-answer').dispatchEvent(new MouseEvent('click', { bubbles: true }));
     submit(cards[1].solution);
     vi.advanceTimersByTime(5_000);
-    expectTimedCounts(2, 0, 2);
+    expectTimedCounts(2, 0, 1);
     expect(text('total-time')).toBe('2:00.0');
     expect(deck.next).toHaveBeenCalledTimes(2);
+    expect(text('next-card')).toContain('Next Card');
+    expect($('results-screen').hidden).toBe(true);
+
+    at(200_000);
+    $('next-card').click();
+    $('show-answer').click();
+    expectTimedCounts(3, 0, 1);
+    expect(text('total-time')).toBe('3:00.0');
+    expectSolution(cards[2]);
+    expect(text('next-card')).toContain('Next Card');
+    $('next-card').click();
+    at(205_000);
+    submit(cards[0].solution);
+    expectTimedCounts(4, 1, 1);
+    expect(text('total-time')).toBe('3:05.0');
+    expect(text('next-card')).toContain('Results');
+    $('next-card').click();
+    expect(text('final-score')).toBe('3:05.0');
+    expect(text('result-correct')).toBe('1 / 4 correct');
+    expect(deck.next).toHaveBeenCalledTimes(4);
   });
 
-  it('sums card solve times and penalties without charging review time, then shows results after k cards', () => {
+  it('sums solve times and penalties without review time and stops exactly at the kth correct solve', () => {
     vi.useFakeTimers();
     const { at, deck } = start({ mode: 'time', count: 3 });
     at(12_345);
@@ -389,26 +426,44 @@ describe('Challenge 24 Time to K session', () => {
     submit(cards[2].solution);
     expectTimedCounts(3, 2, 3);
     expect(text('total-time')).toBe('1:21.1');
-    expect(text('next-card')).toContain('Results');
+    expect(text('next-card')).toContain('Next Card');
     expect($('results-screen').hidden).toBe(true);
-    expect($('play-screen').hidden).toBe(false);
-    expect($('answer').value).toBe(cards[2].solution);
-    expect($('answer').disabled).toBe(true);
+
+    at(600_000);
+    $('next-card').click();
+    at(660_000);
+    vi.advanceTimersByTime(250);
+    expectTimedCounts(4, 2, 3);
+    expect(text('total-time')).toBe('2:21.1');
+    expect(text('next-card')).toContain('Next Card');
+    expect($('results-screen').hidden).toBe(true);
 
     at(900_000);
     $('next-card').click();
+    at(905_432);
+    submit(cards[1].solution);
+    expectTimedCounts(5, 3, 3);
+    expect(text('total-time')).toBe('2:26.5');
+    expect(text('next-card')).toContain('Results');
+    expect($('results-screen').hidden).toBe(true);
+    expect($('play-screen').hidden).toBe(false);
+    expect($('answer').value).toBe(cards[1].solution);
+    expect($('answer').disabled).toBe(true);
+
+    at(1_000_000);
+    $('next-card').click();
     expect($('play-screen').hidden).toBe(true);
     expect($('results-screen').hidden).toBe(false);
-    expect(text('final-score')).toBe('1:21.1');
-    expect(text('result-correct')).toBe('2 / 3 correct');
-    expect(deck.next).toHaveBeenCalledTimes(3);
+    expect(text('final-score')).toBe('2:26.5');
+    expect(text('result-correct')).toBe('3 / 5 correct');
+    expect(deck.next).toHaveBeenCalledTimes(5);
     $('play-again').click();
     expect($('results-screen').hidden).toBe(true);
     expect($('play-screen').hidden).toBe(false);
     expectTimedCounts(0, 0, 3);
     expect(text('total-time')).toBe('0:00.0');
     expect(text('card-time')).toBe('1:00');
-    expect(deck.next).toHaveBeenCalledTimes(4);
+    expect(deck.next).toHaveBeenCalledTimes(6);
   });
 
   it('keeps invalid and incorrect attempts active without resetting the deadline', () => {
@@ -485,6 +540,9 @@ describe('Challenge 24 Time to K session', () => {
     expectTimedCounts(0, 0, 1);
     expect(text('total-time')).toBe('0:00.0');
     $('show-answer').click();
+    $('next-card').click();
+    submit(cards[1].solution);
+    expectTimedCounts(2, 1, 1);
     $('next-card').click();
     $('results-menu').click();
     expect($('start-menu').hidden).toBe(false);

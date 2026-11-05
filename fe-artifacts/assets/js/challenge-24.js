@@ -62,11 +62,12 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
     find('mode-free').setAttribute('aria-pressed', String(!timed));
     find('mode-time').setAttribute('aria-pressed', String(timed));
     find('time-settings').hidden = !timed;
+    find('time-rules').hidden = !timed;
     find('free-description').hidden = timed;
     find('decrease-count').disabled = count === 1;
     find('increase-count').disabled = count === Number.MAX_SAFE_INTEGER;
     levelButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.level === String(selectedDifficulty))));
-    find('start-game').textContent = !timed ? 'Start Free Play' : count === null ? 'Start puzzles' : `Start ${count} ${count === 1 ? 'puzzle' : 'puzzles'}`;
+    find('start-game').textContent = !timed ? 'Start Free Play' : count === null ? 'Solve puzzles' : `Solve ${count} ${count === 1 ? 'puzzle' : 'puzzles'}`;
     find('start-game').disabled = false;
   }
 
@@ -96,8 +97,8 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
 
   function renderStats() {
     const timed = run?.mode === 'time';
-    find('played-count').textContent = timed ? `${played} / ${run.count}` : played;
-    find('correct-count').textContent = correct;
+    find('played-count').textContent = played;
+    find('correct-count').textContent = timed ? `${correct} / ${run.count}` : correct;
     find('average-time').textContent = correct ? formatTime(solveTime / correct) : '—';
     find('average-time').hidden = timed;
     find('total-time').hidden = !timed;
@@ -113,8 +114,8 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
   }
 
   function runLabel() {
-    if (run.mode === 'free') return 'Free Play';
-    return `Time to ${run.count} · ${run.difficulty === 'random' ? 'Random' : `Level ${run.difficulty}`}`;
+    const mode = run.mode === 'free' ? 'Free Play' : `Time to ${run.count}`;
+    return `${mode} · ${run.difficulty === 'random' ? 'Random' : `Level ${run.difficulty}`}`;
   }
 
   function beginCard(focus = false) {
@@ -144,7 +145,7 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
 
   function beginRun(settings) {
     run = { ...settings };
-    deck = providedDeck ?? deckFactory({ difficulty: run.mode === 'time' ? run.difficulty : 'random' });
+    deck = providedDeck ?? deckFactory({ difficulty: run.difficulty });
     played = correct = solveTime = totalTime = 0;
     find('mode-label').textContent = runLabel();
     find('reset-session').textContent = run.mode === 'time' ? 'Restart run' : 'Reset session';
@@ -175,7 +176,7 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
     answer.disabled = submit.disabled = reveal.disabled = true;
     submit.hidden = reveal.hidden = true;
     next.hidden = false;
-    next.textContent = timed && played === run.count ? 'Results →' : 'Next Card →';
+    next.textContent = timed && correct === run.count ? 'Results →' : 'Next Card →';
     renderStats();
     next.focus({ preventScroll: true });
   }
@@ -196,7 +197,7 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
     phase = 'results';
     find('result-mode').textContent = runLabel();
     find('final-score').textContent = formatScore(totalTime);
-    find('result-correct').textContent = `${correct} / ${run.count} correct`;
+    find('result-correct').textContent = `${correct} / ${played} correct`;
     showScreen('results');
     find('play-again').focus({ preventScroll: true });
   }
@@ -215,7 +216,7 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
     if (phase !== 'menu') return;
     const count = readCount();
     if (selectedMode === 'time' && count === null) {
-      setupError.textContent = 'Choose a whole number of puzzles, at least 1.';
+      setupError.textContent = 'Choose a whole number of solves, at least 1.';
       setupError.hidden = false;
       countInput.setAttribute('aria-invalid', 'true');
       countInput.focus();
@@ -265,7 +266,7 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
   });
   listen(next, 'click', () => {
     if (phase !== 'review') return;
-    if (run.mode === 'time' && played === run.count) showResults();
+    if (run.mode === 'time' && correct === run.count) showResults();
     else beginCard(true);
   });
   listen(find('reset-session'), 'click', () => {
