@@ -111,4 +111,75 @@ describe('Challenge 24 solutions and decks', () => {
     fresh.next();
     expect(fresh.next()).toEqual(pristine);
   });
+
+  it.each([[1, 273], [2, 124], [3, 7]])('deals only difficulty %i without repeats for all %i cards', (difficulty, count) => {
+    const deck = createDeck({ random: () => 0.37, difficulty });
+    const seen = new Set();
+    for (let index = 0; index < count; index += 1) {
+      const card = deck.next();
+      const key = card.numbers.slice().sort().join('');
+      expect(card.difficulty).toBe(difficulty);
+      expect(seen.has(key)).toBe(false);
+      expect(evaluateAnswer(card.solution, card.numbers)).toEqual({ correct: true });
+      seen.add(key);
+    }
+    expect(seen.has(deck.next().numbers.slice().sort().join(''))).toBe(true);
+  });
+
+  it.each(['1', '2', '3'])('accepts a difficulty digit string: %s', difficulty => {
+    expect(createDeck({ difficulty }).next().difficulty).toBe(Number(difficulty));
+  });
+
+  it.each([0, 4, -1, 1.5, NaN, null, true, '', 'easy', '0', '4', '1.0', ' 1 ', {}, []])(
+    'rejects an invalid difficulty: %j', difficulty => {
+      expect(() => createDeck({ difficulty })).toThrow(RangeError);
+    },
+  );
+
+  it('keeps explicit random difficulty equivalent to the default mixed deck', () => {
+    const defaultDeck = createDeck({ random: () => 0.5 });
+    const randomDeck = createDeck({ random: () => 0.5, difficulty: 'random' });
+    for (let index = 0; index < 405; index += 1) {
+      expect(randomDeck.next()).toEqual(defaultDeck.next());
+    }
+  });
+
+  it('recycles the seven hard cards without repeating at a shuffle boundary', () => {
+    let calls = 0;
+    const deck = createDeck({
+      difficulty: 3,
+      random: () => calls++ === 27 ? 0 : 0.999,
+    });
+    let previousKey;
+    for (let cycle = 0; cycle < 4; cycle += 1) {
+      const seen = new Set();
+      for (let index = 0; index < 7; index += 1) {
+        const card = deck.next();
+        const key = card.numbers.slice().sort().join('');
+        expect(card.difficulty).toBe(3);
+        expect(key).not.toBe(previousKey);
+        expect(seen.has(key)).toBe(false);
+        seen.add(key);
+        previousKey = key;
+      }
+      expect(seen.size).toBe(7);
+    }
+  });
+
+  it('keeps filtered decks and recycled cards independent of source data', () => {
+    const deck = createDeck({ random: () => 0.5, difficulty: 3 });
+    const pristine = createDeck({ random: () => 0.5, difficulty: 3 }).next();
+    const card = deck.next();
+    expect(card).toEqual(pristine);
+    card.numbers.fill(0);
+    card.solution = 'broken';
+    expect(solve(pristine.numbers)).toEqual({
+      expression: pristine.solution, difficulty: 3,
+    });
+    for (let index = 0; index < 20; index += 1) {
+      const next = deck.next();
+      expect(evaluateAnswer(next.solution, next.numbers)).toEqual({ correct: true });
+    }
+    expect(createDeck({ random: () => 0.5, difficulty: 3 }).next()).toEqual(pristine);
+  });
 });

@@ -2,6 +2,43 @@
   <main class="challenge-page">
     <h1>Challenge 24</h1>
 
+    <section id="start-menu" class="start-menu" aria-label="Game setup">
+      <form id="start-form" novalidate>
+        <div class="mode-switch" role="group" aria-label="Game mode">
+          <button id="mode-free" type="button" aria-pressed="false">Free Play</button>
+          <button id="mode-time" type="button" aria-pressed="true">Time to K</button>
+        </div>
+        <p id="free-description" class="free-description" hidden>Unlimited practice. No time limit.</p>
+        <div id="time-settings">
+          <div class="puzzle-setting">
+            <label for="puzzle-count">Puzzles</label>
+            <div class="puzzle-stepper">
+              <button id="decrease-count" type="button" aria-label="Fewer puzzles">−</button>
+              <input id="puzzle-count" type="number" min="1" step="1" value="5" aria-label="Number of puzzles" aria-describedby="setup-error" />
+              <button id="increase-count" type="button" aria-label="More puzzles">+</button>
+            </div>
+          </div>
+          <fieldset class="difficulty-setting">
+            <legend>Difficulty</legend>
+            <div class="difficulty-options">
+              <button id="difficulty-1" type="button" data-level="1" aria-pressed="false">1</button>
+              <button id="difficulty-2" type="button" data-level="2" aria-pressed="false">2</button>
+              <button id="difficulty-3" type="button" data-level="3" aria-pressed="false">3</button>
+              <button id="difficulty-random" type="button" data-level="random" aria-pressed="true">Random</button>
+            </div>
+          </fieldset>
+          <p class="mode-rules">60s per puzzle. Reveal or timeout counts as 60s.<br>Score: total time.</p>
+        </div>
+        <p id="setup-error" class="setup-error" role="alert" hidden></p>
+        <button id="start-game" class="game-button primary-action start-game" type="submit" disabled>Start 5 puzzles</button>
+      </form>
+    </section>
+
+    <section id="play-screen" hidden aria-label="Current game">
+      <div class="play-heading">
+        <button id="back-to-menu" type="button" class="text-button"><span aria-hidden="true">←</span> Menu</button>
+        <span id="mode-label">Free Play</span>
+      </div>
     <svg id="challenge-card" class="challenge-card" viewBox="0 0 400 400" role="img" aria-label="Challenge 24 card">
       <rect class="card-paper" x="1" y="1" width="398" height="398" rx="12" />
       <path class="card-lines" d="M26 26 374 374M374 26 26 374" />
@@ -41,9 +78,21 @@
     <dl class="session-stats" aria-label="This session">
       <div><dt>Played</dt><dd id="played-count">0</dd></div>
       <div><dt>Correct</dt><dd id="correct-count">0</dd></div>
-      <div><dt>Avg. time</dt><dd id="average-time">—</dd></div>
+      <div><dt id="time-stat-label">Avg. time</dt><dd id="average-time">—</dd><dd id="total-time" hidden>0:00.0</dd></div>
     </dl>
     <button id="reset-session" class="reset-session" type="button">Reset session</button>
+    </section>
+
+    <section id="results-screen" class="results-screen" hidden aria-label="Run results">
+      <p id="result-mode" class="result-mode">Time to 5</p>
+      <p class="result-label">Total time</p>
+      <p id="final-score" class="final-score">0:00.0</p>
+      <p id="result-correct" class="result-correct">0 / 5 correct</p>
+      <div class="answer-actions">
+        <button id="play-again" class="game-button primary-action" type="button">Play again</button>
+        <button id="results-menu" class="game-button" type="button">Menu</button>
+      </div>
+    </section>
     <noscript><p>Enable JavaScript to play.</p></noscript>
   </main>
   <script type="module">

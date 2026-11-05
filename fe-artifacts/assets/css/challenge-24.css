@@ -11,6 +11,38 @@
   font: 400 clamp(2.5rem, 6vw, 3rem)/1.1 var(--font-display);
 }
 
+.start-menu { text-align: left; padding-top: 8px; }
+.mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; margin-bottom: 28px; border-radius: 12px; background: #f3f0e6; }
+.mode-switch button,
+.difficulty-options button { min-height: 46px; padding: 9px 5px; border: 1px solid var(--line-strong); border-radius: 8px; background: transparent; color: var(--ink); font: 400 13px var(--font-mono); cursor: pointer; }
+.mode-switch button { border: 0; }
+.mode-switch button[aria-pressed="true"],
+.difficulty-options button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.free-description { margin: 36px 0; text-align: center; color: var(--muted); font-size: 12px; }
+.puzzle-setting { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.puzzle-setting label, .difficulty-setting legend { color: var(--muted); font-size: 12px; }
+.puzzle-stepper { display: grid; grid-template-columns: 44px 64px 44px; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 8px; background: #fffefa; }
+.puzzle-stepper button { min-height: 46px; padding: 0; border: 0; background: none; color: var(--ink); cursor: pointer; font: 400 20px var(--font-mono); }
+.puzzle-stepper button:hover { background: var(--paper-2); }
+.puzzle-stepper button:disabled { opacity: .35; cursor: default; }
+.puzzle-stepper input { width: 100%; min-width: 0; padding: 0 4px; border: 0; background: none; color: var(--ink); text-align: center; font: 400 17px var(--font-mono); font-variant-numeric: tabular-nums; appearance: textfield; -moz-appearance: textfield; }
+.puzzle-stepper input::-webkit-inner-spin-button, .puzzle-stepper input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.difficulty-setting { margin: 0; padding: 0; border: 0; }
+.difficulty-setting legend { padding: 0; margin-bottom: 10px; }
+.difficulty-options { display: grid; grid-template-columns: 1fr 1fr 1fr 1.5fr; gap: 7px; }
+.mode-rules { padding-top: 18px; margin: 24px 0 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.7; }
+.setup-error { color: var(--card-red); font-size: 12px; }
+.start-game { display: block; width: 100%; margin-top: 24px; min-height: 50px; overflow-wrap: anywhere; }
+.play-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 336px; margin: -12px auto 14px; color: var(--muted); font-size: 11px; }
+.play-heading > span { overflow-wrap: anywhere; }
+.text-button { min-height: 44px; padding: 0; border: 0; background: none; color: var(--muted); font: 400 11px var(--font-mono); cursor: pointer; white-space: nowrap; }
+.text-button:hover { color: var(--ink); }
+.results-screen { padding-top: 24px; }
+.result-mode { margin: 0 0 40px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.result-label { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
+.final-score { margin: 0; font: 400 clamp(2.7rem, 10vw, 4.5rem)/1.1 var(--font-display); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.result-correct { margin: 22px 0 40px; color: var(--muted); font-size: 13px; }
+
 .challenge-card {
   display: block;
   width: 100%;
@@ -32,6 +64,7 @@
 .card-meta { display: flex; align-items: center; justify-content: space-between; max-width: 336px; margin: 20px auto 14px; color: var(--muted); font-size: .68rem; line-height: 1.5; }
 .card-clock { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: .8rem; font-variant-numeric: tabular-nums; }
 .card-clock svg { width: 15px; height: 15px; }
+.card-clock[data-low="true"] { color: var(--card-red); }
 .answer-form { margin: 0; }
 .answer-field { position: relative; display: flex; align-items: center; }
 .answer-field input {
@@ -75,7 +108,7 @@
 
 .session-stats { display: grid; grid-template-columns: repeat(3, 1fr); margin: 28px 0 8px; padding-top: 20px; border-top: 1px solid var(--line); }
 .session-stats dt { color: var(--muted); font-size: .65rem; }
-.session-stats dd { margin: 6px 0 0; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.session-stats dd { margin: 6px 0 0; font-size: 1.3rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .reset-session { min-height: 44px; padding: 8px 16px; border: 0; background: none; color: var(--muted); cursor: pointer; font: 400 .63rem var(--font-mono); }
 .reset-session:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
 
@@ -84,6 +117,7 @@
   .challenge-page h1 { margin-bottom: 20px; }
   .challenge-card { max-width: 296px; }
   .card-meta { max-width: 296px; margin-top: 16px; }
+  .play-heading { max-width: 296px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .game-button { transition: none; }

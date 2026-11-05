@@ -550,9 +550,19 @@ export function solve(numbers) {
   return solution ? { expression: solution.expression, difficulty: solution.difficulty } : null;
 }
 
-export function createDeck({ random = Math.random } = {}) {
+export function createDeck({ random = Math.random, difficulty = 'random' } = {}) {
+  if (typeof difficulty === 'string' && /^[123]$/.test(difficulty)) {
+    difficulty = Number(difficulty);
+  }
+  if (difficulty !== 'random' && ![1, 2, 3].includes(difficulty)) {
+    throw new RangeError('Difficulty must be random, 1, 2, or 3.');
+  }
+  const pool = difficulty === 'random'
+    ? SOLUTIONS
+    : SOLUTIONS.filter(solution => solution.difficulty === difficulty);
   let cards = [];
   let position = 0;
+  let previousCard;
 
   function shuffle(items) {
     for (let index = items.length - 1; index > 0; index -= 1) {
@@ -565,10 +575,14 @@ export function createDeck({ random = Math.random } = {}) {
   return {
     next() {
       if (position === cards.length) {
-        cards = shuffle(SOLUTIONS.slice());
+        cards = shuffle(pool.slice());
+        if (cards.length > 1 && cards[0] === previousCard) {
+          [cards[0], cards[1]] = [cards[1], cards[0]];
+        }
         position = 0;
       }
       const card = cards[position++];
+      previousCard = card;
       return {
         numbers: shuffle(card.numbers.slice()),
         solution: card.expression,
