@@ -268,18 +268,35 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
     renderMenu();
   });
   const helpElements = [...root.querySelectorAll('.setting-help')];
+  function positionHelp(help) {
+    const tooltip = help.querySelector('[role="tooltip"]');
+    const anchor = help.getBoundingClientRect();
+    const width = tooltip.getBoundingClientRect().width;
+    const viewportWidth = doc.documentElement.clientWidth || doc.defaultView.innerWidth;
+    const center = anchor.left + anchor.width / 2;
+    const left = Math.max(16, Math.min(center - width / 2, viewportWidth - width - 16));
+    tooltip.style.left = `${left - anchor.left}px`;
+    tooltip.style.setProperty('--tooltip-pointer', `${center - left}px`);
+  }
   helpElements.forEach(help => {
     const tooltip = help.querySelector('[role="tooltip"]');
-    for (const event of ['pointerenter', 'focusin']) {
+    for (const event of ['pointerenter', 'focusin', 'click']) {
       listen(help, event, () => {
         helpElements.forEach(element => element.querySelector('[role="tooltip"]').hidden = element !== help);
+        positionHelp(help);
       });
     }
-    for (const event of ['pointerleave', 'focusout']) {
-      listen(help, event, () => { tooltip.hidden = true; });
-    }
+    listen(help, 'pointerleave', () => {
+      if (!help.contains(doc.activeElement)) tooltip.hidden = true;
+    });
+    listen(help, 'focusout', () => { tooltip.hidden = true; });
     listen(help, 'keydown', event => {
       if (event.key === 'Escape') tooltip.hidden = true;
+    });
+  });
+  listen(doc.defaultView, 'resize', () => {
+    helpElements.forEach(help => {
+      if (!help.querySelector('[role="tooltip"]').hidden) positionHelp(help);
     });
   });
   for (const [id, step] of [['decrease-count', -1], ['increase-count', 1]]) {

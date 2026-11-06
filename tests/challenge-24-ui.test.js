@@ -234,6 +234,22 @@ describe('Challenge 24 Free Play session', () => {
 });
 
 describe('Challenge 24 start menu', () => {
+  it('opens help on click or keyboard focus, switches explanations, and dismisses on Escape or blur', () => {
+    mount();
+    const [solvesHelp, limitHelp] = document.querySelectorAll('.setting-help button');
+    solvesHelp.click();
+    expect($('solves-help').hidden).toBe(false);
+    limitHelp.click();
+    expect($('solves-help').hidden).toBe(true);
+    expect($('limit-help').hidden).toBe(false);
+    limitHelp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect($('limit-help').hidden).toBe(true);
+    solvesHelp.focus();
+    expect($('solves-help').hidden).toBe(false);
+    $('puzzle-count').focus();
+    expect($('solves-help').hidden).toBe(true);
+  });
+
   it('defaults to Time to K and does not draw cards or run a clock before Start', () => {
     vi.useFakeTimers();
     const deckFactory = vi.fn();
