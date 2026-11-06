@@ -30,6 +30,8 @@
 .difficulty-setting { margin: 0; padding: 0; border: 0; }
 .difficulty-setting legend { padding: 0; margin-bottom: 10px; }
 .difficulty-options { display: grid; grid-template-columns: 1fr 1fr 1fr 1.5fr; gap: 7px; }
+.difficulty-visibility { display: flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 12px; color: var(--muted); font-size: 12px; cursor: pointer; }
+.difficulty-visibility input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); }
 .mode-rules { padding-top: 18px; margin: 24px 0 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.7; }
 .setup-error { color: var(--card-red); font-size: 12px; }
 .start-game { display: block; width: 100%; margin-top: 24px; min-height: 50px; overflow-wrap: anywhere; }

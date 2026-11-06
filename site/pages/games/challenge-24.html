@@ -18,6 +18,14 @@
               <button id="increase-count" type="button" aria-label="More solves">+</button>
             </div>
           </div>
+          <div class="puzzle-setting">
+            <label for="card-limit">Seconds per card</label>
+            <div class="puzzle-stepper">
+              <button id="decrease-limit" type="button" aria-label="15 seconds less">−</button>
+              <input id="card-limit" type="number" min="1" step="1" value="60" aria-describedby="setup-error" />
+              <button id="increase-limit" type="button" aria-label="15 seconds more">+</button>
+            </div>
+          </div>
         </div>
         <fieldset class="difficulty-setting">
           <legend>Difficulty</legend>
@@ -28,7 +36,11 @@
             <button id="difficulty-random" type="button" data-level="random" aria-pressed="true">Random</button>
           </div>
         </fieldset>
-        <p id="time-rules" class="mode-rules">60s per puzzle. Reveal or timeout counts as 60s.<br>Score: total time.</p>
+        <label class="difficulty-visibility" for="show-difficulty">
+          <input id="show-difficulty" type="checkbox" checked />
+          Show card difficulty
+        </label>
+        <p id="time-rules" class="mode-rules"><span id="time-rule-limit">60s</span> per puzzle. Reveal or timeout counts as the full limit.<br>Score: total time.</p>
         <p id="setup-error" class="setup-error" role="alert" hidden></p>
         <button id="start-game" class="game-button primary-action start-game" type="submit" disabled>Solve 5 puzzles</button>
       </form>

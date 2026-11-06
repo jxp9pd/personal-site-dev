@@ -1,7 +1,5 @@
 import { createDeck, evaluateAnswer } from './challenge-24-engine.js';
 
-const CARD_LIMIT = 60_000;
-
 function formatTime(milliseconds, rounding = Math.round) {
   const seconds = rounding(milliseconds / 1000);
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
@@ -24,6 +22,7 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
   const card = find('challenge-card');
   const timer = find('card-time');
   const countInput = find('puzzle-count');
+  const limitInput = find('card-limit');
   const setupError = find('setup-error');
   const levelButtons = [...root.querySelectorAll('[data-level]')];
   const listeners = [];
@@ -50,15 +49,30 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
     return Number.isSafeInteger(count) && count > 0 ? count : null;
   }
 
+  function readLimit() {
+    const seconds = Number(limitInput.value);
+    const milliseconds = seconds * 1000;
+    return Number.isSafeInteger(seconds) && seconds > 0 && Number.isSafeInteger(milliseconds) ? milliseconds : null;
+  }
+
   function clearSetupError() {
     setupError.textContent = '';
     setupError.hidden = true;
     countInput.removeAttribute('aria-invalid');
+    limitInput.removeAttribute('aria-invalid');
+  }
+
+  function showSetupError(input, message) {
+    setupError.textContent = message;
+    setupError.hidden = false;
+    input.setAttribute('aria-invalid', 'true');
+    input.focus();
   }
 
   function renderMenu() {
     const timed = selectedMode === 'time';
     const count = readCount();
+    const limit = readLimit();
     find('mode-free').setAttribute('aria-pressed', String(!timed));
     find('mode-time').setAttribute('aria-pressed', String(timed));
     find('time-settings').hidden = !timed;
@@ -66,6 +80,9 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
     find('free-description').hidden = timed;
     find('decrease-count').disabled = count === 1;
     find('increase-count').disabled = count === Number.MAX_SAFE_INTEGER;
+    find('decrease-limit').disabled = limit === 1000;
+    find('increase-limit').disabled = limit !== null && !Number.isSafeInteger(limit + 15_000);
+    find('time-rule-limit').textContent = limit === null ? 'Set a time limit' : `${limit / 1000}s`;
     levelButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.level === String(selectedDifficulty))));
     find('start-game').textContent = !timed ? 'Start Free Play' : count === null ? 'Solve puzzles' : `Solve ${count} ${count === 1 ? 'puzzle' : 'puzzles'}`;
     find('start-game').disabled = false;
@@ -85,12 +102,13 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
     if (!run) return;
     const duration = currentElapsed();
     const timed = run.mode === 'time';
+    const remaining = Math.max(0, run.cardLimit - duration);
     timer.textContent = timed
-      ? formatTime(Math.max(0, CARD_LIMIT - duration), Math.ceil)
+      ? formatTime(remaining, Math.ceil)
       : formatTime(duration, Math.floor);
-    timer.parentElement.dataset.low = String(timed && phase === 'playing' && duration >= 50_000);
+    timer.parentElement.dataset.low = String(timed && phase === 'playing' && remaining <= Math.min(10_000, run.cardLimit / 6));
     if (timed) {
-      const activeTime = phase === 'playing' ? Math.min(CARD_LIMIT, duration) : 0;
+      const activeTime = phase === 'playing' ? Math.min(run.cardLimit, duration) : 0;
       find('total-time').textContent = formatScore(totalTime + activeTime);
     }
   }
@@ -115,6 +133,7 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
 
   function runLabel() {
     const mode = run.mode === 'free' ? 'Free Play' : `Time to ${run.count}`;
+    if (!run.showDifficulty) return mode;
     return `${mode} · ${run.difficulty === 'random' ? 'Random' : `Level ${run.difficulty}`}`;
   }
 
@@ -123,9 +142,10 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
     phase = 'playing';
     elapsed = 0;
     resumedAt = run.mode === 'free' && doc.visibilityState === 'hidden' ? null : now();
-    const description = `Numbers: ${puzzle.numbers.join(', ')}. Estimated difficulty: ${puzzle.difficulty} of 3.`;
+    const description = `Numbers: ${puzzle.numbers.join(', ')}.${run.showDifficulty ? ` Estimated difficulty: ${puzzle.difficulty} of 3.` : ''}`;
     card.setAttribute('aria-label', description);
     find('card-description').textContent = description;
+    card.querySelector('.difficulty-dots').toggleAttribute('hidden', !run.showDifficulty);
     card.querySelectorAll('[data-number]').forEach((node, index) => {
       node.textContent = puzzle.numbers[index];
     });
@@ -157,9 +177,9 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
     if (phase !== 'playing') return;
     const duration = currentElapsed();
     const timed = run.mode === 'time';
-    if (timed && duration >= CARD_LIMIT) outcome = 'timeout';
+    if (timed && duration >= run.cardLimit) outcome = 'timeout';
     const solved = outcome === 'correct';
-    elapsed = timed && !solved ? CARD_LIMIT : duration;
+    elapsed = timed && !solved ? run.cardLimit : duration;
     resumedAt = null;
     phase = 'review';
     played += 1;
@@ -182,7 +202,7 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
   }
 
   function expireIfNeeded() {
-    if (phase === 'playing' && run.mode === 'time' && currentElapsed() >= CARD_LIMIT) {
+    if (phase === 'playing' && run.mode === 'time' && currentElapsed() >= run.cardLimit) {
       finishCard('timeout');
       return true;
     }
@@ -215,15 +235,17 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
     event.preventDefault();
     if (phase !== 'menu') return;
     const count = readCount();
+    const cardLimit = readLimit();
+    clearSetupError();
     if (selectedMode === 'time' && count === null) {
-      setupError.textContent = 'Choose a whole number of solves, at least 1.';
-      setupError.hidden = false;
-      countInput.setAttribute('aria-invalid', 'true');
-      countInput.focus();
+      showSetupError(countInput, 'Choose a whole number of solves, at least 1.');
       return;
     }
-    clearSetupError();
-    beginRun({ mode: selectedMode, count, difficulty: selectedDifficulty });
+    if (selectedMode === 'time' && cardLimit === null) {
+      showSetupError(limitInput, 'Choose a whole number of seconds, at least 1.');
+      return;
+    }
+    beginRun({ mode: selectedMode, count, difficulty: selectedDifficulty, cardLimit, showDifficulty: find('show-difficulty').checked });
   });
   for (const mode of ['free', 'time']) {
     listen(find(`mode-${mode}`), 'click', () => {
@@ -242,10 +264,22 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
     clearSetupError();
     renderMenu();
   });
+  listen(limitInput, 'input', () => {
+    clearSetupError();
+    renderMenu();
+  });
   for (const [id, step] of [['decrease-count', -1], ['increase-count', 1]]) {
     listen(find(id), 'click', () => {
       const count = Math.max(1, (readCount() ?? 5) + step);
       if (Number.isSafeInteger(count)) countInput.value = count;
+      clearSetupError();
+      renderMenu();
+    });
+  }
+  for (const [id, step] of [['decrease-limit', -15], ['increase-limit', 15]]) {
+    listen(find(id), 'click', () => {
+      const seconds = Math.max(1, (readLimit() ?? 60_000) / 1000 + step);
+      if (Number.isSafeInteger(seconds * 1000)) limitInput.value = seconds;
       clearSetupError();
       renderMenu();
     });
