@@ -249,20 +249,17 @@ describe('Challenge 24 start menu', () => {
     expect(document.querySelector('label[for="puzzle-count"]').textContent.trim()).toBe('Correct solves');
     expect($('difficulty-random').getAttribute('aria-pressed')).toBe('true');
     expect($('time-settings').hidden).toBe(false);
-    expect($('time-rules').hidden).toBe(false);
     expect($('free-description').hidden).toBe(true);
     expect(deck.next).not.toHaveBeenCalled();
     expect(deckFactory).not.toHaveBeenCalled();
 
     $('mode-free').click();
     expect($('time-settings').hidden).toBe(true);
-    expect($('time-rules').hidden).toBe(true);
     expect($('free-description').hidden).toBe(false);
     expect($('difficulty-3').closest('fieldset').closest('[hidden]')).toBeNull();
     $('difficulty-3').click();
     $('mode-time').click();
     expect($('time-settings').hidden).toBe(false);
-    expect($('time-rules').hidden).toBe(false);
     expect($('free-description').hidden).toBe(true);
     expect($('difficulty-3').getAttribute('aria-pressed')).toBe('true');
     $('decrease-count').click();
@@ -321,7 +318,7 @@ describe('Challenge 24 start menu', () => {
     $('card-limit').dispatchEvent(new Event('input', { bubbles: true }));
     expect($('setup-error').hidden).toBe(true);
     expect($('card-limit').hasAttribute('aria-invalid')).toBe(false);
-    expect(text('time-rules')).toContain('90s per puzzle');
+    expect(text('limit-help')).toContain('90s per card');
     $('start-game').click();
     expect(text('card-time')).toBe('1:30');
   });
@@ -330,7 +327,7 @@ describe('Challenge 24 start menu', () => {
     mount();
     $('decrease-limit').click();
     expect($('card-limit').value).toBe('45');
-    expect(text('time-rules')).toContain('45s per puzzle');
+    expect(text('limit-help')).toContain('45s per card');
     $('increase-limit').click();
     expect($('card-limit').value).toBe('60');
     $('card-limit').value = '5';

@@ -76,7 +76,6 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
     find('mode-free').setAttribute('aria-pressed', String(!timed));
     find('mode-time').setAttribute('aria-pressed', String(timed));
     find('time-settings').hidden = !timed;
-    find('time-rules').hidden = !timed;
     find('free-description').hidden = timed;
     find('decrease-count').disabled = count === 1;
     find('increase-count').disabled = count === Number.MAX_SAFE_INTEGER;
@@ -267,6 +266,21 @@ export function mountGame({ root = document, deck: providedDeck, deckFactory = c
   listen(limitInput, 'input', () => {
     clearSetupError();
     renderMenu();
+  });
+  const helpElements = [...root.querySelectorAll('.setting-help')];
+  helpElements.forEach(help => {
+    const tooltip = help.querySelector('[role="tooltip"]');
+    for (const event of ['pointerenter', 'focusin']) {
+      listen(help, event, () => {
+        helpElements.forEach(element => element.querySelector('[role="tooltip"]').hidden = element !== help);
+      });
+    }
+    for (const event of ['pointerleave', 'focusout']) {
+      listen(help, event, () => { tooltip.hidden = true; });
+    }
+    listen(help, 'keydown', event => {
+      if (event.key === 'Escape') tooltip.hidden = true;
+    });
   });
   for (const [id, step] of [['decrease-count', -1], ['increase-count', 1]]) {
     listen(find(id), 'click', () => {
