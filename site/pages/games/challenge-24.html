@@ -11,11 +11,31 @@
         <p id="free-description" class="free-description" hidden>Unlimited practice. No time limit.</p>
         <div id="time-settings">
           <div class="puzzle-setting">
-            <label for="puzzle-count">Correct solves</label>
+            <div class="setting-label">
+              <label for="puzzle-count">Correct solves</label>
+              <span class="setting-help">
+                <button type="button" aria-label="About correct solves" aria-describedby="solves-help">?</button>
+                <span id="solves-help" class="setting-tooltip" role="tooltip" hidden>Reach this many correct solves. Score: solve time + penalties.</span>
+              </span>
+            </div>
             <div class="puzzle-stepper">
               <button id="decrease-count" type="button" aria-label="Fewer solves">−</button>
-              <input id="puzzle-count" type="number" min="1" step="1" value="5" aria-label="Target correct solves" aria-describedby="setup-error" />
+              <input id="puzzle-count" type="number" min="1" step="1" value="5" aria-label="Target correct solves" aria-describedby="solves-help setup-error" />
               <button id="increase-count" type="button" aria-label="More solves">+</button>
+            </div>
+          </div>
+          <div class="puzzle-setting">
+            <div class="setting-label">
+              <label for="card-limit">Seconds per card</label>
+              <span class="setting-help">
+                <button type="button" aria-label="About seconds per card" aria-describedby="limit-help">?</button>
+                <span id="limit-help" class="setting-tooltip" role="tooltip" hidden><span id="time-rule-limit">60s</span> per card. Reveal or timeout costs the full limit.</span>
+              </span>
+            </div>
+            <div class="puzzle-stepper">
+              <button id="decrease-limit" type="button" aria-label="15 seconds less">−</button>
+              <input id="card-limit" type="number" min="1" step="1" value="60" aria-describedby="limit-help setup-error" />
+              <button id="increase-limit" type="button" aria-label="15 seconds more">+</button>
             </div>
           </div>
         </div>
@@ -28,7 +48,10 @@
             <button id="difficulty-random" type="button" data-level="random" aria-pressed="true">Random</button>
           </div>
         </fieldset>
-        <p id="time-rules" class="mode-rules">60s per puzzle. Reveal or timeout counts as 60s.<br>Score: total time.</p>
+        <label class="difficulty-visibility" for="show-difficulty">
+          <input id="show-difficulty" type="checkbox" checked />
+          Show card difficulty
+        </label>
         <p id="setup-error" class="setup-error" role="alert" hidden></p>
         <button id="start-game" class="game-button primary-action start-game" type="submit" disabled>Solve 5 puzzles</button>
       </form>

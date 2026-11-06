@@ -19,9 +19,18 @@
 .mode-switch button[aria-pressed="true"],
 .difficulty-options button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .free-description { margin: 36px 0; text-align: center; color: var(--muted); font-size: 12px; }
-.puzzle-setting { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
-.puzzle-setting label, .difficulty-setting legend { color: var(--muted); font-size: 12px; }
-.puzzle-stepper { display: grid; grid-template-columns: 44px 64px 44px; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 8px; background: #fffefa; }
+#time-settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+.puzzle-setting { min-width: 0; }
+.setting-label { display: flex; align-items: center; gap: 4px; min-height: 20px; margin-bottom: 8px; }
+.puzzle-setting label { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.setting-help { position: relative; display: inline-flex; margin-top: -6px; }
+.setting-help button { display: grid; place-items: center; width: 12px; height: 12px; padding: 0; border: 1px solid var(--line-strong); border-radius: 50%; background: none; color: var(--muted); font: 400 8px var(--font-mono); cursor: help; }
+.setting-help button::before { content: ''; position: absolute; inset: -5px; }
+.setting-tooltip { position: absolute; z-index: 2; top: calc(100% + 10px); width: min(200px, calc(100vw - 32px)); padding: 8px 10px; border-radius: 6px; background: var(--ink); color: var(--paper); box-shadow: 0 4px 12px #14130f20; font-size: 10px; line-height: 1.5; }
+.setting-tooltip::before { content: ''; position: absolute; right: 0; bottom: 100%; left: 0; height: 12px; }
+.setting-tooltip::after { content: ''; position: absolute; bottom: 100%; left: var(--tooltip-pointer); transform: translateX(-50%); border: 4px solid transparent; border-bottom-color: var(--ink); }
+.difficulty-setting legend { color: var(--muted); font-size: 12px; }
+.puzzle-stepper { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; overflow: hidden; border: 1px solid var(--line-strong); border-radius: 8px; background: #fffefa; }
 .puzzle-stepper button { min-height: 46px; padding: 0; border: 0; background: none; color: var(--ink); cursor: pointer; font: 400 20px var(--font-mono); }
 .puzzle-stepper button:hover { background: var(--paper-2); }
 .puzzle-stepper button:disabled { opacity: .35; cursor: default; }
@@ -30,7 +39,8 @@
 .difficulty-setting { margin: 0; padding: 0; border: 0; }
 .difficulty-setting legend { padding: 0; margin-bottom: 10px; }
 .difficulty-options { display: grid; grid-template-columns: 1fr 1fr 1fr 1.5fr; gap: 7px; }
-.mode-rules { padding-top: 18px; margin: 24px 0 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.7; }
+.difficulty-visibility { display: flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 12px; color: var(--muted); font-size: 12px; cursor: pointer; }
+.difficulty-visibility input { width: 18px; height: 18px; margin: 0; accent-color: var(--ink); }
 .setup-error { color: var(--card-red); font-size: 12px; }
 .start-game { display: block; width: 100%; margin-top: 24px; min-height: 50px; overflow-wrap: anywhere; }
 .play-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 336px; margin: -12px auto 14px; color: var(--muted); font-size: 11px; }
