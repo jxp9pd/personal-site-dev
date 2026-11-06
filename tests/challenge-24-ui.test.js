@@ -234,6 +234,22 @@ describe('Challenge 24 Free Play session', () => {
 });
 
 describe('Challenge 24 start menu', () => {
+  it('shows timed settings only in Time to K with the page styles applied', () => {
+    const style = document.createElement('style');
+    style.textContent = readFileSync('fe-artifacts/assets/css/challenge-24.css', 'utf8');
+    document.head.append(style);
+    try {
+      mount();
+      expect(getComputedStyle($('time-settings')).display).toBe('grid');
+      $('mode-free').click();
+      expect(getComputedStyle($('time-settings')).display).toBe('none');
+      $('mode-time').click();
+      expect(getComputedStyle($('time-settings')).display).toBe('grid');
+    } finally {
+      style.remove();
+    }
+  });
+
   it('opens help on click or keyboard focus, switches explanations, and dismisses on Escape or blur', () => {
     mount();
     const [solvesHelp, limitHelp] = document.querySelectorAll('.setting-help button');
