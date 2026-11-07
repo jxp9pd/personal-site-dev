@@ -25,8 +25,9 @@ class HttpTest(AppTestCase):
         super().setUp()
         self.history = Mock()
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), handler_for(
-            self.controller, {'https://jpentakalos.com'}, pomodoro=self.timer, nfl=self.nfl, fantasy=self.fantasy,
-            history=self.history, nba=self.nba))
+            self.controller, {'https://jpentakalos.com'},
+            apps={'pomodoro': self.timer, 'nfl': self.nfl, 'nba': self.nba, 'fantasy': self.fantasy},
+            history=self.history))
         self.thread = threading.Thread(target=self.server.serve_forever)
         self.thread.start()
         self.base = f'http://127.0.0.1:{self.server.server_port}'
@@ -150,6 +151,19 @@ class HttpTest(AppTestCase):
     def test_production_does_not_serve_local_files(self):
         self.assertEqual(self.request(path='/server.py')[0], 404)
         self.assertEqual(self.request(path='/server.py', method='HEAD')[0], 405)
+
+    def test_unregistered_app_routes_are_rejected_without_forwarding_to_the_board(self):
+        self.server.RequestHandlerClass = handler_for(self.controller, {'https://jpentakalos.com'})
+        for resource in ('pomodoro', 'nfl', 'nba', 'fantasy', 'unknown'):
+            path = '/api/vestaboard/' + resource
+            with self.subTest(resource=resource):
+                self.assertEqual(self.request(path=path)[0], 404)
+                self.assertEqual(self.request(b'{}', path=path)[0], 404)
+        self.assertEqual(self.request(path='/api/vestaboard/status')[0], 200)
+        self.assertEqual(self.request(b'{}', path='/api/vestaboard/status')[0], 404)
+        self.assertEqual(self.request(path='/api/vestaboard/messages')[0], 404)
+        self.assertEqual(self.forwarded, [])
+        self.history.begin.assert_not_called()
 
 
 if __name__ == '__main__':

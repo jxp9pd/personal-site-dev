@@ -20,8 +20,9 @@ from history import HistoryUnavailable, MessageHistory, sender_ip
 MAX_BODY = 4096
 
 
-def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, fantasy=None, history=None, nba=None):
+def handler_for(controller, origins, preview_dir=None, apps=None, history=None):
     gateway = controller.gateway
+    app_routes = {f'/api/vestaboard/{name}': app for name, app in (apps or {}).items()}
     class Handler(SimpleHTTPRequestHandler):
         # HTTP/1.0 closes each connection, including rejected/unconsumed bodies.
         server_version = 'NoteGateway'
@@ -52,16 +53,11 @@ def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, 
             self.wfile.write(payload)
 
         def do_GET(self):
-            if urlsplit(self.path).path == '/api/vestaboard/status':
+            path = urlsplit(self.path).path
+            if path == '/api/vestaboard/status':
                 self.reply(200, gateway.status())
-            elif urlsplit(self.path).path == '/api/vestaboard/pomodoro' and pomodoro:
-                self.reply(200, pomodoro.status())
-            elif urlsplit(self.path).path == '/api/vestaboard/nfl' and nfl:
-                self.reply(200, nfl.status())
-            elif urlsplit(self.path).path == '/api/vestaboard/nba' and nba:
-                self.reply(200, nba.status())
-            elif urlsplit(self.path).path == '/api/vestaboard/fantasy' and fantasy:
-                self.reply(200, fantasy.status())
+            elif path in app_routes:
+                self.reply(200, app_routes[path].status())
             elif preview_dir and not self.path.startswith('/api/'):
                 super().do_GET()
             else:
@@ -75,9 +71,7 @@ def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, 
 
         def do_POST(self):
             path = urlsplit(self.path).path
-            if path != '/api/vestaboard/messages' and not (
-                    path == '/api/vestaboard/pomodoro' and pomodoro or path == '/api/vestaboard/nfl' and nfl
-                    or path == '/api/vestaboard/fantasy' and fantasy or path == '/api/vestaboard/nba' and nba):
+            if path != '/api/vestaboard/messages' and path not in app_routes:
                 return self.reply(404, {'error': 'Not found.'})
             if self.headers.get('Origin') not in origins:
                 return self.reply(403, {'error': 'Send notes from the website.'})
@@ -95,17 +89,8 @@ def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, 
                 body = json.loads(self.rfile.read(length))
             except (ValueError, UnicodeError, socket.timeout):
                 return self.reply(400, {'error': 'Invalid JSON.'})
-            if path == '/api/vestaboard/pomodoro':
-                status, result = pomodoro.command(body)
-                return self.reply(status, result)
-            if path == '/api/vestaboard/nfl':
-                status, result = nfl.command(body)
-                return self.reply(status, result)
-            if path == '/api/vestaboard/nba':
-                status, result = nba.command(body)
-                return self.reply(status, result)
-            if path == '/api/vestaboard/fantasy':
-                status, result = fantasy.command(body)
+            if path in app_routes:
+                status, result = app_routes[path].command(body)
                 return self.reply(status, result)
             # Only the grid is sent to Vestaboard; clients cannot force delivery.
             characters = body.get('characters') if isinstance(body, dict) else None
@@ -140,25 +125,23 @@ def main():
     gateway = BoardGateway(api_token(env_file), opener=partial(urlopen, context=cloud_tls_context()))
     history = MessageHistory.from_environment(env_file, opener=partial(urlopen, context=cloud_tls_context()))
     controller = BoardController(gateway)
-    pomodoro = Pomodoro(controller)
-    nfl = Sports(controller, 'nfl', ESPNSource('nfl', opener=partial(urlopen, context=cloud_tls_context())).games)
-    nba = Sports(controller, 'nba', ESPNSource('nba', opener=partial(urlopen, context=cloud_tls_context())).games)
-    fantasy = Fantasy(controller, SleeperSource(opener=partial(urlopen, context=cloud_tls_context())),
-                      store=FantasyStore.from_environment(env_file, opener=partial(urlopen, context=cloud_tls_context())))
+    apps = {
+        'pomodoro': Pomodoro(controller),
+        'nfl': Sports(controller, 'nfl', ESPNSource('nfl', opener=partial(urlopen, context=cloud_tls_context())).games),
+        'nba': Sports(controller, 'nba', ESPNSource('nba', opener=partial(urlopen, context=cloud_tls_context())).games),
+        'fantasy': Fantasy(controller, SleeperSource(opener=partial(urlopen, context=cloud_tls_context())),
+                           store=FantasyStore.from_environment(env_file, opener=partial(urlopen, context=cloud_tls_context()))),
+    }
     server = ThreadingHTTPServer(('127.0.0.1', args.port), handler_for(
-        controller, origins, args.preview, pomodoro=pomodoro, nfl=nfl, nba=nba, fantasy=fantasy, history=history))
-    pomodoro.start_worker()
-    nfl.start_worker()
-    nba.start_worker()
-    fantasy.start_worker()
+        controller, origins, args.preview, apps=apps, history=history))
+    for app in apps.values():
+        app.start_worker()
     print(f'Note gateway listening on 127.0.0.1:{args.port}; token configured: {bool(gateway.token)}', flush=True)
     try:
         server.serve_forever()
     finally:
-        pomodoro.close()
-        nfl.close()
-        nba.close()
-        fantasy.close()
+        for app in apps.values():
+            app.close()
         server.server_close()
 
 
