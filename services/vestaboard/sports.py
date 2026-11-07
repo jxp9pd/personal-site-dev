@@ -79,8 +79,10 @@ def board_frame(game):
     return [heading(away) + [BLANK] + heading(home), scores[0] + [BLANK] + scores[1], bottom]
 
 
-def normalize_game(event, league='nfl'):
+def normalize_game(event, league='nfl', *, broadcasts=None):
     competition = event['competitions'][0]
+    if broadcasts is None:
+        broadcasts = streaming_broadcasts(competition)
     status = event.get('status') or competition['status']
     kind = status['type']
     name = kind['name']
@@ -126,7 +128,7 @@ def normalize_game(event, league='nfl'):
     if set(teams) != {'away', 'home'}:
         raise ValueError('Incomplete matchup.')
     possession = str((competition.get('situation') or {}).get('possession', '')) if league == 'nfl' else ''
-    game = {'id': event_id, 'league': league, 'broadcasts': streaming_broadcasts(competition),
+    game = {'id': event_id, 'league': league, 'broadcasts': broadcasts,
             'startsAt': starts.isoformat(),
             # ESPN's game-day filter uses Eastern time.
             'dateKey': starts.astimezone(EASTERN).strftime('%Y%m%d'),
@@ -138,8 +140,8 @@ def normalize_game(event, league='nfl'):
 
 
 class ESPNSource:
-    league = 'nfl'
-    def __init__(self, opener=urlopen):
+    def __init__(self, league, opener=urlopen):
+        self.league = league
         self.opener = opener
 
     def games(self, date=None):
@@ -156,16 +158,20 @@ class ESPNSource:
             data = json.loads(raw)
         if not isinstance(data, dict) or not isinstance(data.get('events'), list):
             raise ValueError('Invalid scoreboard data.')
-        return [normalize_game(event, self.league) for event in data['events']
-                if self.league != 'nba' or streaming_broadcasts(event['competitions'][0])]
+        games = []
+        for event in data['events']:
+            broadcasts = streaming_broadcasts(event['competitions'][0])
+            if self.league != 'nba' or broadcasts:
+                games.append(normalize_game(event, self.league, broadcasts=broadcasts))
+        return games
 
 
 class Sports(BoardApp):
-    league = 'nfl'
     passive_actions = frozenset({'stop'})
 
-    def __init__(self, controller, fetch_games, clock=time.monotonic, wall_clock=time.time):
+    def __init__(self, controller, league, fetch_games, clock=time.monotonic, wall_clock=time.time):
         super().__init__(controller)
+        self.league = league
         self.fetch_games = fetch_games
         self.clock, self.wall_clock = clock, wall_clock
         self.lock = threading.Lock()
@@ -290,14 +296,11 @@ class Sports(BoardApp):
         with self.lock:
             if not self.pending or self.state not in ('tracking', 'completed'):
                 return
-        if self.gateway.status()['retryAfter']:
-            return
-        with self.lock:
-            if not self.pending or self.state not in ('tracking', 'completed'):
-                return
             revision = self.revision
             characters = self.characters
             key = (revision, tuple(code for row in characters for code in row))
+        if self.gateway.status()['retryAfter']:
+            return
         status, result = self.deliver(revision, characters)
         with self.lock:
             if revision != self.revision or status == 429:
