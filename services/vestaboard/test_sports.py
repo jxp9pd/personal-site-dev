@@ -3,8 +3,7 @@ import unittest
 from unittest.mock import Mock
 
 from board import text_row
-from nfl import NFLSource, normalize_game
-from nba import NBASource
+from sports import ESPNSource, normalize_game
 from test_helpers import AppTestCase, Response, event, game, nba_event, nba_game
 
 
@@ -46,7 +45,7 @@ class SourceTest(unittest.TestCase):
 
     def test_source_uses_fixed_public_endpoint_without_board_credentials(self):
         opener = Mock(return_value=Response(json.dumps({'events': [event()]}).encode()))
-        source = NFLSource(opener)
+        source = ESPNSource('nfl', opener)
         self.assertEqual(source.games('20261012')[0]['id'], '401000001')
         request = opener.call_args.args[0]
         self.assertEqual(request.full_url, 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261012')
@@ -59,7 +58,7 @@ class SourceTest(unittest.TestCase):
         for data in ({}, {'events': None}, {'events': [event(away_score='bad')]},
                      {'events': [event(home_score='-1')]}, {'events': [event(home_score=1.5)]}):
             with self.subTest(data=data):
-                source = NFLSource(Mock(return_value=Response(json.dumps(data).encode())))
+                source = ESPNSource('nfl', Mock(return_value=Response(json.dumps(data).encode())))
                 with self.assertRaises((ValueError, KeyError, TypeError)):
                     source.games()
 
@@ -67,7 +66,7 @@ class SourceTest(unittest.TestCase):
 class NBASourceTest(unittest.TestCase):
     def source(self, events):
         opener = Mock(return_value=Response(json.dumps({'events': events}).encode()))
-        return NBASource(opener)
+        return ESPNSource('nba', opener)
 
     def test_filters_to_either_streaming_service_without_filtering_nfl(self):
         for names, expected in ((['Prime Video'], ['Prime Video']),
@@ -80,7 +79,7 @@ class NBASourceTest(unittest.TestCase):
                 data['competitions'][0]['broadcasts'][0]['names'] = names
                 games = self.source([data]).games()
                 self.assertEqual([game['broadcasts'] for game in games], [expected] if expected else [])
-        self.assertEqual(len(NFLSource(Mock(return_value=Response(
+        self.assertEqual(len(ESPNSource('nfl', Mock(return_value=Response(
             json.dumps({'events': [event()]}).encode()))).games()), 1)
 
     def test_accepts_us_national_geo_broadcasts_and_ignores_other_regions(self):

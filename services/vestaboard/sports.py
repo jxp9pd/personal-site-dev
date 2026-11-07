@@ -138,8 +138,8 @@ def normalize_game(event, league='nfl'):
 
 
 class ESPNSource:
-    league = 'nfl'
-    def __init__(self, opener=urlopen):
+    def __init__(self, league, opener=urlopen):
+        self.league = league
         self.opener = opener
 
     def games(self, date=None):
@@ -161,11 +161,11 @@ class ESPNSource:
 
 
 class Sports(BoardApp):
-    league = 'nfl'
     passive_actions = frozenset({'stop'})
 
-    def __init__(self, controller, fetch_games, clock=time.monotonic, wall_clock=time.time):
+    def __init__(self, controller, league, fetch_games, clock=time.monotonic, wall_clock=time.time):
         super().__init__(controller)
+        self.league = league
         self.fetch_games = fetch_games
         self.clock, self.wall_clock = clock, wall_clock
         self.lock = threading.Lock()
@@ -290,14 +290,11 @@ class Sports(BoardApp):
         with self.lock:
             if not self.pending or self.state not in ('tracking', 'completed'):
                 return
-        if self.gateway.status()['retryAfter']:
-            return
-        with self.lock:
-            if not self.pending or self.state not in ('tracking', 'completed'):
-                return
             revision = self.revision
             characters = self.characters
             key = (revision, tuple(code for row in characters for code in row))
+        if self.gateway.status()['retryAfter']:
+            return
         status, result = self.deliver(revision, characters)
         with self.lock:
             if revision != self.revision or status == 429:

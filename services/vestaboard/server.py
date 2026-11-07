@@ -13,8 +13,7 @@ from board import BoardGateway, api_token, cloud_tls_context, valid_characters
 from apps import BoardController
 from fantasy import Fantasy, SleeperSource
 from fantasy_store import FantasyStore
-from nfl import NFL, NFLSource
-from nba import NBA, NBASource
+from sports import ESPNSource, Sports
 from pomodoro import Pomodoro
 from history import HistoryUnavailable, MessageHistory, sender_ip
 
@@ -142,8 +141,8 @@ def main():
     history = MessageHistory.from_environment(env_file, opener=partial(urlopen, context=cloud_tls_context()))
     controller = BoardController(gateway)
     pomodoro = Pomodoro(controller)
-    nfl = NFL(controller, NFLSource(opener=partial(urlopen, context=cloud_tls_context())).games)
-    nba = NBA(controller, NBASource(opener=partial(urlopen, context=cloud_tls_context())).games)
+    nfl = Sports(controller, 'nfl', ESPNSource('nfl', opener=partial(urlopen, context=cloud_tls_context())).games)
+    nba = Sports(controller, 'nba', ESPNSource('nba', opener=partial(urlopen, context=cloud_tls_context())).games)
     fantasy = Fantasy(controller, SleeperSource(opener=partial(urlopen, context=cloud_tls_context())),
                       store=FantasyStore.from_environment(env_file, opener=partial(urlopen, context=cloud_tls_context())))
     server = ThreadingHTTPServer(('127.0.0.1', args.port), handler_for(

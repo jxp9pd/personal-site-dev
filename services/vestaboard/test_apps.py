@@ -245,6 +245,23 @@ class OwnershipTest(AppTestCase):
                 self.assertEqual(self.gateway.send.call_count, attempts)
                 self.assertEqual(app.status()['delivery']['status'], 'idle')
 
+    def test_takeover_during_cooldown_check_rejects_the_captured_sports_frame(self):
+        for app in (self.nfl, self.nba):
+            with self.subTest(league=app.league):
+                self.start(app)
+                def cooldown():
+                    self.start(self.timer)
+                    return {'retryAfter': 0}
+                self.gateway.status.side_effect = cooldown
+                try:
+                    app.tick()
+                finally:
+                    self.gateway.status.side_effect = None
+                self.assertIs(self.controller.owner, self.timer)
+                self.assertEqual(app.status()['state'], 'stopped')
+                self.assertEqual(app.status()['delivery'], {'status': 'idle'})
+                self.gateway.send.assert_not_called()
+
     def test_inflight_cloud_write_finishes_before_ui_takeover(self):
         self.start(self.nfl)
         sending, release, requested, finished = [threading.Event() for _ in range(4)]
