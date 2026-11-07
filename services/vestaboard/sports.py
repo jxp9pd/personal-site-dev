@@ -79,8 +79,10 @@ def board_frame(game):
     return [heading(away) + [BLANK] + heading(home), scores[0] + [BLANK] + scores[1], bottom]
 
 
-def normalize_game(event, league='nfl'):
+def normalize_game(event, league='nfl', *, broadcasts=None):
     competition = event['competitions'][0]
+    if broadcasts is None:
+        broadcasts = streaming_broadcasts(competition)
     status = event.get('status') or competition['status']
     kind = status['type']
     name = kind['name']
@@ -126,7 +128,7 @@ def normalize_game(event, league='nfl'):
     if set(teams) != {'away', 'home'}:
         raise ValueError('Incomplete matchup.')
     possession = str((competition.get('situation') or {}).get('possession', '')) if league == 'nfl' else ''
-    game = {'id': event_id, 'league': league, 'broadcasts': streaming_broadcasts(competition),
+    game = {'id': event_id, 'league': league, 'broadcasts': broadcasts,
             'startsAt': starts.isoformat(),
             # ESPN's game-day filter uses Eastern time.
             'dateKey': starts.astimezone(EASTERN).strftime('%Y%m%d'),
@@ -156,8 +158,12 @@ class ESPNSource:
             data = json.loads(raw)
         if not isinstance(data, dict) or not isinstance(data.get('events'), list):
             raise ValueError('Invalid scoreboard data.')
-        return [normalize_game(event, self.league) for event in data['events']
-                if self.league != 'nba' or streaming_broadcasts(event['competitions'][0])]
+        games = []
+        for event in data['events']:
+            broadcasts = streaming_broadcasts(event['competitions'][0])
+            if self.league != 'nba' or broadcasts:
+                games.append(normalize_game(event, self.league, broadcasts=broadcasts))
+        return games
 
 
 class Sports(BoardApp):

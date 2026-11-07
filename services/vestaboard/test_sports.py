@@ -94,9 +94,15 @@ class NBASourceTest(unittest.TestCase):
                 self.assertEqual(len(self.source([data]).games()), expected)
 
     def test_missing_broadcasts_are_excluded_and_malformed_eligible_scores_are_rejected(self):
-        data = nba_event()
-        del data['competitions'][0]['broadcasts']
-        self.assertEqual(self.source([data]).games(), [])
+        for names in (None, [], ['ESPN']):
+            with self.subTest(names=names):
+                data = nba_event(away_score='bad')
+                competition = data['competitions'][0]
+                if names is None:
+                    del competition['broadcasts']
+                else:
+                    competition['broadcasts'][0]['names'] = names
+                self.assertEqual(self.source([data, nba_event()]).games(), [nba_game()])
         with self.assertRaises(ValueError):
             self.source([nba_event(away_score='bad')]).games()
 
