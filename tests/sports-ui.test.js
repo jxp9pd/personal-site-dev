@@ -1,14 +1,96 @@
 import { describe, expect, it, vi } from 'vitest';
-import { loadBoardPage, postBodies, nflGame, nflState, reply } from './helpers/vestaboard.js';
+import { loadBoardPage, postBodies, nflGame, nflState, nbaGame, nbaState, reply } from './helpers/vestaboard.js';
 
 const $ = id => document.getElementById(id);
 const submit = () => $('game-form').dispatchEvent(new Event('submit', { cancelable: true }));
 const bubble = id => document.querySelector(`[data-game-id="${id}"]`);
 const choose = value => bubble(value).click();
 
-describe('NFL game selection and shared tracking', () => {
+describe('Sports game selection and shared tracking', () => {
+  it('keeps the old NFL URL working with the shared Sports page', async () => {
+    await loadBoardPage('nfl');
+    expect(document.querySelector('h1').textContent).toBe('Sports scores');
+    expect(document.querySelector('[data-league="nfl"]').getAttribute('aria-pressed')).toBe('true');
+    expect(bubble('401000001')).not.toBeNull();
+  });
+
+  it('switches to NBA broadcasts without sending a command and restores the NFL selection', async () => {
+    const other = nflGame({ id: '401000003' });
+    const fetch = await loadBoardPage('sports', { state: 'tracking', game: nflGame(), games: [nflGame(), other] });
+    choose(other.id);
+    fetch.mockResolvedValue(reply(nbaState()));
+    document.querySelector('[data-league="nba"]').click();
+    expect($('track').disabled).toBe(true);
+    expect(bubble('401000001')).toBeNull();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetch.mock.calls.at(-1)[0]).toBe('/api/vestaboard/nba');
+    expect(document.querySelector('[data-league="nba"]').getAttribute('aria-pressed')).toBe('true');
+    expect($('game-title').textContent).toBe('Today’s games');
+    expect($('broadcast-filter').hidden).toBe(false);
+    expect(bubble(nbaGame().id).textContent).toContain('Prime Video');
+    expect($('board').getAttribute('aria-label')).toContain('112');
+    expect($('board').getAttribute('aria-label')).not.toContain('have the ball');
+    fetch.mockResolvedValue(reply(nflState({ state: 'tracking', game: nflGame(), games: [nflGame(), other] })));
+    document.querySelector('[data-league="nfl"]').click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(bubble(other.id).getAttribute('aria-pressed')).toBe('true');
+    expect($('tracking-status').textContent).toContain('Tracking SF at SEA');
+    expect($('broadcast-filter').hidden).toBe(true);
+    expect(postBodies(fetch)).toEqual([]);
+  });
+
+  it('ignores an old league poll that returns after switching leagues', async () => {
+    const fetch = await loadBoardPage('sports');
+    let resolvePoll;
+    fetch.mockImplementationOnce(() => new Promise(resolve => { resolvePoll = resolve; }));
+    await vi.advanceTimersByTimeAsync(5000);
+    fetch.mockResolvedValue(reply(nbaState()));
+    document.querySelector('[data-league="nba"]').click();
+    await vi.advanceTimersByTimeAsync(0);
+    resolvePoll(reply(nflState()));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(bubble(nbaGame().id)).not.toBeNull();
+    expect(bubble(nflGame().id)).toBeNull();
+    expect($('track').disabled).toBe(false);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(fetch.mock.calls.at(-1)[0]).toBe('/api/vestaboard/nba');
+  });
+
+  it('tracks and stops NBA through its own endpoint and blocks switching during a command', async () => {
+    const fetch = await loadBoardPage('sports');
+    fetch.mockResolvedValue(reply(nbaState()));
+    document.querySelector('[data-league="nba"]').click();
+    await vi.advanceTimersByTimeAsync(0);
+    let resolveCommand;
+    fetch.mockImplementationOnce(() => new Promise(resolve => { resolveCommand = resolve; }));
+    fetch.mockResolvedValue(reply(nbaState({ state: 'tracking', game: nbaGame() })));
+    submit();
+    expect(document.querySelector('[data-league="nfl"]').disabled).toBe(true);
+    resolveCommand(reply(nbaState({ state: 'tracking', game: nbaGame() })));
+    await vi.advanceTimersByTimeAsync(0);
+    expect($('preview-title').textContent).toBe('Tracking');
+    expect($('stop').hidden).toBe(false);
+    fetch.mockResolvedValue(reply(nbaState({ state: 'stopped', game: nbaGame() })));
+    $('stop').click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(postBodies(fetch)).toEqual([{ action: 'track', gameId: nbaGame().id }, { action: 'stop' }]);
+    expect(fetch.mock.calls.filter(([, options]) => options.method === 'POST')
+      .every(([url]) => url === '/api/vestaboard/nba')).toBe(true);
+    expect($('stop').hidden).toBe(true);
+  });
+
+  it('explains when no NBA games match the broadcast filter', async () => {
+    const fetch = await loadBoardPage('sports');
+    fetch.mockResolvedValue(reply(nbaState({ games: [] })));
+    document.querySelector('[data-league="nba"]').click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect($('source-status').textContent).toBe('No NBA games on Prime Video or Peacock today.');
+    expect($('track').disabled).toBe(true);
+    expect(document.querySelectorAll('[data-game-id]')).toHaveLength(0);
+  });
+
   it('previews team colors, scores, and possession without sending a command', async () => {
-    const fetch = await loadBoardPage('nfl');
+    const fetch = await loadBoardPage('sports');
     expect(bubble('401000001').getAttribute('aria-pressed')).toBe('true');
     expect(bubble('401000001').textContent).toContain('21 – 17');
     expect($('board').getAttribute('aria-label')).toContain('49ers have the ball');
@@ -19,7 +101,7 @@ describe('NFL game selection and shared tracking', () => {
   });
 
   it('tracks once and restores Stop controls from the shared session', async () => {
-    const fetch = await loadBoardPage('nfl');
+    const fetch = await loadBoardPage('sports');
     fetch.mockResolvedValue(reply(nflState({ state: 'tracking', game: nflGame(), delivery: { status: 'pending' } })));
     submit();
     submit();
@@ -35,7 +117,7 @@ describe('NFL game selection and shared tracking', () => {
 
   it('selecting a different game only previews it while the current game keeps tracking', async () => {
     const other = nflGame({ id: '401000002', possession: null });
-    const fetch = await loadBoardPage('nfl', { state: 'tracking', game: nflGame(), games: [nflGame(), other] });
+    const fetch = await loadBoardPage('sports', { state: 'tracking', game: nflGame(), games: [nflGame(), other] });
     choose(other.id);
     expect($('preview-title').textContent).toBe('Preview');
     expect($('stop').hidden).toBe(false);
@@ -46,7 +128,7 @@ describe('NFL game selection and shared tracking', () => {
   });
 
   it('reopens an active game and automatically reflects final without another command', async () => {
-    const fetch = await loadBoardPage('nfl', { state: 'tracking', game: nflGame() });
+    const fetch = await loadBoardPage('sports', { state: 'tracking', game: nflGame() });
     expect($('preview-title').textContent).toBe('Tracking');
     const final = nflGame({ state: 'final', terminal: true, possession: null });
     fetch.mockResolvedValue(reply(nflState({ state: 'completed', game: final, games: [final] })));
@@ -58,14 +140,14 @@ describe('NFL game selection and shared tracking', () => {
   });
 
   it('blocks starting from a stale feed while keeping Stop available', async () => {
-    await loadBoardPage('nfl', { state: 'tracking', game: nflGame(), source: { lastCheckedAt: '2026-10-09T00:30:00Z', error: 'NFL scores are unavailable. Retrying shortly.' } });
+    await loadBoardPage('sports', { state: 'tracking', game: nflGame(), source: { lastCheckedAt: '2026-10-09T00:30:00Z', error: 'NFL scores are unavailable. Retrying shortly.' } });
     expect($('source-status').textContent).toContain('unavailable');
     expect($('stop').disabled).toBe(false);
     expect($('track').disabled).toBe(true);
   });
 
   it('updates the picker when the refreshed schedule is empty', async () => {
-    const fetch = await loadBoardPage('nfl');
+    const fetch = await loadBoardPage('sports');
     fetch.mockResolvedValue(reply(nflState({ games: [] })));
     await vi.advanceTimersByTimeAsync(5000);
     expect(document.querySelectorAll('[data-game-id]')).toHaveLength(0);
@@ -78,7 +160,7 @@ describe('NFL game selection and shared tracking', () => {
     const thursday = scheduled('401000001', '2026-10-08T17:15:00');
     const sunday = scheduled('401000002', '2026-10-11T13:25:00');
     const monday = scheduled('401000003', '2026-10-12T17:15:00');
-    await loadBoardPage('nfl', { games: [monday, thursday, sunday] });
+    await loadBoardPage('sports', { games: [monday, thursday, sunday] });
     const headings = [...document.querySelectorAll('.game-day-heading')].map(heading => heading.textContent);
     expect(headings[0]).toContain('Thursday');
     expect(headings[1]).toContain('Sunday');
@@ -88,7 +170,7 @@ describe('NFL game selection and shared tracking', () => {
   });
 
   it('automatically replaces last week’s bubbles with the new schedule while open', async () => {
-    const fetch = await loadBoardPage('nfl');
+    const fetch = await loadBoardPage('sports');
     const next = nflGame({ id: '401000002', startsAt: new Date('2026-10-18T13:25:00').toISOString() });
     fetch.mockResolvedValue(reply(nflState({ games: [next] })));
     await vi.advanceTimersByTimeAsync(5000);
@@ -99,7 +181,7 @@ describe('NFL game selection and shared tracking', () => {
   });
 
   it('keeps an older active game in the preview without adding it to this week’s bubbles', async () => {
-    const fetch = await loadBoardPage('nfl', { state: 'tracking', game: nflGame() });
+    const fetch = await loadBoardPage('sports', { state: 'tracking', game: nflGame() });
     const next = nflGame({ id: '401000002', startsAt: new Date('2026-10-18T13:25:00').toISOString() });
     fetch.mockResolvedValue(reply(nflState({ state: 'tracking', game: nflGame(), games: [next] })));
     await vi.advanceTimersByTimeAsync(5000);

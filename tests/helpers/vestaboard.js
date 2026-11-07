@@ -28,6 +28,17 @@ export const nflState = (overrides = {}) => ({
   delivery: { status: 'idle' }, ...overrides,
 });
 
+export const nbaGame = (overrides = {}) => ({
+  ...nflGame(), id: '401000002', league: 'nba', possession: null, broadcasts: ['Prime Video'],
+  away: { id: '1', abbreviation: 'BOS', name: 'Boston Celtics', score: 112, colors: [66, 69] },
+  home: { id: '13', abbreviation: 'LAL', name: 'Los Angeles Lakers', score: 108, colors: [68, 65] },
+  characters: layoutMessage('BOS     LAL\n112     108').characters, ...overrides,
+});
+
+export const nbaState = (overrides = {}) => nflState({
+  league: 'nba', games: [nbaGame()], characters: layoutMessage('NBA SCORES\nPICK A GAME').characters, ...overrides,
+});
+
 export const fantasyState = (overrides = {}) => ({
   configured: true, state: 'idle', week: 5, season: '2026',
   leagues: [
@@ -46,6 +57,7 @@ export const fantasyState = (overrides = {}) => ({
 const pages = {
   note: { file: 'vestaboard', state: initial => ({ configured: true, retryAfter: 0, ...initial }), boot: () => import('../../fe-artifacts/assets/js/vestaboard.js') },
   pomodoro: { file: 'pomodoro', state: pomodoroState, boot: () => import('../../fe-artifacts/assets/js/pomodoro.js') },
+  sports: { file: 'sports', state: nflState, boot: () => import('../../fe-artifacts/assets/js/sports.js') },
   nfl: { file: 'nfl', state: nflState, boot: () => import('../../fe-artifacts/assets/js/nfl.js') },
   fantasy: { file: 'fantasy', state: fantasyState, boot: () => import('../../fe-artifacts/assets/js/fantasy.js') },
 };

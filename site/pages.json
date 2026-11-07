@@ -251,22 +251,41 @@
     "source": "pages/tools/index.html"
   },
   {
-    "output": "tools/nfl.html",
-    "title": "NFL scores — Penta Projects",
-    "description": "Follow an NFL game on John's Vestaboard Note.",
+    "output": "tools/sports.html",
+    "title": "Sports scores — Penta Projects",
+    "description": "Follow NFL and NBA scores on John's Vestaboard Note. NBA games on Prime Video or Peacock.",
     "assets": "board",
     "section": "tools",
     "header": {},
     "styles": [
-      "/assets/css/nfl.css?v=3"
+      "/assets/css/sports.css"
     ],
     "scripts": [
       {
         "type": "module",
-        "src": "/assets/js/nfl.js?v=4"
+        "src": "/assets/js/sports.js"
       }
     ],
-    "source": "pages/tools/nfl.html"
+    "source": "pages/tools/sports.html"
+  },
+  {
+    "output": "tools/nfl.html",
+    "title": "Sports scores — Penta Projects",
+    "description": "Follow NFL and NBA scores on John's Vestaboard Note. NBA games on Prime Video or Peacock.",
+    "assets": "board",
+    "section": "tools",
+    "header": {},
+    "styles": [
+      "/assets/css/sports.css"
+    ],
+    "scripts": [
+      {
+        "type": "module",
+        "src": "/assets/js/sports.js"
+      }
+    ],
+    "source": "pages/tools/sports.html",
+    "canonical": "https://jpentakalos.com/tools/sports.html"
   },
   {
     "output": "tools/pomodoro.html",
@@ -307,7 +326,7 @@
   {
     "output": "tools/vestaboard/index.html",
     "title": "Vestaboard — Penta Projects",
-    "description": "Notes, Pomodoro, NFL scores, and fantasy football on John's Vestaboard.",
+    "description": "Notes, Pomodoro, NFL and NBA scores, and fantasy football on John's Vestaboard.",
     "meta": [
       {
         "name": "theme-color",

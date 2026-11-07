@@ -6,12 +6,12 @@ const start = (configured = true) => loadBoardPage('note', { configured });
 
 // Each page wires its own disabled control and feedback, but the same connection
 // contract is checked here instead of copying a test into every feature suite.
-describe.each(['note', 'pomodoro', 'nfl', 'fantasy'])('%s board connection', page => {
+describe.each(['note', 'pomodoro', 'sports', 'fantasy'])('%s board connection', page => {
   it('blocks writes until configured and recovers when configuration becomes available', async () => {
     const fetch = await loadBoardPage(page, { configured: false });
-    const button = $(page === 'note' ? 'send' : page === 'nfl' ? 'track' : 'start');
+    const button = $(page === 'note' ? 'send' : page === 'sports' ? 'track' : 'start');
     expect(button.disabled).toBe(true);
-    if (['nfl', 'fantasy'].includes(page)) {
+    if (['sports', 'fantasy'].includes(page)) {
       expect($('delivery').textContent).toBe('');
       expect($('reconnect').hidden).toBe(true);
     } else {
@@ -19,7 +19,7 @@ describe.each(['note', 'pomodoro', 'nfl', 'fantasy'])('%s board connection', pag
       expect($('reconnect').hidden).toBe(false);
     }
     fetch.mockResolvedValue(reply(boardState(page)));
-    if (['nfl', 'fantasy'].includes(page)) await vi.advanceTimersByTimeAsync(5000);
+    if (['sports', 'fantasy'].includes(page)) await vi.advanceTimersByTimeAsync(5000);
     else {
       $('reconnect').click();
       await vi.advanceTimersByTimeAsync(0);

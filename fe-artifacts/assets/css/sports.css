@@ -1,4 +1,4 @@
-.nfl-page .preview-meta { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.sports-page .preview-meta { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .tracking-status { color: var(--muted); font-size: .65rem; text-align: right; }
 .tracking-status[data-active="true"] { color: #477363; }
 .delivery, .source-status { margin: 12px 0 0; color: var(--muted); font-size: .65rem; line-height: 1.7; }
@@ -33,3 +33,11 @@
 }
 @media (max-width: 350px) { .game-bubbles { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .game-bubble { transition: none; } }
+
+.league-picker { display: inline-flex; gap: 4px; margin-top: 24px; padding: 4px; border: 1px solid var(--line); border-radius: 100px; }
+.league-picker button { min-width: 80px; padding: 10px 20px; border: 0; border-radius: 100px; background: transparent; color: var(--muted); font: 400 .75rem var(--font-mono); cursor: pointer; }
+.league-picker button[aria-pressed="true"] { background: #477363; color: #fff; }
+.league-picker button:disabled { opacity: .62; cursor: not-allowed; }
+.league-picker button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.broadcast-filter { margin: -12px 0 24px; color: var(--muted); font-size: .65rem; line-height: 1.7; }
+.bubble-broadcast { color: #477363; font-size: .6rem; }
