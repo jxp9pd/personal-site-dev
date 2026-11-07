@@ -50,6 +50,16 @@ export function createBoardSession({ resource, accept, render, feedback, uncerta
     }
   }
 
+  function setResource(nextResource) {
+    if (busy || resource === nextResource) return;
+    resource = nextResource;
+    requestVersion += 1;
+    polling = null;
+    connected = initialConnected;
+    render();
+    void sync();
+  }
+
   function start() {
     if (started) return;
     started = true;
@@ -60,5 +70,5 @@ export function createBoardSession({ resource, accept, render, feedback, uncerta
     setInterval(() => { if (!document.hidden) void sync(); }, 5000);
   }
 
-  return { get connected() { return connected; }, get busy() { return busy; }, sync, command, start };
+  return { get connected() { return connected; }, get busy() { return busy; }, sync, command, start, setResource };
 }

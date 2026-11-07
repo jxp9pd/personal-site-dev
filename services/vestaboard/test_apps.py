@@ -4,7 +4,7 @@ import unittest
 
 from apps import BoardApp
 from fantasy import DEFAULT_LEAGUES
-from test_helpers import AppTestCase, STATE, background_task, game, matchup, message, play
+from test_helpers import AppTestCase, STATE, background_task, game, nba_game, matchup, message, play
 
 
 class LifecycleTest(AppTestCase):
@@ -48,7 +48,7 @@ class LifecycleTest(AppTestCase):
                 self.gateway.status.return_value = {'retryAfter': 0}
                 self.gateway.send.return_value = (504, {'error': 'Delivery unconfirmed.'})
                 app.tick()
-                self.now += {self.timer: 299, self.nfl: 180, self.fantasy: 15}[app]
+                self.now += {self.timer: 299, self.nfl: 180, self.nba: 180, self.fantasy: 15}[app]
                 self.wall = 1000 + self.now
                 app.tick()
                 self.assertEqual(len(self.frames), 2)
@@ -56,6 +56,8 @@ class LifecycleTest(AppTestCase):
                 previous = self.frames[-1]
                 if app is self.nfl:
                     self.fetch.return_value = [game(away_score='28')]
+                elif app is self.nba:
+                    self.nba_fetch.return_value = [nba_game(away_score='120')]
                 elif app is self.fantasy:
                     self.source.matchup.return_value = matchup(124.6)
                 self.now += 300
@@ -171,7 +173,7 @@ class OwnershipTest(AppTestCase):
         self.assertEqual(self.nfl.status()['state'], 'stopped')
 
     def test_late_sports_responses_cannot_restore_tracking_after_stop_or_takeover(self):
-        for app in (self.nfl, self.fantasy):
+        for app in (self.nfl, self.nba, self.fantasy):
             for action in ('stop', 'note'):
                 with self.subTest(app=type(app).__name__, action=action):
                     self.start(app)
@@ -180,8 +182,10 @@ class OwnershipTest(AppTestCase):
                         fetching.set()
                         if not release.wait(2):
                             raise AssertionError('UI cancellation did not finish.')
-                        return [game(away_score='28')] if app is self.nfl else STATE
-                    source = self.fetch if app is self.nfl else self.source.state
+                        return ([game(away_score='28')] if app is self.nfl else
+                                [nba_game(away_score='120')] if app is self.nba else STATE)
+                    source = (self.fetch if app is self.nfl else
+                              self.nba_fetch if app is self.nba else self.source.state)
                     source.side_effect = fetch
                     self.source.plays.return_value = [play(timestamp=1000 + self.now + 1)]
                     self.now += 10000

@@ -26,7 +26,7 @@ class HttpTest(AppTestCase):
         self.history = Mock()
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), handler_for(
             self.controller, {'https://jpentakalos.com'}, pomodoro=self.timer, nfl=self.nfl, fantasy=self.fantasy,
-            history=self.history))
+            history=self.history, nba=self.nba))
         self.thread = threading.Thread(target=self.server.serve_forever)
         self.thread.start()
         self.base = f'http://127.0.0.1:{self.server.server_port}'
@@ -49,7 +49,7 @@ class HttpTest(AppTestCase):
 
     def test_origin_content_type_body_and_validation_block_before_api(self):
         body = json.dumps({'characters': message()}).encode()
-        for path in ('/api/vestaboard/messages', '/api/vestaboard/pomodoro', '/api/vestaboard/nfl', '/api/vestaboard/fantasy'):
+        for path in ('/api/vestaboard/messages', '/api/vestaboard/pomodoro', '/api/vestaboard/nfl', '/api/vestaboard/nba', '/api/vestaboard/fantasy'):
             with self.subTest(path=path):
                 self.assertEqual(self.request(body, path=path, origin='https://evil.example')[0], 403)
                 self.assertEqual(self.request(body, path=path, content_type='text/plain')[0], 415)
@@ -89,7 +89,7 @@ class HttpTest(AppTestCase):
         self.assertEqual(self.forwarded, [])
 
     def test_status_is_uncached_contains_no_secret_and_does_not_contact_cloud(self):
-        for path in ('/api/vestaboard/status', '/api/vestaboard/pomodoro', '/api/vestaboard/nfl', '/api/vestaboard/fantasy'):
+        for path in ('/api/vestaboard/status', '/api/vestaboard/pomodoro', '/api/vestaboard/nfl', '/api/vestaboard/nba', '/api/vestaboard/fantasy'):
             with self.subTest(path=path):
                 status, headers, raw = self.request(path=path)
                 self.assertEqual(status, 200)
@@ -129,6 +129,7 @@ class HttpTest(AppTestCase):
             ('pomodoro', [('start', 'running'), ('pause', 'paused'), ('resume', 'running'), ('stop', 'stopped')],
              {'focusMinutes': 25, 'breakMinutes': 5}),
             ('nfl', [('track', 'tracking'), ('stop', 'stopped')], {'gameId': '401000001'}),
+            ('nba', [('track', 'tracking'), ('stop', 'stopped')], {'gameId': '401000002'}),
             ('fantasy', [('preview', 'idle'), ('start', 'tracking'), ('stop', 'stopped')], {'leagues': DEFAULT_LEAGUES}),
         )
         for app, commands, settings in cases:

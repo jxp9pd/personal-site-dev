@@ -7,7 +7,7 @@ const cases = [
   { page: 'pomodoro', form: 'timer-form', active: { state: 'running' },
     control: 'pause', action: 'pause', updated: { state: 'paused', remainingSeconds: 1495 },
     expected: { 'phase-label': 'Focus paused', pause: 'Resume' }, live: { 'phase-label': 'Focus' } },
-  { page: 'nfl', form: 'game-form', active: { state: 'tracking', game: nflGame() },
+  { page: 'sports', form: 'game-form', active: { state: 'tracking', game: nflGame() },
     control: 'stop', action: 'stop', updated: { state: 'stopped', game: nflGame() },
     expected: { 'tracking-status': 'Stopped' }, live: { 'preview-title': 'Tracking' } },
   { page: 'fantasy', form: 'league-form', active: { state: 'tracking' },

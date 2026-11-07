@@ -8,6 +8,7 @@ from unittest.mock import Mock
 from apps import BoardController
 from fantasy import DEFAULT_LEAGUES, Fantasy
 from nfl import NFL, normalize_game
+from nba import NBA
 from pomodoro import Pomodoro
 
 
@@ -37,6 +38,20 @@ def event(state='live', away_score='21', home_score='17', possession='25'):
 
 def game(**kwargs):
     return normalize_game(event(**kwargs))
+
+
+def nba_event(state='live', away_score='112', home_score='108'):
+    data = event(state=state, away_score=away_score, home_score=home_score)
+    data['id'] = '401000002'
+    competition = data['competitions'][0]
+    competition['competitors'][0]['team'].update(id='13', abbreviation='LAL', displayName='Los Angeles Lakers')
+    competition['competitors'][1]['team'].update(id='26', abbreviation='UTAH', displayName='Utah Jazz')
+    competition['broadcasts'] = [{'market': 'national', 'names': ['Prime Video']}]
+    return data
+
+
+def nba_game(**kwargs):
+    return normalize_game(nba_event(**kwargs), 'nba')
 
 
 STATE = {'week': 5, 'season': '2026', 'season_type': 'regular'}
@@ -72,6 +87,10 @@ class AppTestCase(unittest.TestCase):
         self.timer = Pomodoro(self.controller, lambda: self.now, self.choose)
         self.fetch = Mock(return_value=[game()])
         self.nfl = NFL(self.controller, self.fetch, lambda: self.now, lambda: 1_791_850_000 + self.now)
+        self.nba_fetch = Mock(return_value=[nba_game()])
+        self.nba = NBA(self.controller, self.nba_fetch, lambda: self.now, lambda: 1_791_850_000 + self.now)
+        self.nba.status()
+        self.nba.tick()
         self.source = Mock()
         self.source.state.return_value = STATE.copy()
         self.source.matchup.return_value = matchup()
@@ -80,10 +99,11 @@ class AppTestCase(unittest.TestCase):
         self.fantasy = Fantasy(self.controller, self.source, lambda: self.now, lambda: self.wall)
         self.nfl.status()
         self.nfl.tick()  # Populate the picker without scheduling board writes.
-        self.apps = (self.timer, self.nfl, self.fantasy)
+        self.apps = (self.timer, self.nfl, self.nba, self.fantasy)
         self.start_commands = {
             self.timer: {'action': 'start', 'focusMinutes': 25, 'breakMinutes': 5},
             self.nfl: {'action': 'track', 'gameId': '401000001'},
+            self.nba: {'action': 'track', 'gameId': '401000002'},
             self.fantasy: {'action': 'start', 'leagues': DEFAULT_LEAGUES},
         }
 

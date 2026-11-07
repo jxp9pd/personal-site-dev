@@ -14,13 +14,14 @@ from apps import BoardController
 from fantasy import Fantasy, SleeperSource
 from fantasy_store import FantasyStore
 from nfl import NFL, NFLSource
+from nba import NBA, NBASource
 from pomodoro import Pomodoro
 from history import HistoryUnavailable, MessageHistory, sender_ip
 
 MAX_BODY = 4096
 
 
-def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, fantasy=None, history=None):
+def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, fantasy=None, history=None, nba=None):
     gateway = controller.gateway
     class Handler(SimpleHTTPRequestHandler):
         # HTTP/1.0 closes each connection, including rejected/unconsumed bodies.
@@ -58,6 +59,8 @@ def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, 
                 self.reply(200, pomodoro.status())
             elif urlsplit(self.path).path == '/api/vestaboard/nfl' and nfl:
                 self.reply(200, nfl.status())
+            elif urlsplit(self.path).path == '/api/vestaboard/nba' and nba:
+                self.reply(200, nba.status())
             elif urlsplit(self.path).path == '/api/vestaboard/fantasy' and fantasy:
                 self.reply(200, fantasy.status())
             elif preview_dir and not self.path.startswith('/api/'):
@@ -75,7 +78,7 @@ def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, 
             path = urlsplit(self.path).path
             if path != '/api/vestaboard/messages' and not (
                     path == '/api/vestaboard/pomodoro' and pomodoro or path == '/api/vestaboard/nfl' and nfl
-                    or path == '/api/vestaboard/fantasy' and fantasy):
+                    or path == '/api/vestaboard/fantasy' and fantasy or path == '/api/vestaboard/nba' and nba):
                 return self.reply(404, {'error': 'Not found.'})
             if self.headers.get('Origin') not in origins:
                 return self.reply(403, {'error': 'Send notes from the website.'})
@@ -98,6 +101,9 @@ def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, 
                 return self.reply(status, result)
             if path == '/api/vestaboard/nfl':
                 status, result = nfl.command(body)
+                return self.reply(status, result)
+            if path == '/api/vestaboard/nba':
+                status, result = nba.command(body)
                 return self.reply(status, result)
             if path == '/api/vestaboard/fantasy':
                 status, result = fantasy.command(body)
@@ -137,12 +143,14 @@ def main():
     controller = BoardController(gateway)
     pomodoro = Pomodoro(controller)
     nfl = NFL(controller, NFLSource(opener=partial(urlopen, context=cloud_tls_context())).games)
+    nba = NBA(controller, NBASource(opener=partial(urlopen, context=cloud_tls_context())).games)
     fantasy = Fantasy(controller, SleeperSource(opener=partial(urlopen, context=cloud_tls_context())),
                       store=FantasyStore.from_environment(env_file, opener=partial(urlopen, context=cloud_tls_context())))
     server = ThreadingHTTPServer(('127.0.0.1', args.port), handler_for(
-        controller, origins, args.preview, pomodoro=pomodoro, nfl=nfl, fantasy=fantasy, history=history))
+        controller, origins, args.preview, pomodoro=pomodoro, nfl=nfl, nba=nba, fantasy=fantasy, history=history))
     pomodoro.start_worker()
     nfl.start_worker()
+    nba.start_worker()
     fantasy.start_worker()
     print(f'Note gateway listening on 127.0.0.1:{args.port}; token configured: {bool(gateway.token)}', flush=True)
     try:
@@ -150,6 +158,7 @@ def main():
     finally:
         pomodoro.close()
         nfl.close()
+        nba.close()
         fantasy.close()
         server.server_close()
 

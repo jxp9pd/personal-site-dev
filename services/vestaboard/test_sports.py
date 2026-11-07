@@ -4,7 +4,8 @@ from unittest.mock import Mock
 
 from board import text_row
 from nfl import NFLSource, normalize_game
-from test_helpers import AppTestCase, Response, event, game
+from nba import NBASource
+from test_helpers import AppTestCase, Response, event, game, nba_event, nba_game
 
 
 class SourceTest(unittest.TestCase):
@@ -61,6 +62,77 @@ class SourceTest(unittest.TestCase):
                 source = NFLSource(Mock(return_value=Response(json.dumps(data).encode())))
                 with self.assertRaises((ValueError, KeyError, TypeError)):
                     source.games()
+
+
+class NBASourceTest(unittest.TestCase):
+    def source(self, events):
+        opener = Mock(return_value=Response(json.dumps({'events': events}).encode()))
+        return NBASource(opener)
+
+    def test_filters_to_either_streaming_service_without_filtering_nfl(self):
+        for names, expected in ((['Prime Video'], ['Prime Video']),
+                                (['Peacock'], ['Peacock']),
+                                (['PEACOCK', 'Prime Video', 'Peacock'], ['Peacock', 'Prime Video']),
+                                (['ESPN', 'ABC', 'NBA TV', 'NBC Sports CA', 'NBA League Pass'], []),
+                                ([], [])):
+            with self.subTest(names=names):
+                data = nba_event()
+                data['competitions'][0]['broadcasts'][0]['names'] = names
+                games = self.source([data]).games()
+                self.assertEqual([game['broadcasts'] for game in games], [expected] if expected else [])
+        self.assertEqual(len(NFLSource(Mock(return_value=Response(
+            json.dumps({'events': [event()]}).encode()))).games()), 1)
+
+    def test_accepts_us_national_geo_broadcasts_and_ignores_other_regions(self):
+        for region, market, expected in (('us', 'National', 1), ('ca', 'National', 0), ('us', 'Home', 0)):
+            with self.subTest(region=region, market=market):
+                data = nba_event()
+                competition = data['competitions'][0]
+                del competition['broadcasts']
+                competition['geoBroadcasts'] = [{
+                    'region': region, 'market': {'type': market},
+                    'media': {'shortName': 'Peacock'}}]
+                self.assertEqual(len(self.source([data]).games()), expected)
+
+    def test_missing_broadcasts_are_excluded_and_malformed_eligible_scores_are_rejected(self):
+        data = nba_event()
+        del data['competitions'][0]['broadcasts']
+        self.assertEqual(self.source([data]).games(), [])
+        with self.assertRaises(ValueError):
+            self.source([nba_event(away_score='bad')]).games()
+
+    def test_uses_nba_endpoint_and_keeps_three_digit_scores_and_four_letter_teams_in_grid(self):
+        source = self.source([nba_event()])
+        game = source.games('20261012')[0]
+        self.assertEqual(source.opener.call_args.args[0].full_url,
+                         'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261012')
+        self.assertEqual(game['away']['abbreviation'], 'UTAH')
+        self.assertEqual(game['away']['colors'], [68, 67])
+        self.assertEqual(game['home']['colors'], [68, 65])
+        self.assertTrue(all(len(row) == 15 for row in game['characters']))
+        self.assertEqual(game['characters'][1], text_row('112', 7) + [0] + text_row('108', 7))
+        self.assertIsNone(game['possession'])
+        self.assertEqual(game['characters'][2], [0] * 15)
+
+
+class NBATest(AppTestCase):
+    def test_follows_game_across_day_rollover_then_stops_after_final(self):
+        self.app = self.nba
+        self.assertEqual(self.start_app(self.nba)[0], 200)
+        self.nba.tick()
+        self.assertEqual(self.frames, [nba_game()['characters']])
+        self.nba_fetch.side_effect = [[], [nba_game(away_score='120')], [],
+                                      [nba_game(state='final', away_score='125')]]
+        self.tick_at(180)
+        self.assertEqual(self.nba_fetch.call_args.args, ('20261012',))
+        self.assertEqual(self.nba.status()['game']['away']['score'], 120)
+        self.assertEqual(self.nba.status()['games'], [])
+        self.tick_at(360)
+        self.assertEqual(self.nba.status()['state'], 'completed')
+        self.assertEqual(self.frames[-1][2], text_row('FINAL'))
+        self.nba_fetch.reset_mock()
+        self.tick_at(1000)
+        self.nba_fetch.assert_not_called()
 
 
 class NFLTest(AppTestCase):
