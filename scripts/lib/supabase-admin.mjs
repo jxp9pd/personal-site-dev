@@ -53,6 +53,20 @@ export function supabaseAuthHeaders(key) {
   return headers;
 }
 
+// Accepts any fetch HeadersInit (object, Headers, or [name, value] pairs).
+// Auth headers always win, whatever case the caller used.
+function mergeHeaders(extra, auth) {
+  const entries =
+    extra && typeof extra[Symbol.iterator] === 'function'
+      ? [...new Headers(extra)]
+      : Object.entries(extra ?? {});
+  const authNames = new Set(Object.keys(auth).map(name => name.toLowerCase()));
+  return {
+    ...Object.fromEntries(entries.filter(([name]) => !authNames.has(name.toLowerCase()))),
+    ...auth,
+  };
+}
+
 export function redactSecret(text, secret) {
   const value = String(text);
   return secret ? value.split(secret).join('[redacted]') : value;
@@ -95,7 +109,7 @@ export function createSupabaseAdmin({
   }
   const url = validateSupabaseUrl(env.SUPABASE_URL || CONFIG_SUPABASE_URL);
 
-  const headers = (extra = {}) => ({ ...extra, ...supabaseAuthHeaders(key) });
+  const headers = extra => mergeHeaders(extra, supabaseAuthHeaders(key));
   const restUrl = path => `${url}/rest/v1/${path}`;
   const storageUrl = path => `${url}/storage/v1/${path}`;
   const send = (target, init = {}) =>

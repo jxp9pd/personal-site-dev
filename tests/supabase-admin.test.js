@@ -111,6 +111,36 @@ describe('headers', () => {
   });
 });
 
+describe('header inputs', () => {
+  const expected = {
+    'content-type': 'application/json',
+    prefer: 'return=minimal',
+    apikey: SECRET_KEY,
+  };
+
+  it.each([
+    ['Headers', () => new Headers({ 'Content-Type': 'application/json', Prefer: 'return=minimal' })],
+    ['tuple array', () => [['Content-Type', 'application/json'], ['Prefer', 'return=minimal']]],
+  ])('keeps caller headers passed as %s', async (_label, build) => {
+    const { client, fetchImpl } = admin({ SUPABASE_SERVICE_ROLE_KEY: SECRET_KEY });
+    await client.rest('packs', { method: 'POST', headers: build() });
+    expect(fetchImpl.mock.calls[0][1].headers).toEqual(expected);
+  });
+
+  it('keeps auth headers authoritative regardless of caller casing', () => {
+    const { client } = admin({ SUPABASE_SERVICE_ROLE_KEY: LEGACY_KEY });
+    expect(client.headers({ APIKEY: 'other', authorization: 'Bearer other', Prefer: 'x' })).toEqual({
+      Prefer: 'x',
+      apikey: LEGACY_KEY,
+      Authorization: `Bearer ${LEGACY_KEY}`,
+    });
+    expect(client.headers(new Headers({ apikey: 'other' }))).toEqual({
+      apikey: LEGACY_KEY,
+      Authorization: `Bearer ${LEGACY_KEY}`,
+    });
+  });
+});
+
 describe('rest and storage requests', () => {
   const env = { SUPABASE_URL: 'https://abc.supabase.co', SUPABASE_SERVICE_ROLE_KEY: LEGACY_KEY };
 
