@@ -1,4 +1,4 @@
-import { layoutMessage } from './vestaboard-layout.js';
+import { blankFrame } from './vestaboard-layout.js';
 import { createBoardSession } from './vestaboard-session.js';
 import { createBoardPreview } from './vestaboard-preview.js';
 import { $, feedback, renderDelivery, validFrame } from './vestaboard-page.js';
@@ -131,7 +131,7 @@ function render() {
   $('broadcast-filter').hidden = league !== 'nba';
   const game = selected();
   const trackingThis = active() && session.game?.id === selectedId;
-  const characters = game?.characters || session?.characters || layoutMessage(`${league.toUpperCase()} SCORES\nPICK A GAME`).characters;
+  const characters = game?.characters || session?.characters || blankFrame();
   const possession = game && [game.away, game.home].find(team => team.id === game.possession);
   preview(characters, game
     ? `${game.away.name} ${game.away.score ?? 'not started'}, ${game.home.name} ${game.home.score ?? 'not started'}. ${gameStatus(game)}.${possession ? ` ${possession.name} have the ball; orange tile beneath their score.` : ''}`

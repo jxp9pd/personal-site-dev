@@ -1,10 +1,9 @@
 import { createBoardSession } from './vestaboard-session.js';
 import { createBoardPreview } from './vestaboard-preview.js';
-import { layoutMessage } from './vestaboard-layout.js';
+import { blankFrame } from './vestaboard-layout.js';
 import { $, feedback, renderDelivery, validFrame } from './vestaboard-page.js';
 
 const preview = createBoardPreview($('board'));
-const idle = layoutMessage('FANTASY\nPICK YOUR TEAMS').characters;
 const checked = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' });
 let session = null;
 let edited = false;
@@ -72,7 +71,7 @@ function render() {
     : (session?.leagues || []).map(league => league.matchup
       ? `${league.label}: your team ${league.matchup.you.name}, ${rounded(league.matchup.you.points)}; opponent ${league.matchup.opponent?.name || 'bye'}, ${league.matchup.opponent ? rounded(league.matchup.opponent.points) : 'no score'}.`
       : `${league.label}: loading matchup.`).join(' ') || 'Fantasy football preview. Choose two leagues.';
-  preview(session?.characters || idle, description);
+  preview(session?.characters || blankFrame(), description);
   renderMatchups();
   $('alert-status').textContent = session?.alert
     ? `${session.alertSecondsRemaining !== null ? `${session.alertSecondsRemaining}s remaining` : 'Waiting for board'}${session.queuedAlerts ? ` · ${session.queuedAlerts} more queued` : ''}` : '';

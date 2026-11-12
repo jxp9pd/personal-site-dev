@@ -19,12 +19,13 @@ export function normalizeMessage(value) {
     .replace(/❤/g, '♥').replace(/\t/g, ' ').toUpperCase();
 }
 
+export const blankFrame = () => Array.from({ length: ROWS }, () => Array(COLUMNS).fill(0));
+
 export function layoutMessage(value) {
   const text = normalizeMessage(value).trim();
-  const blank = () => Array.from({ length: ROWS }, () => Array(COLUMNS).fill(0));
-  if (!text) return { characters: blank(), lines: 0, error: 'Write a little note first.' };
+  if (!text) return { characters: blankFrame(), lines: 0, error: 'Write a little note first.' };
   const unsupported = [...new Set(Array.from(text).filter(char => char !== '\n' && CODES[char] === undefined))];
-  if (unsupported.length) return { characters: blank(), lines: 0,
+  if (unsupported.length) return { characters: blankFrame(), lines: 0,
     error: `The Note cannot display: ${unsupported.join(' ')}. Try letters, numbers, punctuation, or the color buttons.` };
 
   const lines = [];
@@ -45,9 +46,9 @@ export function layoutMessage(value) {
     }
     lines.push(line);
   }
-  if (lines.length > ROWS) return { characters: blank(), lines: lines.length,
+  if (lines.length > ROWS) return { characters: blankFrame(), lines: lines.length,
     error: `That needs ${lines.length} rows. Shorten your note to fit 3 rows of 15 tiles.` };
-  const characters = blank();
+  const characters = blankFrame();
   const top = Math.floor((ROWS - lines.length) / 2);
   lines.forEach((line, row) => {
     const left = Math.floor((COLUMNS - line.length) / 2);

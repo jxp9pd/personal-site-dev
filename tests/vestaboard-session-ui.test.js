@@ -82,6 +82,13 @@ describe.each([
     return characters;
   };
 
+  if (page !== 'pomodoro') it('shows a blank board until the gateway answers', async () => {
+    await loadBoardPage(page, {}, { offline: true });
+    expect(tiles()).toHaveLength(45);
+    expect(new Set(tiles())).toEqual(new Set(['0']));
+    expect($(button).disabled).toBe(true);
+  });
+
   it.each([['a row that is not 15 tiles', shortRow], ['a non-integer tile code', textTile]])('rejects a board grid with %s', async (_, characters) => {
     const fetch = await loadBoardPage(page);
     expect($(button).disabled).toBe(false);
