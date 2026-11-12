@@ -57,17 +57,15 @@ describe('Fantasy matchups and tracking controls', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('starts once, disables configuration, and stops the shared session', async () => {
+  it('starts, disables configuration, and stops the shared session', async () => {
     const fetch = await load();
     fetch.mockResolvedValue(reply(snapshot({ state: 'tracking', delivery: { status: 'pending' } })));
-    submit();
     submit();
     await vi.advanceTimersByTimeAsync(0);
     expect(postBodies(fetch)).toHaveLength(1);
     expect($('league-fields').disabled).toBe(true);
     expect($('start').hidden).toBe(true);
     expect($('stop').hidden).toBe(false);
-    expect($('delivery').textContent).toBe('Board update queued.');
     submit();
     expect(postBodies(fetch)).toHaveLength(1);
     fetch.mockResolvedValue(reply(snapshot({ state: 'stopped' })));

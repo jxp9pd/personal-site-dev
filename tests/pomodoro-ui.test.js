@@ -27,23 +27,19 @@ describe('Pomodoro controls and live countdown', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('sends chosen durations once and uses the shared session and exact server preview', async () => {
+  it('sends chosen durations and uses the shared session and exact server preview', async () => {
     const fetch = await start();
     change('focus-minutes', '50');
     change('break-minutes', '10');
     const state = snapshot({ state: 'running', focusMinutes: 50, breakMinutes: 10, remainingSeconds: 3000, delivery: { status: 'pending' } });
     fetch.mockResolvedValue(reply(state));
     submit();
-    submit();
     await vi.advanceTimersByTimeAsync(0);
-    const writes = postBodies(fetch);
-    expect(writes).toHaveLength(1);
-    expect(writes[0]).toEqual({ action: 'start', focusMinutes: 50, breakMinutes: 10 });
+    expect(postBodies(fetch)).toEqual([{ action: 'start', focusMinutes: 50, breakMinutes: 10 }]);
     expect($('durations').disabled).toBe(true);
     expect($('start').hidden).toBe(true);
     expect($('active-controls').hidden).toBe(false);
     expect([...document.querySelectorAll('.tile')].map(tile => Number(tile.dataset.code))).toEqual(state.characters.flat());
-    expect($('delivery').textContent).toContain('queued');
   });
 
   it('counts seconds in the browser without per-second requests or board changes', async () => {

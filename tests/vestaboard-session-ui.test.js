@@ -6,13 +6,16 @@ const submit = form => $(form).dispatchEvent(new Event('submit', { cancelable: t
 const cases = [
   { page: 'pomodoro', form: 'timer-form', active: { state: 'running' },
     control: 'pause', action: 'pause', updated: { state: 'paused', remainingSeconds: 1495 },
-    expected: { 'phase-label': 'Focus paused', pause: 'Resume' }, live: { 'phase-label': 'Focus' } },
+    expected: { 'phase-label': 'Focus paused', pause: 'Resume' }, live: { 'phase-label': 'Focus' },
+    started: { state: 'running' }, queued: 'Board update queued.' },
   { page: 'sports', form: 'game-form', active: { state: 'tracking', game: nflGame() },
     control: 'stop', action: 'stop', updated: { state: 'stopped', game: nflGame() },
-    expected: { 'tracking-status': 'Stopped' }, live: { 'preview-title': 'Tracking' } },
+    expected: { 'tracking-status': 'Stopped' }, live: { 'preview-title': 'Tracking' },
+    started: { state: 'tracking', game: nflGame() }, queued: '' },
   { page: 'fantasy', form: 'league-form', active: { state: 'tracking' },
     action: 'start', updated: { state: 'tracking' },
-    expected: { 'tracking-status': 'Live' }, live: { 'tracking-status': 'Live' } },
+    expected: { 'tracking-status': 'Live' }, live: { 'tracking-status': 'Live' },
+    started: { state: 'tracking' }, queued: 'Board update queued.' },
 ];
 
 const expectLabels = labels => {
@@ -20,6 +23,17 @@ const expectLabels = labels => {
 };
 
 describe.each(cases)('$page session synchronization', scenario => {
+  it('sends one command for a double submit and reports the queued delivery', async () => {
+    const fetch = await loadBoardPage(scenario.page);
+    fetch.mockResolvedValue(reply(boardState(scenario.page, { ...scenario.started, delivery: { status: 'pending' } })));
+    submit(scenario.form);
+    submit(scenario.form);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(postBodies(fetch)).toHaveLength(1);
+    expect($('delivery').dataset.error).toBe('false');
+    expect($('delivery').textContent).toBe(scenario.queued);
+  });
+
   it('keeps the latest command when an older poll finishes afterward', async () => {
     const initial = scenario.control ? scenario.active : {};
     const fetch = await loadBoardPage(scenario.page, initial);
