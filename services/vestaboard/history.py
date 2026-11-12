@@ -4,6 +4,7 @@ import ipaddress
 import logging
 from uuid import uuid4
 
+from board import DEFINITE_REJECTIONS
 from supabase_rest import SupabaseUnavailable
 
 
@@ -43,7 +44,7 @@ class MessageHistory:
         return record_id
 
     def finish(self, record_id, status):
-        outcome = 'accepted' if status == 200 else 'rejected' if status in (400, 429, 503) else 'unknown'
+        outcome = 'accepted' if status == 200 else 'rejected' if status in DEFINITE_REJECTIONS else 'unknown'
         try:
             self._write('PATCH', {'outcome': outcome, 'http_status': status}, '?id=eq.' + record_id)
         except HistoryUnavailable:

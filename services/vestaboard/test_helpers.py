@@ -7,9 +7,8 @@ from unittest.mock import Mock
 
 from apps import BoardController
 from fantasy import DEFAULT_LEAGUES, Fantasy
-from nfl import NFL, normalize_game
-from nba import NBA
 from pomodoro import Pomodoro
+from sports import Sports, normalize_game
 
 
 def message():
@@ -86,9 +85,9 @@ class AppTestCase(unittest.TestCase):
         self.choose = Mock(return_value='YOU GOT THIS')
         self.timer = Pomodoro(self.controller, lambda: self.now, self.choose)
         self.fetch = Mock(return_value=[game()])
-        self.nfl = NFL(self.controller, self.fetch, lambda: self.now, lambda: 1_791_850_000 + self.now)
+        self.nfl = Sports(self.controller, 'nfl', self.fetch, lambda: self.now, lambda: 1_791_850_000 + self.now)
         self.nba_fetch = Mock(return_value=[nba_game()])
-        self.nba = NBA(self.controller, self.nba_fetch, lambda: self.now, lambda: 1_791_850_000 + self.now)
+        self.nba = Sports(self.controller, 'nba', self.nba_fetch, lambda: self.now, lambda: 1_791_850_000 + self.now)
         self.nba.status()
         self.nba.tick()
         self.source = Mock()

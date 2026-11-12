@@ -25,8 +25,8 @@ class HttpTest(AppTestCase):
         super().setUp()
         self.history = Mock()
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), handler_for(
-            self.controller, {'https://jpentakalos.com'}, pomodoro=self.timer, nfl=self.nfl, fantasy=self.fantasy,
-            history=self.history, nba=self.nba))
+            self.controller, {'https://jpentakalos.com'}, history=self.history,
+            apps={'pomodoro': self.timer, 'nfl': self.nfl, 'nba': self.nba, 'fantasy': self.fantasy}))
         self.thread = threading.Thread(target=self.server.serve_forever)
         self.thread.start()
         self.base = f'http://127.0.0.1:{self.server.server_port}'

@@ -21,6 +21,9 @@ CODES.update({' ': 0, '!': 37, '@': 38, '#': 39, '$': 40, '(': 41, ')': 42,
 VALID_CODES = set(CODES.values()) | set(range(63, 72))
 API_URL = 'https://cloud.vestaboard.com/'
 COOLDOWN = 15
+# Statuses that prove the board did not change: an invalid frame, no token,
+# or a rate limit. Every other failure may have reached the board.
+DEFINITE_REJECTIONS = (400, 429, 503)
 
 
 def text_row(text, width=COLUMNS):
@@ -28,6 +31,10 @@ def text_row(text, width=COLUMNS):
     if len(text) > width:
         raise ValueError('Text does not fit the Note.')
     return [CODES[char] for char in text.center(width)]
+
+
+def not_connected(hint='Please try again later.'):
+    return 503, {'error': 'The board is not connected yet. ' + hint}
 
 
 def environment_value(name, env_file=None):
@@ -85,7 +92,7 @@ class BoardGateway:
         if not valid_characters(characters):
             return 400, {'error': 'Send a nonblank 3 × 15 array of valid Vestaboard character codes.'}
         if not self.token:
-            return 503, {'error': 'The board is not connected yet. Please try again later.'}
+            return not_connected()
         with self.lock:
             remaining = max(0, math.ceil(self.next_send - self.clock()))
             if self.sending or remaining:

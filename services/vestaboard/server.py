@@ -13,17 +13,17 @@ from board import BoardGateway, api_token, cloud_tls_context, valid_characters
 from apps import BoardController
 from fantasy import Fantasy, SleeperSource
 from fantasy_store import FantasyStore
-from nfl import NFL, NFLSource
-from nba import NBA, NBASource
 from pomodoro import Pomodoro
+from sports import ESPNSource, Sports
 from history import HistoryUnavailable, MessageHistory, sender_ip
 from supabase_rest import SupabaseClient
 
 MAX_BODY = 4096
 
 
-def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, fantasy=None, history=None, nba=None):
+def handler_for(controller, origins, preview_dir=None, history=None, apps=None):
     gateway = controller.gateway
+    routes = {'/api/vestaboard/' + name: app for name, app in (apps or {}).items()}
     class Handler(SimpleHTTPRequestHandler):
         # HTTP/1.0 closes each connection, including rejected/unconsumed bodies.
         server_version = 'NoteGateway'
@@ -54,16 +54,11 @@ def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, 
             self.wfile.write(payload)
 
         def do_GET(self):
-            if urlsplit(self.path).path == '/api/vestaboard/status':
+            path = urlsplit(self.path).path
+            if path == '/api/vestaboard/status':
                 self.reply(200, gateway.status())
-            elif urlsplit(self.path).path == '/api/vestaboard/pomodoro' and pomodoro:
-                self.reply(200, pomodoro.status())
-            elif urlsplit(self.path).path == '/api/vestaboard/nfl' and nfl:
-                self.reply(200, nfl.status())
-            elif urlsplit(self.path).path == '/api/vestaboard/nba' and nba:
-                self.reply(200, nba.status())
-            elif urlsplit(self.path).path == '/api/vestaboard/fantasy' and fantasy:
-                self.reply(200, fantasy.status())
+            elif path in routes:
+                self.reply(200, routes[path].status())
             elif preview_dir and not self.path.startswith('/api/'):
                 super().do_GET()
             else:
@@ -77,9 +72,7 @@ def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, 
 
         def do_POST(self):
             path = urlsplit(self.path).path
-            if path != '/api/vestaboard/messages' and not (
-                    path == '/api/vestaboard/pomodoro' and pomodoro or path == '/api/vestaboard/nfl' and nfl
-                    or path == '/api/vestaboard/fantasy' and fantasy or path == '/api/vestaboard/nba' and nba):
+            if path != '/api/vestaboard/messages' and path not in routes:
                 return self.reply(404, {'error': 'Not found.'})
             if self.headers.get('Origin') not in origins:
                 return self.reply(403, {'error': 'Send notes from the website.'})
@@ -97,18 +90,8 @@ def handler_for(controller, origins, preview_dir=None, pomodoro=None, nfl=None, 
                 body = json.loads(self.rfile.read(length))
             except (ValueError, UnicodeError, socket.timeout):
                 return self.reply(400, {'error': 'Invalid JSON.'})
-            if path == '/api/vestaboard/pomodoro':
-                status, result = pomodoro.command(body)
-                return self.reply(status, result)
-            if path == '/api/vestaboard/nfl':
-                status, result = nfl.command(body)
-                return self.reply(status, result)
-            if path == '/api/vestaboard/nba':
-                status, result = nba.command(body)
-                return self.reply(status, result)
-            if path == '/api/vestaboard/fantasy':
-                status, result = fantasy.command(body)
-                return self.reply(status, result)
+            if path in routes:
+                return self.reply(*routes[path].command(body))
             # Only the grid is sent to Vestaboard; clients cannot force delivery.
             characters = body.get('characters') if isinstance(body, dict) else None
             original_message = body.get('message') if isinstance(body, dict) else None
@@ -139,29 +122,28 @@ def main():
         origins |= {f'http://127.0.0.1:{args.port}', f'http://localhost:{args.port}'}
     # Only local previews read the repo's .env; production uses systemd's EnvironmentFile.
     env_file = Path(__file__).resolve().parents[2] / '.env' if args.preview else None
-    gateway = BoardGateway(api_token(env_file), opener=partial(urlopen, context=cloud_tls_context()))
-    supabase = SupabaseClient.from_environment(env_file, opener=partial(urlopen, context=cloud_tls_context()))
+    opener = partial(urlopen, context=cloud_tls_context())
+    gateway = BoardGateway(api_token(env_file), opener=opener)
+    supabase = SupabaseClient.from_environment(env_file, opener=opener)
     history = MessageHistory(supabase) if supabase else None
     controller = BoardController(gateway)
-    pomodoro = Pomodoro(controller)
-    nfl = NFL(controller, NFLSource(opener=partial(urlopen, context=cloud_tls_context())).games)
-    nba = NBA(controller, NBASource(opener=partial(urlopen, context=cloud_tls_context())).games)
-    fantasy = Fantasy(controller, SleeperSource(opener=partial(urlopen, context=cloud_tls_context())),
-                      store=FantasyStore(supabase) if supabase else None)
+    apps = {
+        'pomodoro': Pomodoro(controller),
+        'nfl': Sports(controller, 'nfl', ESPNSource('nfl', opener).games),
+        'nba': Sports(controller, 'nba', ESPNSource('nba', opener).games),
+        'fantasy': Fantasy(controller, SleeperSource(opener=opener),
+                           store=FantasyStore(supabase) if supabase else None),
+    }
     server = ThreadingHTTPServer(('127.0.0.1', args.port), handler_for(
-        controller, origins, args.preview, pomodoro=pomodoro, nfl=nfl, nba=nba, fantasy=fantasy, history=history))
-    pomodoro.start_worker()
-    nfl.start_worker()
-    nba.start_worker()
-    fantasy.start_worker()
+        controller, origins, args.preview, history=history, apps=apps))
+    for app in apps.values():
+        app.start_worker()
     print(f'Note gateway listening on 127.0.0.1:{args.port}; token configured: {bool(gateway.token)}', flush=True)
     try:
         server.serve_forever()
     finally:
-        pomodoro.close()
-        nfl.close()
-        nba.close()
-        fantasy.close()
+        for app in apps.values():
+            app.close()
         server.server_close()
 
 

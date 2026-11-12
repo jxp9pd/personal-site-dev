@@ -1,5 +1,6 @@
 """Ownership, cancellation, and races use fake board and sports sources."""
 import threading
+import time
 import unittest
 
 from apps import BoardApp
@@ -32,6 +33,32 @@ class LifecycleTest(AppTestCase):
                     app.close()
                 self.assertFalse(app.worker.is_alive())
                 self.gateway.send.assert_called_once()
+
+    def test_close_returns_during_a_blocked_feed_and_nothing_sends_after_close(self):
+        for app, feed, changed in ((self.nfl, self.fetch, [game(away_score='28')]),
+                                   (self.fantasy, self.source.matchup, matchup(150))):
+            with self.subTest(app=type(app).__name__):
+                self.assertEqual(self.start_app(app)[0], 200)
+                app.tick()
+                self.gateway.send.reset_mock()
+                entered, release = threading.Event(), threading.Event()
+                def blocked(*args, changed=changed, **kwargs):
+                    entered.set()
+                    release.wait(5)
+                    return changed
+                feed.side_effect = blocked
+                self.now += 300
+                self.wall = 1000 + self.now
+                app.join_seconds = 0.2
+                app.start_worker()
+                self.assertTrue(entered.wait(2))
+                started = time.monotonic()
+                app.close()
+                self.assertLess(time.monotonic() - started, 2)
+                release.set()
+                app.worker.join(2)
+                self.assertFalse(app.worker.is_alive())
+                self.gateway.send.assert_not_called()
 
     def test_rate_limits_defer_and_uncertain_failures_wait_for_a_changed_frame(self):
         for app in self.apps:
