@@ -144,7 +144,7 @@
     "section": "reports",
     "header": {},
     "styles": [
-      "report.css?v=1"
+      "report.css"
     ],
     "scripts": [
       {
@@ -152,7 +152,7 @@
         "defer": true
       },
       {
-        "src": "report.js?v=1",
+        "src": "report.js",
         "defer": true
       }
     ],
@@ -194,12 +194,12 @@
     "section": "tools",
     "header": {},
     "styles": [
-      "/assets/css/fantasy.css?v=1"
+      "/assets/css/fantasy.css"
     ],
     "scripts": [
       {
         "type": "module",
-        "src": "/assets/js/fantasy.js?v=3"
+        "src": "/assets/js/fantasy.js"
       }
     ],
     "source": "pages/tools/fantasy.html"
@@ -295,12 +295,12 @@
     "section": "tools",
     "header": {},
     "styles": [
-      "/assets/css/pomodoro.css?v=3"
+      "/assets/css/pomodoro.css"
     ],
     "scripts": [
       {
         "type": "module",
-        "src": "/assets/js/pomodoro.js?v=4"
+        "src": "/assets/js/pomodoro.js"
       }
     ],
     "source": "pages/tools/pomodoro.html"
@@ -342,12 +342,12 @@
       "variant": "hub"
     },
     "styles": [
-      "/assets/css/vestaboard-hub.css?v=3"
+      "/assets/css/vestaboard-hub.css"
     ],
     "scripts": [
       {
         "type": "module",
-        "src": "/assets/js/vestaboard-hub.js?v=2"
+        "src": "/assets/js/vestaboard-hub.js"
       }
     ],
     "source": "pages/tools/vestaboard/index.html"
@@ -363,7 +363,7 @@
     "scripts": [
       {
         "type": "module",
-        "src": "/assets/js/vestaboard.js?v=6"
+        "src": "/assets/js/vestaboard.js"
       }
     ],
     "source": "pages/tools/vestaboard.html"

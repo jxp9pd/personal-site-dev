@@ -1,4 +1,4 @@
-import { requestBoard } from './vestaboard-api.js?v=1';
+import { requestBoard } from './vestaboard-api.js';
 
 export function createBoardSession({ resource, accept, render, feedback, uncertainMessage, initialConnected = false }) {
   let connected = initialConnected;

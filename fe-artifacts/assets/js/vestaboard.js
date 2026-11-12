@@ -1,6 +1,6 @@
-import { layoutMessage } from './vestaboard-layout.js?v=1';
-import { readBoardStatus, sendBoardMessage } from './vestaboard-api.js?v=2';
-import { createBoardPreview } from './vestaboard-preview.js?v=1';
+import { layoutMessage } from './vestaboard-layout.js';
+import { readBoardStatus, sendBoardMessage } from './vestaboard-api.js';
+import { createBoardPreview } from './vestaboard-preview.js';
 
 const $ = id => document.getElementById(id);
 const form = $('message-form');

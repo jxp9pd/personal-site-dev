@@ -1,6 +1,6 @@
-import { layoutMessage, SYMBOLS } from './vestaboard-layout.js?v=1';
-import { createBoardSession } from './vestaboard-session.js?v=1';
-import { createBoardPreview } from './vestaboard-preview.js?v=1';
+import { layoutMessage, SYMBOLS } from './vestaboard-layout.js';
+import { createBoardSession } from './vestaboard-session.js';
+import { createBoardPreview } from './vestaboard-preview.js';
 
 const $ = id => document.getElementById(id);
 const focusInput = $('focus-minutes');
