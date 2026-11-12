@@ -1,8 +1,7 @@
 .fantasy-page .preview-meta { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
 .fantasy-page .week { margin-left: auto; color: var(--muted); font-size: .62rem; }
-.tracking-status { display: flex; align-items: center; gap: 7px; font-size: .68rem; color: var(--muted); }
+.tracking-status { display: flex; align-items: center; gap: 7px; font-size: .68rem; }
 .tracking-status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #b0b2a5; }
-.tracking-status[data-active="true"] { color: #386e51; }
 .tracking-status[data-active="true"]::before { background: #559f77; }
 .matchups { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; }
 .matchup { min-width: 0; border-left: 2px solid #719785; padding-left: 12px; }
@@ -10,9 +9,8 @@
 .matchup p { margin: 4px 0; font-size: .66rem; line-height: 1.7; overflow-wrap: anywhere; }
 .matchup .team-you { color: #386e51; }
 .matchup .league-name { color: var(--muted); font-size: .6rem; }
-.delivery, .source-status, .updated, .alert-status { font-size: .65rem; line-height: 1.7; margin: 12px 0 0; color: var(--muted); }
-.delivery:empty, .source-status:empty, .updated:empty, .alert-status:empty { display: none; }
-.delivery[data-error="true"], .source-status { color: #a34433; }
+.updated, .alert-status { font-size: .65rem; line-height: 1.7; margin: 12px 0 0; color: var(--muted); }
+.updated:empty, .alert-status:empty { display: none; }
 .alert-status { color: #386e51; }
 .updated { font-size: .6rem; }
 .fantasy-page .composer h2 { margin: 0; font: inherit; }
