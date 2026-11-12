@@ -1,9 +1,5 @@
 .sports-page .preview-meta { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-.tracking-status { color: var(--muted); font-size: .65rem; text-align: right; }
-.tracking-status[data-active="true"] { color: #477363; }
-.delivery, .source-status { margin: 12px 0 0; color: var(--muted); font-size: .65rem; line-height: 1.7; }
-.delivery:empty, .source-status:empty, .tracking-status:empty { display: none; }
-.delivery[data-error="true"], .source-status { color: #a34433; }
+.tracking-status { font-size: .65rem; text-align: right; }
 .game-picker h2 { font: inherit; margin: 0; }
 .game-picker .field-heading { margin-bottom: 24px; }
 .game-days { display: grid; gap: 26px; }

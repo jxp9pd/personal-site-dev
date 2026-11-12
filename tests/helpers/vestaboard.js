@@ -58,7 +58,6 @@ const pages = {
   note: { file: 'vestaboard', state: initial => ({ configured: true, retryAfter: 0, ...initial }), boot: () => import('../../fe-artifacts/assets/js/vestaboard.js') },
   pomodoro: { file: 'pomodoro', state: pomodoroState, boot: () => import('../../fe-artifacts/assets/js/pomodoro.js') },
   sports: { file: 'sports', state: nflState, boot: () => import('../../fe-artifacts/assets/js/sports.js') },
-  nfl: { file: 'nfl', state: nflState, boot: () => import('../../fe-artifacts/assets/js/nfl.js') },
   fantasy: { file: 'fantasy', state: fantasyState, boot: () => import('../../fe-artifacts/assets/js/fantasy.js') },
 };
 
@@ -66,12 +65,12 @@ export const boardState = (page, initial = {}) => pages[page].state(initial);
 export const postBodies = fetch => fetch.mock.calls.filter(([, options]) => options.method === 'POST')
   .map(([, options]) => JSON.parse(options.body));
 
-export async function loadBoardPage(page, initial = {}) {
+export async function loadBoardPage(page, initial = {}, { offline = false } = {}) {
   vi.resetModules();
   vi.useFakeTimers();
   document.body.innerHTML = readFileSync(`fe-artifacts/tools/${pages[page].file}.html`, 'utf8');
   const data = boardState(page, initial);
-  const fetch = vi.fn().mockResolvedValue(reply(data));
+  const fetch = offline ? vi.fn().mockRejectedValue(new TypeError('Failed to fetch')) : vi.fn().mockResolvedValue(reply(data));
   vi.stubGlobal('fetch', fetch);
   await pages[page].boot();
   await vi.advanceTimersByTimeAsync(0);

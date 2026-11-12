@@ -36,6 +36,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid #527560; outline-offs
 .send-shortcut { font-size: .95rem; opacity: .65; white-space: nowrap; flex-shrink: 0; }
 .feedback { font-size: .7rem; line-height: 1.7; color: #477363; margin: 16px 0 0; }
 .feedback[data-error="true"] { color: #a34433; }
+.delivery, .source-status { margin: 12px 0 0; color: var(--muted); font-size: .65rem; line-height: 1.7; }
+.delivery:empty, .source-status:empty, .tracking-status:empty { display: none; }
+.delivery[data-error="true"], .source-status { color: #a34433; }
+.tracking-status { color: var(--muted); }
+.tracking-status[data-active="true"] { color: #477363; }
 @media (max-width: 560px) {
   .note-page { padding: 12px 20px 28px; }
   .note-heading { margin: 20px 0 30px; }

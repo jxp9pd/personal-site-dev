@@ -1,8 +1,8 @@
-import { layoutMessage, SYMBOLS } from './vestaboard-layout.js?v=1';
-import { createBoardSession } from './vestaboard-session.js?v=1';
-import { createBoardPreview } from './vestaboard-preview.js?v=1';
+import { layoutMessage, SYMBOLS } from './vestaboard-layout.js';
+import { createBoardSession } from './vestaboard-session.js';
+import { createBoardPreview } from './vestaboard-preview.js';
+import { $, feedback, renderDelivery, validFrame } from './vestaboard-page.js';
 
-const $ = id => document.getElementById(id);
 const focusInput = $('focus-minutes');
 const breakInput = $('break-minutes');
 const preview = createBoardPreview($('board'));
@@ -17,11 +17,6 @@ const controller = createBoardSession({
 const active = () => session && ['running', 'paused'].includes(session.state);
 const validMinutes = input => Number.isInteger(input.valueAsNumber) && input.valueAsNumber >= 1 && input.valueAsNumber <= 180;
 const draftMinutes = () => validMinutes(focusInput) ? focusInput.valueAsNumber : 25;
-
-function feedback(message, error = false) {
-  $('feedback').textContent = message;
-  $('feedback').dataset.error = String(error);
-}
 
 function draftCharacters() {
   const characters = layoutMessage(`ONE THING\nFOCUS ${draftMinutes()} MIN\n${'🟪'.repeat(15)}`).characters;
@@ -63,21 +58,16 @@ function render() {
   $('pause').disabled = $('stop').disabled = busy || !connected;
   $('reconnect').hidden = connected && session?.configured;
   renderBoard(state === 'idle' ? draftCharacters() : session.characters);
-  const delivery = session?.delivery;
-  $('delivery').dataset.error = String(delivery?.status === 'error');
-  $('delivery').textContent = !connected ? 'Connection unavailable. Reconnecting…'
-    : !session.configured ? 'Preview only · board not connected.'
-    : delivery?.status === 'pending' ? 'Board update queued.'
-    : delivery?.status === 'error' ? delivery.error
-    : delivery?.status === 'accepted' ? 'Update accepted by Vestaboard.' : '';
+  renderDelivery(session?.delivery, {
+    notice: !connected ? 'Connection unavailable. Reconnecting…' : !session.configured ? 'Preview only · board not connected.' : '',
+    announce: ['pending', 'accepted'],
+  });
   renderClock();
 }
 
 function accept(data) {
   if (!data || !['idle', 'running', 'paused', 'completed', 'stopped'].includes(data.state)
-      || !Array.isArray(data.characters) || data.characters.length !== 3
-      || data.characters.some(row => !Array.isArray(row) || row.length !== 15)
-      || !Number.isFinite(data.remainingSeconds)) throw new Error('Invalid timer status.');
+      || !validFrame(data.characters) || !Number.isFinite(data.remainingSeconds)) throw new Error('Invalid timer status.');
   const wasActive = active();
   session = data;
   receivedAt = performance.now();

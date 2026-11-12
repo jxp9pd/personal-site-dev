@@ -1,8 +1,8 @@
-import { layoutMessage } from './vestaboard-layout.js?v=1';
-import { readBoardStatus, sendBoardMessage } from './vestaboard-api.js?v=2';
-import { createBoardPreview } from './vestaboard-preview.js?v=1';
+import { layoutMessage } from './vestaboard-layout.js';
+import { readBoardStatus, sendBoardMessage } from './vestaboard-api.js';
+import { createBoardPreview } from './vestaboard-preview.js';
+import { $, feedback } from './vestaboard-page.js';
 
-const $ = id => document.getElementById(id);
 const form = $('message-form');
 const input = $('message');
 const renderBoard = createBoardPreview($('board'));
@@ -23,11 +23,6 @@ function render() {
   input.setAttribute('aria-invalid', String(!!layout.error && !!input.value.trim()));
   $('validation').textContent = input.value.trim() ? layout.error || '' : '';
   updateButton();
-}
-
-function feedback(message, error = false) {
-  $('feedback').textContent = message;
-  $('feedback').dataset.error = String(error);
 }
 
 async function checkConnection() {

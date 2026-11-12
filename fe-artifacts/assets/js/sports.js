@@ -1,9 +1,9 @@
-import { layoutMessage } from './vestaboard-layout.js?v=1';
-import { createBoardSession } from './vestaboard-session.js?v=1';
-import { createBoardPreview } from './vestaboard-preview.js?v=1';
+import { blankFrame } from './vestaboard-layout.js';
+import { createBoardSession } from './vestaboard-session.js';
+import { createBoardPreview } from './vestaboard-preview.js';
+import { $, feedback, renderDelivery, validFrame } from './vestaboard-page.js';
 import { BOARD_TILE_COLORS as tileColors } from './ui-theme-tokens.js';
 
-const $ = id => document.getElementById(id);
 const preview = createBoardPreview($('board'));
 const kickoff = new Intl.DateTimeFormat(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
 const dayName = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
@@ -31,11 +31,6 @@ const matchup = game => `${game.away.abbreviation} at ${game.home.abbreviation}`
 const gameStatus = game => ({ scheduled: kickoff.format(new Date(game.startsAt)), live: 'Live',
   halftime: 'Halftime', final: 'Final', canceled: 'Canceled', postponed: 'Postponed',
   delayed: 'Delayed', suspended: 'Suspended' })[game.state];
-
-function feedback(message, error = false) {
-  $('feedback').textContent = message;
-  $('feedback').dataset.error = String(error);
-}
 
 function renderPicker() {
   if (!session) return;
@@ -136,7 +131,7 @@ function render() {
   $('broadcast-filter').hidden = league !== 'nba';
   const game = selected();
   const trackingThis = active() && session.game?.id === selectedId;
-  const characters = game?.characters || session?.characters || layoutMessage(`${league.toUpperCase()} SCORES\nPICK A GAME`).characters;
+  const characters = game?.characters || session?.characters || blankFrame();
   const possession = game && [game.away, game.home].find(team => team.id === game.possession);
   preview(characters, game
     ? `${game.away.name} ${game.away.score ?? 'not started'}, ${game.home.name} ${game.home.score ?? 'not started'}. ${gameStatus(game)}.${possession ? ` ${possession.name} have the ball; orange tile beneath their score.` : ''}`
@@ -153,14 +148,12 @@ function render() {
   $('source-status').textContent = session?.source.error || (session && !session.games.length
     ? session.source.lastCheckedAt ? leagues[league].empty : 'Loading games…' : !session ? 'Loading games…' : '');
   $('reconnect').hidden = connected !== false;
-  const delivery = session?.delivery;
-  $('delivery').dataset.error = String(connected === false || delivery?.status === 'error');
-  $('delivery').textContent = connected === false ? 'Connection unavailable. Reconnecting…'
-    : delivery?.status === 'error' ? delivery.error : '';
+  renderDelivery(session?.delivery, {
+    notice: connected === false ? 'Connection unavailable. Reconnecting…' : '', noticeIsError: true,
+  });
 }
 
 function accept(data) {
-  const validFrame = frame => Array.isArray(frame) && frame.length === 3 && frame.every(row => Array.isArray(row) && row.length === 15);
   if (!data || !['idle', 'tracking', 'completed', 'stopped'].includes(data.state)
       || !Array.isArray(data.games) || !data.source || !validFrame(data.characters)
       || (data.league && data.league !== league)

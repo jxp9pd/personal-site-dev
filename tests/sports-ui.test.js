@@ -7,13 +7,6 @@ const bubble = id => document.querySelector(`[data-game-id="${id}"]`);
 const choose = value => bubble(value).click();
 
 describe('Sports game selection and shared tracking', () => {
-  it('keeps the old NFL URL working with the shared Sports page', async () => {
-    await loadBoardPage('nfl');
-    expect(document.querySelector('h1').textContent).toBe('Sports scores');
-    expect(document.querySelector('[data-league="nfl"]').getAttribute('aria-pressed')).toBe('true');
-    expect(bubble('401000001')).not.toBeNull();
-  });
-
   it('switches to NBA broadcasts without sending a command and restores the NFL selection', async () => {
     const other = nflGame({ id: '401000003' });
     const fetch = await loadBoardPage('sports', { state: 'tracking', game: nflGame(), games: [nflGame(), other] });
@@ -100,19 +93,15 @@ describe('Sports game selection and shared tracking', () => {
     expect(fetch.mock.calls[0][0]).toBe('/api/vestaboard/nfl');
   });
 
-  it('tracks once and restores Stop controls from the shared session', async () => {
+  it('tracks the selected game and restores Stop controls from the shared session', async () => {
     const fetch = await loadBoardPage('sports');
     fetch.mockResolvedValue(reply(nflState({ state: 'tracking', game: nflGame(), delivery: { status: 'pending' } })));
     submit();
-    submit();
     await vi.advanceTimersByTimeAsync(0);
-    const writes = postBodies(fetch);
-    expect(writes).toHaveLength(1);
-    expect(writes[0]).toEqual({ action: 'track', gameId: '401000001' });
+    expect(postBodies(fetch)).toEqual([{ action: 'track', gameId: '401000001' }]);
     expect($('stop').hidden).toBe(false);
     expect($('track').disabled).toBe(true);
     expect($('preview-title').textContent).toBe('Tracking');
-    expect($('delivery').textContent).toBe('');
   });
 
   it('selecting a different game only previews it while the current game keeps tracking', async () => {

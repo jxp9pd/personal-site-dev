@@ -1,4 +1,4 @@
-import { ROWS, COLUMNS, SYMBOLS } from './vestaboard-layout.js?v=1';
+import { ROWS, COLUMNS, SYMBOLS } from './vestaboard-layout.js';
 
 // All board apps render through this component. Reusing tiles also avoids
 // animating unchanged characters when live status is polled.

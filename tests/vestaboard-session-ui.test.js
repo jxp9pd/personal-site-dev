@@ -6,13 +6,16 @@ const submit = form => $(form).dispatchEvent(new Event('submit', { cancelable: t
 const cases = [
   { page: 'pomodoro', form: 'timer-form', active: { state: 'running' },
     control: 'pause', action: 'pause', updated: { state: 'paused', remainingSeconds: 1495 },
-    expected: { 'phase-label': 'Focus paused', pause: 'Resume' }, live: { 'phase-label': 'Focus' } },
+    expected: { 'phase-label': 'Focus paused', pause: 'Resume' }, live: { 'phase-label': 'Focus' },
+    started: { state: 'running' }, queued: 'Board update queued.' },
   { page: 'sports', form: 'game-form', active: { state: 'tracking', game: nflGame() },
     control: 'stop', action: 'stop', updated: { state: 'stopped', game: nflGame() },
-    expected: { 'tracking-status': 'Stopped' }, live: { 'preview-title': 'Tracking' } },
+    expected: { 'tracking-status': 'Stopped' }, live: { 'preview-title': 'Tracking' },
+    started: { state: 'tracking', game: nflGame() }, queued: '' },
   { page: 'fantasy', form: 'league-form', active: { state: 'tracking' },
     action: 'start', updated: { state: 'tracking' },
-    expected: { 'tracking-status': 'Live' }, live: { 'tracking-status': 'Live' } },
+    expected: { 'tracking-status': 'Live' }, live: { 'tracking-status': 'Live' },
+    started: { state: 'tracking' }, queued: 'Board update queued.' },
 ];
 
 const expectLabels = labels => {
@@ -20,6 +23,17 @@ const expectLabels = labels => {
 };
 
 describe.each(cases)('$page session synchronization', scenario => {
+  it('sends one command for a double submit and reports the queued delivery', async () => {
+    const fetch = await loadBoardPage(scenario.page);
+    fetch.mockResolvedValue(reply(boardState(scenario.page, { ...scenario.started, delivery: { status: 'pending' } })));
+    submit(scenario.form);
+    submit(scenario.form);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(postBodies(fetch)).toHaveLength(1);
+    expect($('delivery').dataset.error).toBe('false');
+    expect($('delivery').textContent).toBe(scenario.queued);
+  });
+
   it('keeps the latest command when an older poll finishes afterward', async () => {
     const initial = scenario.control ? scenario.active : {};
     const fetch = await loadBoardPage(scenario.page, initial);
@@ -61,6 +75,43 @@ describe.each(cases)('$page session synchronization', scenario => {
     await vi.advanceTimersByTimeAsync(5000);
     expect($('stop').disabled).toBe(false);
     expectLabels(scenario.live);
+    expect(postBodies(fetch)).toHaveLength(0);
+  });
+});
+
+describe.each([
+  { page: 'pomodoro', button: 'start' },
+  { page: 'sports', button: 'track' },
+  { page: 'fantasy', button: 'start' },
+])('$page status validation', ({ page, button }) => {
+  const tiles = () => [...document.querySelectorAll('.tile')].map(tile => tile.dataset.code);
+  const shortRow = () => {
+    const characters = boardState(page).characters.map(row => [...row]);
+    characters[1].pop();
+    return characters;
+  };
+  const textTile = () => {
+    const characters = boardState(page).characters.map(row => [...row]);
+    characters[0][0] = 'A';
+    return characters;
+  };
+
+  if (page !== 'pomodoro') it('shows a blank board until the gateway answers', async () => {
+    await loadBoardPage(page, {}, { offline: true });
+    expect(tiles()).toHaveLength(45);
+    expect(new Set(tiles())).toEqual(new Set(['0']));
+    expect($(button).disabled).toBe(true);
+  });
+
+  it.each([['a row that is not 15 tiles', shortRow], ['a non-integer tile code', textTile]])('rejects a board grid with %s', async (_, characters) => {
+    const fetch = await loadBoardPage(page);
+    expect($(button).disabled).toBe(false);
+    const board = tiles();
+    fetch.mockResolvedValue(reply(boardState(page, { characters: characters() })));
+    await vi.advanceTimersByTimeAsync(5000);
+    expect($(button).disabled).toBe(true);
+    expect($('delivery').textContent).toContain('Reconnecting');
+    expect(tiles()).toEqual(board);
     expect(postBodies(fetch)).toHaveLength(0);
   });
 });

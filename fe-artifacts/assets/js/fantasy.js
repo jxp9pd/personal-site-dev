@@ -1,10 +1,9 @@
-import { createBoardSession } from './vestaboard-session.js?v=1';
-import { createBoardPreview } from './vestaboard-preview.js?v=1';
-import { layoutMessage } from './vestaboard-layout.js?v=1';
+import { createBoardSession } from './vestaboard-session.js';
+import { createBoardPreview } from './vestaboard-preview.js';
+import { blankFrame } from './vestaboard-layout.js';
+import { $, feedback, renderDelivery, validFrame } from './vestaboard-page.js';
 
-const $ = id => document.getElementById(id);
 const preview = createBoardPreview($('board'));
-const idle = layoutMessage('FANTASY\nPICK YOUR TEAMS').characters;
 const checked = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' });
 let session = null;
 let edited = false;
@@ -19,11 +18,6 @@ const draft = () => [1, 2].map(i => ({
   url: $(`league-${i}`).value.trim(), username: $(`username-${i}`).value.trim(), label: $(`label-${i}`).value.trim().toUpperCase(),
 }));
 const valid = () => $('league-form').checkValidity() && draft()[0].label !== draft()[1].label;
-
-function feedback(text, error = false) {
-  $('feedback').textContent = text;
-  $('feedback').dataset.error = String(error);
-}
 
 function fillFields(leagues) {
   leagues.forEach((league, index) => {
@@ -77,16 +71,11 @@ function render() {
     : (session?.leagues || []).map(league => league.matchup
       ? `${league.label}: your team ${league.matchup.you.name}, ${rounded(league.matchup.you.points)}; opponent ${league.matchup.opponent?.name || 'bye'}, ${league.matchup.opponent ? rounded(league.matchup.opponent.points) : 'no score'}.`
       : `${league.label}: loading matchup.`).join(' ') || 'Fantasy football preview. Choose two leagues.';
-  preview(session?.characters || idle, description);
+  preview(session?.characters || blankFrame(), description);
   renderMatchups();
   $('alert-status').textContent = session?.alert
     ? `${session.alertSecondsRemaining !== null ? `${session.alertSecondsRemaining}s remaining` : 'Waiting for board'}${session.queuedAlerts ? ` · ${session.queuedAlerts} more queued` : ''}` : '';
-  const delivery = session?.delivery;
-  $('delivery').dataset.error = String(delivery?.status === 'error');
-  $('delivery').textContent = !connected ? 'Reconnecting…'
-    : delivery?.status === 'pending' ? 'Board update queued.'
-    : delivery?.status === 'error' ? delivery.error
-    : '';
+  renderDelivery(session?.delivery, { notice: connected ? '' : 'Reconnecting…', announce: ['pending'] });
   $('source-status').textContent = [...new Set([
     ...(session?.leagues || []).filter(league => league.error).map(league => `${league.label}: ${league.error}`),
     session?.source.playError,
@@ -97,9 +86,7 @@ function render() {
 }
 
 function accept(data, { command }) {
-  const frame = value => Array.isArray(value) && value.length === 3
-    && value.every(row => Array.isArray(row) && row.length === 15 && row.every(Number.isInteger));
-  if (!data || !['idle', 'tracking', 'stopped'].includes(data.state) || !frame(data.characters)
+  if (!data || !['idle', 'tracking', 'stopped'].includes(data.state) || !validFrame(data.characters)
       || !Array.isArray(data.leagues) || data.leagues.length !== 2 || !data.source
       || data.leagues.some(league => !league.url || !league.username || !league.label
         || league.matchup && (!league.matchup.you || !Number.isFinite(league.matchup.you.points)
