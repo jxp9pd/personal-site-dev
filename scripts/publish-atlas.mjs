@@ -2,11 +2,11 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import { SUPABASE_URL as CONFIG_SUPABASE_URL } from "../fe-artifacts/assets/js/config.js";
 import {
   isAtlasFeatureVisible,
   normalizeAtlasFeatures,
 } from "./lib/atlas-normalize.js";
+import { createSupabaseAdmin } from "./lib/supabase-admin.mjs";
 
 const DEFAULT_DATA_ROOT = path.resolve("data/time-atlas");
 
@@ -68,22 +68,12 @@ export async function publishAtlas({
   const publication = await prepareAtlasPublication({ city, fixture, dataRoot });
   if (dryRun) return { ...publication, published: false };
 
-  const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceRoleKey) {
-    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
-  }
-  if (typeof fetchImpl !== "function") {
-    throw new Error("No fetch implementation is available");
-  }
-
-  const supabaseUrl = env.SUPABASE_URL || CONFIG_SUPABASE_URL;
-  const response = await fetchImpl(
-    `${supabaseUrl}/rest/v1/atlas_features?on_conflict=source%2Csource_id`,
+  const supabase = createSupabaseAdmin({ env, fetchImpl });
+  const response = await supabase.rest(
+    "atlas_features?on_conflict=source%2Csource_id",
     {
       method: "POST",
       headers: {
-        apikey: serviceRoleKey,
-        Authorization: `Bearer ${serviceRoleKey}`,
         "Content-Type": "application/json",
         Prefer: "resolution=merge-duplicates,return=minimal",
       },
@@ -91,35 +81,12 @@ export async function publishAtlas({
     },
   );
   if (!response.ok) {
-    const summary = await summarizeErrorResponse(response, serviceRoleKey);
+    const summary = await supabase.summarizeError(response);
     const detail = summary ? `: ${summary}` : "";
     throw new Error(`Atlas publication request failed with HTTP ${response.status}${detail}`);
   }
 
   return { ...publication, published: true };
-}
-
-async function summarizeErrorResponse(response, secret) {
-  if (typeof response.text !== "function") return "";
-  let body;
-  try {
-    body = await response.text();
-  } catch {
-    return "";
-  }
-
-  let summary;
-  try {
-    const parsed = JSON.parse(body);
-    summary = ["code", "message", "details", "hint"]
-      .filter(key => parsed?.[key] !== undefined && parsed[key] !== null)
-      .map(key => `${key}=${String(parsed[key])}`)
-      .join("; ");
-  } catch {
-    summary = String(body).replace(/\s+/g, " ").trim();
-  }
-  if (secret) summary = summary.split(secret).join("[redacted]");
-  return summary.slice(0, 500);
 }
 
 function publicationPaths({ city, fixture, dataRoot }) {

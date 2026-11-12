@@ -20,6 +20,26 @@ verifies one week; add `--verify-rebuild` to export CSV backups, delete/rebuild
 that archived week, and report field-level differences. Live tracking data stays
 in `vestaboard_fantasy`. See the weekly refresh section of the service README.
 
+## Supabase access
+
+Code reaches Supabase through one of three seams; reuse the matching one
+instead of hand-building URLs and auth headers.
+
+- **Browser:** `fe-artifacts/assets/js/dataClient.js` (supabase-js plus the
+  public publishable key in `config.js`; RLS is the boundary).
+- **Node admin scripts:** `scripts/lib/supabase-admin.mjs`. It reads
+  `SUPABASE_URL` (falls back to `config.js`, must be an HTTPS project URL) and
+  `SUPABASE_SERVICE_ROLE_KEY`, and provides `rest()` / `storage()` request
+  helpers plus error summaries with the key redacted. `env`/`fetchImpl` are
+  injectable for tests. Used by `publish-atlas`, `reset-name-leaderboard`,
+  `upload-packs`, `upload-quizzes` and `upload-pack-images`.
+- **Python gateway/scripts:** `services/vestaboard/supabase_rest.py`
+  (`SupabaseClient`).
+
+The server-side seams always send the key as `apikey`. They also send
+`Authorization: Bearer` only for legacy `service_role` JWTs (`eyJ...`), because
+Supabase says new `sb_secret_` keys belong on `apikey` alone.
+
 - `migrations/0001_profiles_and_plays.sql` — `profiles` and `plays` tables, RLS
   policies, and the `auth.users` → `profiles` creation trigger.
 - `migrations/0007_leaderboard.sql` — the read-only `leaderboard` view (best

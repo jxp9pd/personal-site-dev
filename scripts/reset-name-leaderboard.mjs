@@ -6,12 +6,12 @@
 // reset board an empty start. `find` scores and all other games are left alone.
 //
 // Destructive and irreversible — run once, at cutover. Requires the SERVICE-ROLE
-// key (bypasses RLS), same auth pattern as upload-quizzes.mjs.
+// key (bypasses RLS) via scripts/lib/supabase-admin.mjs.
 //
 // Usage:
 //   SUPABASE_SERVICE_ROLE_KEY=... node scripts/reset-name-leaderboard.mjs --confirm
 
-import { SUPABASE_URL as CONFIG_URL } from '../fe-artifacts/assets/js/config.js';
+import { createSupabaseAdminOrExit } from './lib/supabase-admin.mjs';
 
 const GAME_IDS = [
   'sf-neighborhoods',
@@ -21,26 +21,17 @@ const GAME_IDS = [
   'manhattan-neighborhoods',
 ];
 
-const SUPABASE_URL = process.env.SUPABASE_URL || CONFIG_URL;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!SERVICE_ROLE_KEY) {
-  console.error('Missing SUPABASE_SERVICE_ROLE_KEY (service_role, not anon).');
-  process.exit(1);
-}
-
-const headers = {
-  apikey: SERVICE_ROLE_KEY,
-  Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-};
+const supabase = createSupabaseAdminOrExit({
+  command: 'node scripts/reset-name-leaderboard.mjs --confirm',
+});
 
 // mode='name' AND game_id in the five neighborhood games. The filter is
 // mandatory: a filterless DELETE would wipe the whole table.
 const filter = `mode=eq.name&game_id=in.(${GAME_IDS.join(',')})`;
-const url = `${SUPABASE_URL}/rest/v1/plays?${filter}`;
+const path = `plays?${filter}`;
 
 async function count() {
-  const res = await fetch(`${url}&select=id`, { method: 'HEAD', headers: { ...headers, Prefer: 'count=exact' } });
+  const res = await supabase.rest(`${path}&select=id`, { method: 'HEAD', headers: { Prefer: 'count=exact' } });
   return Number((res.headers.get('content-range') || '/0').split('/')[1]);
 }
 
@@ -54,9 +45,9 @@ async function main() {
     return;
   }
 
-  const res = await fetch(url, { method: 'DELETE', headers: { ...headers, Prefer: 'return=representation' } });
+  const res = await supabase.rest(path, { method: 'DELETE', headers: { Prefer: 'return=representation' } });
   if (!res.ok) {
-    throw new Error(`Delete failed (${res.status} ${res.statusText}): ${await res.text()}`);
+    throw new Error(`Delete failed (${res.status} ${res.statusText}): ${await supabase.summarizeError(res)}`);
   }
   const deleted = await res.json();
   const after = await count();

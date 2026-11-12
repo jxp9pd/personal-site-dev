@@ -3,7 +3,7 @@
 // are upserted on `slug`, so running it again just refreshes existing quizzes.
 //
 // This is an admin/publish tool, not part of the shipped site. It talks to
-// PostgREST directly with global fetch (no SDK dependency) and authenticates
+// PostgREST through scripts/lib/supabase-admin.mjs (no SDK dependency) and authenticates
 // with the SERVICE-ROLE key, which bypasses RLS. That key is a secret: it is
 // read from the environment and must never be committed or shipped to config.js.
 //
@@ -16,7 +16,7 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { SUPABASE_URL as CONFIG_URL } from '../fe-artifacts/assets/js/config.js';
+import { createSupabaseAdminOrExit } from './lib/supabase-admin.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = resolve(HERE, '../data/quizzes');
@@ -74,17 +74,8 @@ const QUIZZES = [
   },
 ];
 
-const SUPABASE_URL = process.env.SUPABASE_URL || CONFIG_URL;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!SERVICE_ROLE_KEY) {
-  console.error(
-    'Missing SUPABASE_SERVICE_ROLE_KEY.\n' +
-    'Find it in the Supabase dashboard: Project Settings → API → service_role key.\n' +
-    'Run: SUPABASE_SERVICE_ROLE_KEY=... node scripts/upload-quizzes.mjs',
-  );
-  process.exit(1);
-}
+const supabase = createSupabaseAdminOrExit({ command: 'node scripts/upload-quizzes.mjs' });
+const SUPABASE_URL = supabase.url;
 
 async function buildRow(q, index) {
   const raw = await readFile(resolve(DATA_DIR, q.file), 'utf8');
@@ -130,11 +121,9 @@ async function main() {
     console.log(`  prepared ${q.slug.padEnd(22)} ${featureCount} neighborhoods`);
   }
 
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/quizzes`, {
+  const res = await supabase.rest('quizzes', {
     method: 'POST',
     headers: {
-      apikey: SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
       'Content-Type': 'application/json',
       Prefer: 'resolution=merge-duplicates,return=minimal',
     },
@@ -142,7 +131,7 @@ async function main() {
   });
 
   if (!res.ok) {
-    const body = await res.text();
+    const body = await supabase.summarizeError(res);
     throw new Error(`Upsert failed (${res.status} ${res.statusText}): ${body}`);
   }
 
