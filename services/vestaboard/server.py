@@ -17,6 +17,7 @@ from nfl import NFL, NFLSource
 from nba import NBA, NBASource
 from pomodoro import Pomodoro
 from history import HistoryUnavailable, MessageHistory, sender_ip
+from supabase_rest import SupabaseClient
 
 MAX_BODY = 4096
 
@@ -139,13 +140,14 @@ def main():
     # Only local previews read the repo's .env; production uses systemd's EnvironmentFile.
     env_file = Path(__file__).resolve().parents[2] / '.env' if args.preview else None
     gateway = BoardGateway(api_token(env_file), opener=partial(urlopen, context=cloud_tls_context()))
-    history = MessageHistory.from_environment(env_file, opener=partial(urlopen, context=cloud_tls_context()))
+    supabase = SupabaseClient.from_environment(env_file, opener=partial(urlopen, context=cloud_tls_context()))
+    history = MessageHistory(supabase) if supabase else None
     controller = BoardController(gateway)
     pomodoro = Pomodoro(controller)
     nfl = NFL(controller, NFLSource(opener=partial(urlopen, context=cloud_tls_context())).games)
     nba = NBA(controller, NBASource(opener=partial(urlopen, context=cloud_tls_context())).games)
     fantasy = Fantasy(controller, SleeperSource(opener=partial(urlopen, context=cloud_tls_context())),
-                      store=FantasyStore.from_environment(env_file, opener=partial(urlopen, context=cloud_tls_context())))
+                      store=FantasyStore(supabase) if supabase else None)
     server = ThreadingHTTPServer(('127.0.0.1', args.port), handler_for(
         controller, origins, args.preview, pomodoro=pomodoro, nfl=nfl, nba=nba, fantasy=fantasy, history=history))
     pomodoro.start_worker()

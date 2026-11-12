@@ -11,9 +11,7 @@ class ConcurrentRefresh(Exception):
 
 
 class FantasyWeekStore(FantasyStore):
-    def __init__(self, url, key, opener=None):
-        super().__init__(url, key, **({'opener': opener} if opener else {}))
-        self.endpoint += '_weeks'
+    table = 'vestaboard_fantasy_weeks'
 
     @staticmethod
     def scope(season, week):
