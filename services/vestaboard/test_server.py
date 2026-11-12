@@ -147,6 +147,21 @@ class HttpTest(AppTestCase):
                     self.assertEqual(self.forwarded, [])
         self.history.begin.assert_not_called()
 
+    def test_unknown_paths_return_404_and_head_returns_405(self):
+        body = json.dumps({'action': 'stop'}).encode()
+        for path in ('/api/vestaboard/unknown', '/api/vestaboard', '/api/vestaboard/pomodoro/extra', '/api/other', '/'):
+            with self.subTest(path=path):
+                self.assertEqual(self.request(path=path)[0], 404)
+                self.assertEqual(self.request(body, path=path)[0], 404)
+        self.assertEqual(self.request(body, path='/api/vestaboard/status')[0], 404)
+        self.assertEqual(self.request(path='/api/vestaboard/messages')[0], 404)
+        for path in ('/api/vestaboard/status', '/api/vestaboard/nfl'):
+            with self.subTest(method='HEAD', path=path):
+                status, headers, _ = self.request(path=path, method='HEAD')
+                self.assertEqual(status, 405)
+                self.assertEqual(headers['Allow'], 'GET, POST')
+        self.assertEqual(self.forwarded, [])
+
     def test_production_does_not_serve_local_files(self):
         self.assertEqual(self.request(path='/server.py')[0], 404)
         self.assertEqual(self.request(path='/server.py', method='HEAD')[0], 405)

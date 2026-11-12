@@ -69,6 +69,41 @@ class LifecycleTest(AppTestCase):
                 self.assertEqual(app.status()['delivery']['status'], 'accepted')
 
 
+    def test_delivery_outcomes_leave_the_same_state_in_every_app(self):
+        pending, accepted = {'status': 'pending'}, {'status': 'accepted'}
+        unconfirmed = {'status': 'error', 'error': 'Delivery unconfirmed.'}
+        scenarios = (
+            # name, retryAfter, send result (None: revision changes mid-send), sends, attempted, delivery
+            ('cooldown', 15, (200, {'accepted': True}), 0, False, pending),
+            ('rate limit', 0, (429, {'retryAfter': 15}), 1, False, pending),
+            ('uncertain', 0, (504, {'error': 'Delivery unconfirmed.'}), 1, True, unconfirmed),
+            ('stale revision', 0, None, 1, False, pending),
+            ('accepted', 0, (200, {'accepted': True}), 1, True, accepted),
+        )
+        for name, retry, result, sends, attempted, delivery in scenarios:
+            for index, label in enumerate(('pomodoro', 'nfl', 'nba', 'fantasy')):
+                self.setUp()
+                app = self.apps[index]
+                with self.subTest(scenario=name, app=label):
+                    self.assertEqual(self.start_app(app)[0], 200)
+                    before = app.last_attempt
+                    self.gateway.status.return_value = {'retryAfter': retry}
+                    if result is None:
+                        def stale(frame, app=app):
+                            app.revision += 1
+                            return 200, {'accepted': True}
+                        self.gateway.send.side_effect = stale
+                    else:
+                        self.gateway.send.return_value = result
+                    app.tick()
+                    self.assertEqual(self.gateway.send.call_count, sends)
+                    self.assertEqual(app.last_attempt != before, attempted)
+                    self.assertEqual(app.status()['delivery'], delivery)
+                    if attempted:
+                        app.tick()  # An attempted frame is never retried.
+                        self.assertEqual(self.gateway.send.call_count, sends)
+
+
 class OwnershipTest(AppTestCase):
     def start(self, app):
         self.assertEqual(self.start_app(app)[0], 200)
