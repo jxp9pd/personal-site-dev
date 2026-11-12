@@ -76,8 +76,13 @@ describe.each([
     characters[1].pop();
     return characters;
   };
+  const textTile = () => {
+    const characters = boardState(page).characters.map(row => [...row]);
+    characters[0][0] = 'A';
+    return characters;
+  };
 
-  it.each([['a row that is not 15 tiles', shortRow]])('rejects a board grid with %s', async (_, characters) => {
+  it.each([['a row that is not 15 tiles', shortRow], ['a non-integer tile code', textTile]])('rejects a board grid with %s', async (_, characters) => {
     const fetch = await loadBoardPage(page);
     expect($(button).disabled).toBe(false);
     const board = tiles();
