@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-"""Schedule the existing Fantasy refresh for the most recently completed week."""
+"""Run the existing Fantasy refresh for the most recently completed week.
+
+fantasy-refresh.timer starts this weekly; systemd prevents overlapping runs.
+"""
 import argparse
 from datetime import datetime, timezone
-import json
 from pathlib import Path
 import re
 import subprocess
 import sys
-from urllib.request import Request, urlopen
-from zoneinfo import ZoneInfo
 
-
-def scheduled_time(now):
-    pacific = now.astimezone(ZoneInfo('America/Los_Angeles'))
-    return pacific.weekday() == 2 and pacific.hour == 6
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'services' / 'vestaboard'))
+from fantasy import SleeperSource
 
 
 def completed_week(state):
@@ -32,14 +31,9 @@ def completed_week(state):
     return (season, week - 1) if week > 1 else None
 
 
-def read_state():
-    request = Request('https://api.sleeper.app/v1/state/nfl',
-                      headers={'Accept': 'application/json', 'User-Agent': 'PentaProjects-Fantasy/1.0'})
-    with urlopen(request, timeout=15) as response:
-        data = response.read(65537)
-        if response.status != 200 or len(data) > 65536:
-            raise ValueError('Sleeper returned an unexpected NFL state response.')
-        return json.loads(data)
+def read_state(source=None):
+    # Raw state: SleeperSource.state() rejects the postseason week that selects week 18.
+    return (source or SleeperSource())._read('v1/state/nfl', limit=65536)
 
 
 def main(argv=None):
@@ -47,12 +41,9 @@ def main(argv=None):
     parser.add_argument('--refresh-script', type=Path, required=True)
     parser.add_argument('--env-file', type=Path, required=True)
     parser.add_argument('--output-root', type=Path, default=Path('/var/lib/fantasy-refresh/runs'))
-    parser.add_argument('--scheduled', action='store_true', help='Run only Wednesday at 6 a.m. Pacific.')
     parser.add_argument('--dry-run', action='store_true', help='Show the selected week without writing data.')
     args = parser.parse_args(argv)
     now = datetime.now(timezone.utc)
-    if args.scheduled and not scheduled_time(now):
-        return 0
     print(f'{now.isoformat()} Weekly Fantasy refresh', flush=True)
     selected = completed_week(read_state())
     if selected is None:

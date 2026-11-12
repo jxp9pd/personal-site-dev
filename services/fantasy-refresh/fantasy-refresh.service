@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly Fantasy refresh of the most recently completed NFL week
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /var/www/personal-site-dev/scripts/weekly-fantasy-refresh.py --refresh-script /var/www/personal-site-dev/scripts/refresh-fantasy.py --env-file /etc/vestaboard-history.env
+# The wrapper allows the refresh 10 minutes.
+TimeoutStartSec=15min

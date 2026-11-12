@@ -3,7 +3,7 @@
 import getpass
 import argparse
 import json
-from pathlib import Path
+import os
 import shlex
 import subprocess
 from urllib.parse import urlsplit
@@ -11,6 +11,9 @@ from urllib.parse import urlsplit
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--host', default=os.environ.get('VESTABOARD_SSH_HOST', 'penta'),
+                        help='SSH destination; set the user, address and key in ~/.ssh/config '
+                             '(default: $VESTABOARD_SSH_HOST or "penta").')
     parser.add_argument('--history', action='store_true', help='Configure Supabase message history and Fantasy storage instead of the board token.')
     args = parser.parse_args()
     if args.history:
@@ -40,8 +43,7 @@ with os.fdopen(fd, 'w') as f:
 os.chmod(name, 0o600)
 os.replace(name, destination)
 '''
-    ssh = ['ssh', '-i', str(Path.home() / '.ssh/id_ed25519_personal'),
-           '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', 'root@5.78.199.99']
+    ssh = ['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '--', args.host]
     subprocess.run(ssh + ['python3 -c ' + shlex.quote(remote)],
                    input=json.dumps({'history': args.history, 'values': values}), text=True, check=True)
     subprocess.run(ssh + ['systemctl restart vestaboard-note && systemctl is-active vestaboard-note'], check=True)

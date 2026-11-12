@@ -1,9 +1,11 @@
-from datetime import datetime, timezone
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
+
+from test_helpers import Response
 
 
 path = Path(__file__).resolve().parents[2] / 'scripts' / 'weekly-fantasy-refresh.py'
@@ -13,13 +15,19 @@ spec.loader.exec_module(weekly)
 
 
 class WeeklyFantasyCronTest(unittest.TestCase):
-    def test_cron_runs_once_at_six_pacific_in_summer_and_winter(self):
-        for month, day, expected_hour in ((10, 21, 13), (11, 4, 14)):
-            with self.subTest(month=month):
-                selected = [hour for hour in (13, 14) if weekly.scheduled_time(
-                    datetime(2026, month, day, hour, tzinfo=timezone.utc))]
-                self.assertEqual(selected, [expected_hour])
-        self.assertFalse(weekly.scheduled_time(datetime(2026, 10, 22, 13, tzinfo=timezone.utc)))
+    def test_state_is_read_through_the_shared_sleeper_client_with_a_size_limit(self):
+        requests = []
+        def opener(body):
+            def respond(request, timeout):
+                requests.append((request, timeout))
+                return Response(body)
+            return respond
+        state = {'season': '2026', 'week': 1, 'season_type': 'post'}
+        self.assertEqual(weekly.read_state(weekly.SleeperSource(opener(json.dumps(state).encode()))), state)
+        self.assertEqual(requests[0][0].full_url, 'https://api.sleeper.app/v1/state/nfl')
+        self.assertEqual(requests[0][0].get_header('User-agent'), 'PentaProjects-Fantasy/1.0')
+        with self.assertRaises(ValueError):
+            weekly.read_state(weekly.SleeperSource(opener(b' ' * 65537)))
 
     def test_completed_week_handles_rollover_and_the_last_regular_season_week(self):
         self.assertEqual(weekly.completed_week({'season': '2026', 'week': 7, 'season_type': 'regular'}), ('2026', 6))

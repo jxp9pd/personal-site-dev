@@ -132,15 +132,6 @@ Score-save outages keep live tracking and Stop available, show a warning, and
 retry the latest snapshot. With both Supabase settings omitted, local previews
 remain temporary and report `storage.enabled: false`.
 
-First production migration, in this order:
-
-1. Apply `supabase/migrations/0010_vestaboard_fantasy.sql` with `supabase db push`.
-2. Publish the new code, then seed the still-running gateway's data on the host:
-   `python3 /var/www/personal-site-dev/scripts/migrate-fantasy.py --env-file /etc/vestaboard-history.env`.
-   This is safe to repeat and never replaces an existing database row.
-3. Run the gateway install below. Check the Fantasy API for `storage.enabled`
-   and `storage.ready` both true, no storage error, and the saved leagues/scores.
-
 ### Refresh or rebuild a week
 
 From the repository root on John's Mac:
@@ -205,29 +196,31 @@ league URLs saved in the dashboard.
 Install or update the schedule as root from a checkout containing these files:
 
 ```sh
-sudo bash scripts/install-fantasy-cron.sh
+sudo bash scripts/install-fantasy-refresh.sh
 ```
 
-The installer expects the existing UTC server timezone, an active `cron` service,
-the deployed refresh at `/var/www/personal-site-dev/scripts/refresh-fantasy.py`,
-and `/etc/vestaboard-history.env`. It installs `/etc/cron.d/fantasy-refresh` and
-a small wrapper in `/usr/local/lib/fantasy-refresh/`, so later site deployments
-preserve the schedule. UTC cron checks at both possible Pacific offsets; the
-wrapper runs only at 6 a.m. Pacific. `flock` prevents overlapping scheduled runs.
+The installer expects the deployed refresh scripts under
+`/var/www/personal-site-dev/scripts/` and `/etc/vestaboard-history.env`. It
+installs `fantasy-refresh.timer` and the oneshot `fantasy-refresh.service` from
+`services/fantasy-refresh/`, and removes the old cron, logrotate and wrapper
+files so the refresh cannot run twice. The timer uses
+`OnCalendar=Wed *-*-* 06:00:00 America/Los_Angeles`, so the server timezone
+does not matter. `Persistent=true` catches up a run missed while the host was
+down, and systemd never starts a second run while one is active.
 
-Logs are in `/var/log/fantasy-refresh.log`, rotated weekly with eight archives.
-Verified CSVs are under `/var/lib/fantasy-refresh/runs/`, outside the public site.
-To check the selected week without writing, or run it manually under the same
-lock (omit `--dry-run`), use:
+Logs are in journald. Verified CSVs are under `/var/lib/fantasy-refresh/runs/`,
+outside the public site. To check the selected week without writing, use:
 
 ```sh
-sudo flock -n /run/lock/fantasy-refresh.lock python3 /usr/local/lib/fantasy-refresh/weekly-fantasy-refresh.py \
+sudo python3 /var/www/personal-site-dev/scripts/weekly-fantasy-refresh.py \
   --refresh-script /var/www/personal-site-dev/scripts/refresh-fantasy.py \
   --env-file /etc/vestaboard-history.env --dry-run
 ```
 
-Read recent runs with `sudo tail -n 30 /var/log/fantasy-refresh.log`. Remove
-`/etc/cron.d/fantasy-refresh` to disable the weekly job.
+Run the real refresh now with `sudo systemctl start fantasy-refresh.service`.
+Check the schedule with `systemctl list-timers fantasy-refresh.timer` and recent
+runs with `journalctl -u fantasy-refresh -n 30`. Disable the weekly job with
+`sudo systemctl disable --now fantasy-refresh.timer`.
 
 ## Connect the Note
 
@@ -242,6 +235,10 @@ Read recent runs with `sudo tail -n 30 /var/log/fantasy-refresh.log`. Remove
    python3 scripts/configure-vestaboard.py
    ```
 
+   It connects as `ssh penta`; define that alias (host, `User root`, and
+   `IdentityFile`) in `~/.ssh/config`, or pass `--host` / set
+   `VESTABOARD_SSH_HOST` to another SSH destination.
+
    The hidden prompt sends the token over SSH, saves it in
    `/etc/vestaboard-note.env` (root-owned, mode `0600`), and restarts the gateway.
    It keeps the token out of command arguments, Git, frontend assets, and stdout.
@@ -254,8 +251,10 @@ Read recent runs with `sudo tail -n 30 /var/log/fantasy-refresh.log`. Remove
 From the repository root, start with physical sends disabled:
 
 ```sh
-VESTABOARD_API_TOKEN='' python3 services/vestaboard/server.py --preview fe-artifacts --port 8000
+npm run preview:gateway
 ```
+
+This runs `VESTABOARD_API_TOKEN='' python3 services/vestaboard/server.py --preview fe-artifacts --port 8000`.
 
 Open [the hub](http://127.0.0.1:8000/tools/vestaboard/) or any app's usual
 `/tools/*.html` path. Note and Fantasy previews and NFL browsing work without
@@ -385,7 +384,8 @@ Avoid restoring the entire old config over later site changes.
 
 ```sh
 npm test
-python3 -m unittest discover -s services/vestaboard -p 'test_*.py'
+npm run test:gateway
+npm run lint:py
 ```
 
 Tests use fake upstreams and board delivery; they never write to the device.
