@@ -58,7 +58,6 @@ const pages = {
   note: { file: 'vestaboard', state: initial => ({ configured: true, retryAfter: 0, ...initial }), boot: () => import('../../fe-artifacts/assets/js/vestaboard.js') },
   pomodoro: { file: 'pomodoro', state: pomodoroState, boot: () => import('../../fe-artifacts/assets/js/pomodoro.js') },
   sports: { file: 'sports', state: nflState, boot: () => import('../../fe-artifacts/assets/js/sports.js') },
-  nfl: { file: 'nfl', state: nflState, boot: () => import('../../fe-artifacts/assets/js/nfl.js') },
   fantasy: { file: 'fantasy', state: fantasyState, boot: () => import('../../fe-artifacts/assets/js/fantasy.js') },
 };
 

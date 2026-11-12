@@ -269,25 +269,6 @@
     "source": "pages/tools/sports.html"
   },
   {
-    "output": "tools/nfl.html",
-    "title": "Sports scores — Penta Projects",
-    "description": "Follow NFL and NBA scores on John's Vestaboard Note. NBA games on Prime Video or Peacock.",
-    "assets": "board",
-    "section": "tools",
-    "header": {},
-    "styles": [
-      "/assets/css/sports.css"
-    ],
-    "scripts": [
-      {
-        "type": "module",
-        "src": "/assets/js/sports.js"
-      }
-    ],
-    "source": "pages/tools/sports.html",
-    "canonical": "https://jpentakalos.com/tools/sports.html"
-  },
-  {
     "output": "tools/pomodoro.html",
     "title": "Pomodoro — Penta Projects",
     "description": "A Pomodoro timer for John's Vestaboard Note.",

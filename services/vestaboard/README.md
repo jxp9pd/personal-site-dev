@@ -5,7 +5,7 @@ Public apps for a 3 × 15 Vestaboard Note:
 - [Apps home](https://jpentakalos.com/tools/vestaboard/)
 - [Leave a Note](https://jpentakalos.com/tools/vestaboard.html)
 - [Pomodoro](https://jpentakalos.com/tools/pomodoro.html)
-- [NFL scores](https://jpentakalos.com/tools/nfl.html)
+- [Sports scores](https://jpentakalos.com/tools/sports.html)
 - [Fantasy football](https://jpentakalos.com/tools/fantasy.html)
 
 Vanilla HTML/CSS/JS pages call a Python gateway. nginx proxies

@@ -7,13 +7,6 @@ const bubble = id => document.querySelector(`[data-game-id="${id}"]`);
 const choose = value => bubble(value).click();
 
 describe('Sports game selection and shared tracking', () => {
-  it('keeps the old NFL URL working with the shared Sports page', async () => {
-    await loadBoardPage('nfl');
-    expect(document.querySelector('h1').textContent).toBe('Sports scores');
-    expect(document.querySelector('[data-league="nfl"]').getAttribute('aria-pressed')).toBe('true');
-    expect(bubble('401000001')).not.toBeNull();
-  });
-
   it('switches to NBA broadcasts without sending a command and restores the NFL selection', async () => {
     const other = nflGame({ id: '401000003' });
     const fetch = await loadBoardPage('sports', { state: 'tracking', game: nflGame(), games: [nflGame(), other] });
