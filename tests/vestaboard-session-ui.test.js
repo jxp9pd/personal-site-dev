@@ -64,3 +64,28 @@ describe.each(cases)('$page session synchronization', scenario => {
     expect(postBodies(fetch)).toHaveLength(0);
   });
 });
+
+describe.each([
+  { page: 'pomodoro', button: 'start' },
+  { page: 'sports', button: 'track' },
+  { page: 'fantasy', button: 'start' },
+])('$page status validation', ({ page, button }) => {
+  const tiles = () => [...document.querySelectorAll('.tile')].map(tile => tile.dataset.code);
+  const shortRow = () => {
+    const characters = boardState(page).characters.map(row => [...row]);
+    characters[1].pop();
+    return characters;
+  };
+
+  it.each([['a row that is not 15 tiles', shortRow]])('rejects a board grid with %s', async (_, characters) => {
+    const fetch = await loadBoardPage(page);
+    expect($(button).disabled).toBe(false);
+    const board = tiles();
+    fetch.mockResolvedValue(reply(boardState(page, { characters: characters() })));
+    await vi.advanceTimersByTimeAsync(5000);
+    expect($(button).disabled).toBe(true);
+    expect($('delivery').textContent).toContain('Reconnecting');
+    expect(tiles()).toEqual(board);
+    expect(postBodies(fetch)).toHaveLength(0);
+  });
+});
