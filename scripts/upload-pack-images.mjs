@@ -8,7 +8,7 @@
 // and every object is uploaded with upsert, so re-running just refreshes bytes.
 //
 // Like upload-packs.mjs this is an admin/publish tool (not shipped), talks to
-// Storage over global fetch (no SDK), and authenticates with the SERVICE-ROLE
+// Storage through scripts/lib/supabase-admin.mjs (no SDK), and authenticates with the SERVICE-ROLE
 // key — a secret read from the environment, never committed.
 //
 // Layout: data/pack-images/<pack-slug>/<file>  ->  object <pack-slug>/<file> in
@@ -21,28 +21,14 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, extname } from 'node:path';
-import { SUPABASE_URL as CONFIG_URL } from '../fe-artifacts/assets/js/config.js';
+import { createSupabaseAdminOrExit } from './lib/supabase-admin.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const IMAGES_DIR = resolve(HERE, '../data/pack-images');
 const BUCKET = process.env.PACK_IMAGES_BUCKET || 'pack-images';
 
-const SUPABASE_URL = process.env.SUPABASE_URL || CONFIG_URL;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!SERVICE_ROLE_KEY) {
-  console.error(
-    'Missing SUPABASE_SERVICE_ROLE_KEY.\n' +
-    'Find it in the Supabase dashboard: Project Settings → API → service_role key.\n' +
-    'Run: SUPABASE_SERVICE_ROLE_KEY=... node scripts/upload-pack-images.mjs',
-  );
-  process.exit(1);
-}
-
-const AUTH = {
-  apikey: SERVICE_ROLE_KEY,
-  Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-};
+const supabase = createSupabaseAdminOrExit({ command: 'node scripts/upload-pack-images.mjs' });
+const SUPABASE_URL = supabase.url;
 
 const CONTENT_TYPES = {
   '.jpg': 'image/jpeg',
@@ -55,9 +41,9 @@ const CONTENT_TYPES = {
 // Creates the bucket as public. A 400 "already exists" is the expected no-op on
 // re-runs, so only genuinely unexpected failures throw.
 async function ensureBucket() {
-  const res = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+  const res = await supabase.storage('bucket', {
     method: 'POST',
-    headers: { ...AUTH, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id: BUCKET, name: BUCKET, public: true }),
   });
   if (res.ok) {
@@ -69,20 +55,22 @@ async function ensureBucket() {
     console.log(`  bucket "${BUCKET}" already exists`);
     return;
   }
-  throw new Error(`create bucket failed (${res.status} ${res.statusText}): ${text}`);
+  throw new Error(
+    `create bucket failed (${res.status} ${res.statusText}): ${supabase.summarizeErrorBody(text)}`,
+  );
 }
 
 async function uploadObject(objectPath, bytes, contentType) {
-  const res = await fetch(
-    `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${objectPath}`,
+  const res = await supabase.storage(
+    `object/${BUCKET}/${objectPath}`,
     {
       method: 'POST',
-      headers: { ...AUTH, 'Content-Type': contentType, 'x-upsert': 'true' },
+      headers: { 'Content-Type': contentType, 'x-upsert': 'true' },
       body: bytes,
     },
   );
   if (!res.ok) {
-    const text = await res.text();
+    const text = await supabase.summarizeError(res);
     throw new Error(`upload ${objectPath} failed (${res.status} ${res.statusText}): ${text}`);
   }
 }
