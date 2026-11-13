@@ -1,41 +1,45 @@
+{{header}}
 <main class="page">
-  <h1>Prediction market tools</h1>
+  <div class="page-header reveal d1">
+    <a class="back-link" href="/tools"><svg class="back-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" /></svg> Tools</a>
+    <h1>Prediction <em>market</em> tools</h1>
+  </div>
 
-  <nav class="nav" role="tablist" aria-label="Tool">
+  <nav class="segmented segmented-block calc-tabs" role="tablist" aria-label="Tool">
     <button id="nav-roi" class="active" role="tab" aria-selected="true" aria-controls="view-roi">ROI calculator</button>
     <button id="nav-novig" role="tab" aria-selected="false" aria-controls="view-novig">No-vig odds</button>
   </nav>
 
   <!-- ============ ROI CALCULATOR ============ -->
   <section id="view-roi" class="view active" role="tabpanel" aria-labelledby="nav-roi">
-    <div class="card">
+    <div class="calc-card">
 
       <div class="grid-2">
         <div>
-          <label for="purchase">Purchase price (¢)</label>
-          <input id="purchase" type="number" min="0" max="100" step="0.1" value="50" />
+          <label class="field-label" for="purchase">Purchase price (¢)</label>
+          <input id="purchase" class="input" type="number" min="0" max="100" step="0.1" value="50" />
         </div>
         <div>
-          <label for="truth">Estimated price (¢)</label>
-          <input id="truth" type="number" min="0" max="100" step="0.1" value="60" />
+          <label class="field-label" for="truth">Estimated price (¢)</label>
+          <input id="truth" class="input" type="number" min="0" max="100" step="0.1" value="60" />
         </div>
       </div>
 
       <div class="grid-2">
         <div>
-          <label for="fee-type">Fee type</label>
-          <select id="fee-type">
+          <label class="field-label" for="fee-type">Fee type</label>
+          <select id="fee-type" class="input">
             <option value="taker" selected>Taker</option>
             <option value="maker">Maker</option>
           </select>
         </div>
         <div>
-          <label for="amount-num" id="amount-label">Contracts</label>
-          <input id="amount-num" type="number" min="0" step="1" value="100" />
+          <label class="field-label" for="amount-num" id="amount-label">Contracts</label>
+          <input id="amount-num" class="input" type="number" min="0" step="1" value="100" />
         </div>
       </div>
 
-      <div class="toggle" role="tablist" aria-label="Input mode">
+      <div class="segmented segmented-block" role="tablist" aria-label="Input mode">
         <button id="mode-shares" class="active" role="tab" aria-selected="true">Contracts</button>
         <button id="mode-dollars" role="tab" aria-selected="false">Dollars</button>
       </div>
@@ -77,21 +81,21 @@
 
   <!-- ============ NO-VIG CALCULATOR ============ -->
   <section id="view-novig" class="view" role="tabpanel" aria-labelledby="nav-novig">
-    <div class="card">
+    <div class="calc-card">
 
       <div class="grid-2">
         <div>
-          <label for="oddsA">Side A (American odds)</label>
-          <input id="oddsA" type="number" value="-110" step="1" />
+          <label class="field-label" for="oddsA">Side A (American odds)</label>
+          <input id="oddsA" class="input" type="number" value="-110" step="1" />
         </div>
         <div>
-          <label for="oddsB">Side B (American odds)</label>
-          <input id="oddsB" type="number" value="-110" step="1" />
+          <label class="field-label" for="oddsB">Side B (American odds)</label>
+          <input id="oddsB" class="input" type="number" value="-110" step="1" />
         </div>
       </div>
 
       <div class="section-label">Fair line</div>
-      <div class="metrics" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="metrics metrics-3">
         <div class="metric">
           <div class="metric-label">Side A</div>
           <div id="nvProbA" class="metric-value">50.00% <span class="pct">(+100)</span></div>
@@ -258,7 +262,7 @@
   }
 
   function colorize(el, n) {
-    el.style.color = n >= 0 ? 'var(--success)' : 'var(--danger)';
+    el.style.color = n >= 0 ? 'var(--good)' : 'var(--bad)';
   }
 
   function breakevenPriceCents(t, rate) {

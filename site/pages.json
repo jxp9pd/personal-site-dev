@@ -224,13 +224,17 @@
   },
   {
     "output": "tools/hand-calculator-tools.html",
-    "title": "Prediction market tools",
+    "title": "Prediction market tools — Penta Projects",
     "viewport": "width=device-width, initial-scale=1.0",
     "assets": "site",
     "layout": "default",
     "section": "tools",
-    "inlineStyles": "styles/tools/hand-calculator-tools.css",
-    "source": "pages/tools/hand-calculator-tools.html"
+    "source": "pages/tools/hand-calculator-tools.html",
+    "description": "ROI and no-vig odds calculators for prediction markets.",
+    "header": {},
+    "styles": [
+      "/assets/css/hand-calculator-tools.css"
+    ]
   },
   {
     "output": "tools/index.html",
@@ -263,8 +267,8 @@
         },
         {
           "href": "/tools/hand-calculator-tools.html",
-          "title": "Hand Calculator Tools",
-          "description": "Prediction market calculator"
+          "title": "Prediction Market Tools",
+          "description": "ROI and no-vig odds calculators"
         }
       ]
     },
