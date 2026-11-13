@@ -1,6 +1,6 @@
 {{header}}
-  <main class="note-page pomodoro-page" id="pomodoro" data-phase="focus">
-    <div class="note-heading reveal d1">
+  <main class="page note-page pomodoro-page" id="pomodoro" data-phase="focus">
+    <div class="page-header reveal d1">
       <a class="back-link" href="/tools/vestaboard/"><svg class="back-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" /></svg> Vestaboard</a>
       <h1>Pomodoro</h1>
     </div>
@@ -12,7 +12,7 @@
       <div class="board-frame">
         <div id="board" class="board" role="img" aria-label="Pomodoro board preview"></div>
       </div>
-      <p id="delivery" class="delivery" role="status"></p>
+      <p id="delivery" class="status delivery" role="status"></p>
     </section>
 
     <form id="timer-form" class="composer timer-form reveal d3" aria-labelledby="timer-title">
@@ -23,19 +23,19 @@
       <div class="timer-settings">
         <div id="countdown" class="countdown" role="timer" aria-label="Time remaining" aria-live="off">25:00</div>
         <fieldset id="durations" class="duration-fields" aria-label="Session durations">
-          <label for="focus-minutes">Focus<span class="minute-field"><input id="focus-minutes" name="focusMinutes" type="number" min="1" max="180" step="1" value="25" required /><span>min</span></span></label>
-          <label for="break-minutes">Break<span class="minute-field"><input id="break-minutes" name="breakMinutes" type="number" min="1" max="180" step="1" value="5" required /><span>min</span></span></label>
+          <label class="field-label" for="focus-minutes">Focus<span class="input minute-field"><input id="focus-minutes" name="focusMinutes" type="number" min="1" max="180" step="1" value="25" required /><span>min</span></span></label>
+          <label class="field-label" for="break-minutes">Break<span class="input minute-field"><input id="break-minutes" name="breakMinutes" type="number" min="1" max="180" step="1" value="5" required /><span>min</span></span></label>
         </fieldset>
       </div>
       <div class="timer-actions">
-        <button id="start" type="submit" class="send-button" disabled>Start timer <span aria-hidden="true">↗</span></button>
+        <button id="start" type="submit" class="button button-primary button-lg send-button" disabled>Start timer <span aria-hidden="true">↗</span></button>
         <div id="active-controls" class="active-controls" hidden>
-          <button id="pause" type="button" class="send-button">Pause</button>
-          <button id="stop" type="button" class="stop-button">Stop</button>
+          <button id="pause" type="button" class="button button-primary button-lg send-button">Pause</button>
+          <button id="stop" type="button" class="button">Stop</button>
         </div>
       </div>
-      <p id="feedback" class="feedback" role="status"></p>
-      <button id="reconnect" type="button" class="secondary-button reconnect-button" hidden><svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2.3 5.7" /></svg>Retry connection</button>
+      <p id="feedback" class="status feedback" role="status"></p>
+      <button id="reconnect" type="button" class="button reconnect-button" hidden><svg class="control-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2.3 5.7" /></svg>Retry connection</button>
     </form>
     <noscript><p>Enable JavaScript to set and control the Pomodoro timer.</p></noscript>
   </main>

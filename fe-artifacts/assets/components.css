@@ -68,11 +68,93 @@
   --button-hover-background: transparent;
 }
 
-.back-link { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-bottom: 14px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper-2); color: var(--ink); font-size: .875rem; line-height: 1; text-decoration: none; }
+.back-link { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; margin-bottom: 14px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); font-size: var(--text-sm); line-height: 1; text-decoration: none; }
 .back-link-icon { display: block; width: 18px; height: 18px; flex-shrink: 0; }
-.back-link:hover { background: #e8eee5; border-color: #a7b8aa; }
+.back-link:hover { background: var(--paper); border-color: var(--line-strong); }
 
-/* ---------- page header + entry list ---------- */
+/* ---------- page header: optional back link, then the page h1 ---------- */
+.page-header { margin: var(--space-5) 0 var(--space-6); }
+.page-header h1 { margin: 0; font-size: var(--text-title); line-height: 1.05; letter-spacing: -.02em; }
+.page-header h1 em { color: var(--accent-ink); }
+
+/* ---------- action buttons (.btn above is the pill used for navigation) ---------- */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 10px var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font: 400 var(--text-sm)/1.3 var(--font-mono);
+  text-decoration: none;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.button:hover:enabled, a.button:hover { background: var(--surface); border-color: var(--ink); }
+.button:disabled { opacity: .48; }
+.button-primary { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.button-primary:hover:enabled, a.button-primary:hover { border-color: var(--accent-ink); background: var(--accent-ink); }
+.button-lg { min-height: 52px; padding: 14px 20px; font-size: var(--text-md); }
+.button-quiet { min-height: 44px; padding: 0 2px; border-color: transparent; background: none; color: var(--muted); }
+.button-quiet:hover:enabled { border-color: transparent; background: none; color: var(--ink); }
+
+/* ---------- segmented control: a row of aria-pressed / aria-selected buttons ---------- */
+.segmented { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); }
+.segmented-block { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; width: 100%; }
+.segmented > button {
+  min-width: 72px;
+  min-height: 40px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--muted);
+  font: 400 var(--text-xs) var(--font-mono);
+  letter-spacing: .04em;
+  transition: background .15s, color .15s;
+}
+.segmented > button:hover:enabled { color: var(--ink); }
+.segmented > button:is([aria-pressed="true"], [aria-selected="true"]) { background: var(--brand); color: var(--paper); }
+.segmented > button:disabled { opacity: .62; }
+
+/* ---------- form fields ---------- */
+.field-label { display: block; color: var(--muted); font-size: var(--text-xs); }
+.input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  color: var(--ink);
+  font: 400 var(--text-md)/1.4 var(--font-mono);
+}
+textarea.input { resize: vertical; line-height: 1.55; }
+.input:focus-visible, .input:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.input[aria-invalid="true"] { border-color: var(--bad); }
+.input:disabled { background: var(--surface); color: var(--muted); }
+.input::placeholder { color: var(--muted); opacity: .8; }
+
+/* ---------- selectable card ---------- */
+.choice { border: 1px solid var(--field-line); border-radius: var(--radius-md); background: var(--field); color: var(--ink); transition: background .15s, border-color .15s; }
+.choice:hover:enabled { border-color: var(--ink); }
+.choice[aria-pressed="true"] { border-color: var(--accent-ink); background: var(--accent-tint); box-shadow: inset 0 0 0 1px var(--accent-ink); }
+.choice:disabled { opacity: .62; }
+
+/* ---------- status text ---------- */
+.status { margin: var(--space-3) 0 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.6; }
+.status:empty { display: none; }
+.status[data-error="true"], .status-error { color: var(--bad); }
+.status-good, .status[data-active="true"] { color: var(--good); }
+.status-dot { display: inline-flex; align-items: center; gap: 7px; }
+.status-dot::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+/* ---------- listing pages ---------- */
 .page-title { margin: 0 0 4px; font-size: var(--text-title); line-height: 1; }
 .page-sub { color: var(--muted); font-size: 0.85rem; margin: 0 0 40px; letter-spacing: 0.01em; }
 .page-heading { margin-bottom: 36px; }
@@ -114,5 +196,5 @@
   .site-head .btn { padding: 9px 13px; font-size: .6rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .btn, .btn .arrow, .entry, .entry-go { transition: none; }
+  .btn, .btn .arrow, .button, .segmented > button, .choice, .entry, .entry-go { transition: none; }
 }
