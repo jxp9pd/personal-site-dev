@@ -4,10 +4,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { buildTheme } from './build-theme.mjs';
+import { checkStyles } from './check-styles.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const sourceRoot = path.join(root, 'site');
 const outputRoot = path.join(root, 'fe-artifacts');
+const pageLayouts = ['narrow', 'default', 'wide', 'app'];
 const readSource = (file) => readFile(path.join(sourceRoot, file), 'utf8');
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -85,6 +87,7 @@ export async function buildSite({ check = false } = {}) {
     outputs.add(page.output);
     const bundle = config.assetBundles[page.assets];
     if (!bundle) throw new Error(`Unknown asset bundle: ${page.assets}`);
+    if (!pageLayouts.includes(page.layout)) throw new Error(`${page.output}: layout must be one of ${pageLayouts.join(', ')}`);
     const head = [
       '  <meta charset="utf-8" />',
       `  <meta name="viewport" content="${escapeHtml(page.viewport || 'width=device-width, initial-scale=1')}" />`,
@@ -150,7 +153,7 @@ export async function buildSite({ check = false } = {}) {
     }
     const body = render(source, { header, listing });
     const html = `${render(templates.document, {
-      htmlAttributes: attributes(page.htmlAttributes), bodyAttributes: attributes(page.bodyAttributes),
+      htmlAttributes: attributes(page.htmlAttributes), bodyAttributes: attributes({ 'data-layout': page.layout, ...page.bodyAttributes }),
       head: head.join('\n'), body,
     })}\n`;
     const destination = safePath(outputRoot, page.output);
@@ -170,6 +173,7 @@ export async function buildSite({ check = false } = {}) {
   if (unmanaged.length) throw new Error(`HTML pages missing from site/pages.json: ${unmanaged.join(', ')}`);
   if (stale.length) throw new Error(`Generated pages are stale: ${stale.join(', ')}. Run npm run build:site.`);
   console.log(`${check ? 'Verified' : 'Built'} ${pages.length} static pages.`);
+  await checkStyles();
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -4,6 +4,7 @@
     "title": "Challenge 24 — Penta Projects",
     "description": "Four numbers. Make 24.",
     "assets": "site",
+    "layout": "narrow",
     "section": "games",
     "header": {},
     "styles": [
@@ -15,7 +16,8 @@
     "output": "games/guess-the-price.html",
     "title": "Guess the Price",
     "viewport": "width=device-width, initial-scale=1, viewport-fit=cover",
-    "assets": "game",
+    "assets": "site",
+    "layout": "app",
     "bodyAttributes": {
       "class": "game-page"
     },
@@ -24,19 +26,23 @@
       "profileMount": "selectProfileMount"
     },
     "inlineStyles": "styles/games/guess-the-price.css",
-    "source": "pages/games/guess-the-price.html"
+    "source": "pages/games/guess-the-price.html",
+    "styles": [
+      "/assets/css/game-theme.css"
+    ]
   },
   {
     "output": "games/index.html",
     "title": "Games — Penta Projects",
     "description": "Games and interactive experiments from Penta Projects.",
     "assets": "site",
+    "layout": "default",
     "section": "games",
     "header": {
       "class": "reveal d1"
     },
     "listing": {
-      "class": "content",
+      "class": "page",
       "title": "Games",
       "entries": [
         {
@@ -62,7 +68,8 @@
     "output": "games/neighborhoods-quiz.html",
     "title": "Neighborhoods Quiz",
     "viewport": "width=device-width, initial-scale=1, viewport-fit=cover",
-    "assets": "game",
+    "assets": "site",
+    "layout": "app",
     "bodyAttributes": {
       "class": "game-page"
     },
@@ -72,6 +79,7 @@
     },
     "inlineStyles": "styles/games/neighborhoods-quiz.css",
     "styles": [
+      "/assets/css/game-theme.css",
       "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
     ],
     "scripts": [
@@ -86,16 +94,21 @@
     "title": "Penta Projects",
     "description": "Penta Projects — games, tools, and reports.",
     "assets": "site",
+    "layout": "default",
     "header": {
       "class": "reveal d1",
       "arrows": true
     },
-    "source": "pages/index.html"
+    "source": "pages/index.html",
+    "styles": [
+      "/assets/css/home.css"
+    ]
   },
   {
     "output": "profile.html",
     "title": "Your Profile",
-    "assets": "profile",
+    "assets": "site",
+    "layout": "default",
     "bodyAttributes": {
       "class": "profile-page"
     },
@@ -141,6 +154,7 @@
       }
     ],
     "assets": "site",
+    "layout": "wide",
     "section": "reports",
     "header": {},
     "styles": [
@@ -164,12 +178,13 @@
     "description": "Data, charts, and research from Penta Projects. Explore federal election spending from 2000 through 2024.",
     "canonical": "https://jpentakalos.com/reports/",
     "assets": "site",
+    "layout": "default",
     "section": "reports",
     "header": {
       "class": "reveal d1"
     },
     "listing": {
-      "class": "content",
+      "class": "page",
       "title": "Reports",
       "entries": [
         {
@@ -190,10 +205,13 @@
     "output": "tools/fantasy.html",
     "title": "Fantasy football — Penta Projects",
     "description": "Live Sleeper fantasy scores and Big Play alerts on the Vestaboard Note.",
-    "assets": "board",
+    "assets": "site",
+    "layout": "default",
     "section": "tools",
     "header": {},
     "styles": [
+      "/assets/css/board-tile-colors.css",
+      "/assets/css/vestaboard.css",
       "/assets/css/fantasy.css"
     ],
     "scripts": [
@@ -208,7 +226,8 @@
     "output": "tools/hand-calculator-tools.html",
     "title": "Prediction market tools",
     "viewport": "width=device-width, initial-scale=1.0",
-    "assets": "calculator",
+    "assets": "site",
+    "layout": "default",
     "section": "tools",
     "inlineStyles": "styles/tools/hand-calculator-tools.css",
     "source": "pages/tools/hand-calculator-tools.html"
@@ -218,12 +237,13 @@
     "title": "Tools — Penta Projects",
     "description": "Small, useful tools from Penta Projects.",
     "assets": "site",
+    "layout": "default",
     "section": "tools",
     "header": {
       "class": "reveal d1"
     },
     "listing": {
-      "class": "content tools-page",
+      "class": "page tools-page",
       "title": "Tools",
       "entries": [
         {
@@ -254,10 +274,13 @@
     "output": "tools/sports.html",
     "title": "Sports scores — Penta Projects",
     "description": "Follow NFL and NBA scores on John's Vestaboard Note. NBA games on Prime Video or Peacock.",
-    "assets": "board",
+    "assets": "site",
+    "layout": "default",
     "section": "tools",
     "header": {},
     "styles": [
+      "/assets/css/board-tile-colors.css",
+      "/assets/css/vestaboard.css",
       "/assets/css/sports.css"
     ],
     "scripts": [
@@ -272,10 +295,13 @@
     "output": "tools/pomodoro.html",
     "title": "Pomodoro — Penta Projects",
     "description": "A Pomodoro timer for John's Vestaboard Note.",
-    "assets": "board",
+    "assets": "site",
+    "layout": "default",
     "section": "tools",
     "header": {},
     "styles": [
+      "/assets/css/board-tile-colors.css",
+      "/assets/css/vestaboard.css",
       "/assets/css/pomodoro.css"
     ],
     "scripts": [
@@ -291,6 +317,7 @@
     "title": "Time Atlas — Penta Projects",
     "description": "Walk through San Francisco history by decade.",
     "assets": "site",
+    "layout": "app",
     "bodyAttributes": {
       "class": "atlas-body"
     },
@@ -315,6 +342,8 @@
       }
     ],
     "assets": "hub",
+    "layout": "app",
+    "styleException": "Vestaboard hub keeps its own dark board theme.",
     "htmlAttributes": {
       "data-theme": "board-hub"
     },
@@ -337,10 +366,14 @@
     "output": "tools/vestaboard.html",
     "title": "Leave a note — Penta Projects",
     "description": "Send a little note from the internet to John's Vestaboard Note.",
-    "assets": "board",
+    "assets": "site",
+    "layout": "default",
     "section": "tools",
     "header": {},
-    "styles": [],
+    "styles": [
+      "/assets/css/board-tile-colors.css",
+      "/assets/css/vestaboard.css"
+    ],
     "scripts": [
       {
         "type": "module",

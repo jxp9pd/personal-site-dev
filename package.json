@@ -5,6 +5,7 @@
   "scripts": {
     "build:site": "node scripts/build-site.mjs",
     "check:site": "node scripts/build-site.mjs --check",
+    "check:styles": "node scripts/check-styles.mjs",
     "fantasy:refresh": "python3 scripts/refresh-fantasy.py",
     "atlas:import": "node scripts/import-ohm.mjs",
     "atlas:audit": "node scripts/audit-atlas.mjs",
