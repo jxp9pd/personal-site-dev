@@ -90,7 +90,13 @@
     "tile-ink": "#f7f5e8",
     "tile-seam": "rgba(17,17,17,.6)",
     "card-red": "#b13e34",
-    "accent-tint": "rgba(34,184,255,.08)"
+    "accent-tint": "rgba(34,184,255,.08)",
+    "party-dem": "#2870b8",
+    "party-rep": "#d35b59",
+    "map-land": "#ddd8ce",
+    "map-zone": "#4f746c",
+    "map-landmark": "#b85c38",
+    "panel-glass": "rgba(255,252,245,.94)"
   },
   "variants": {
     "board-hub": {

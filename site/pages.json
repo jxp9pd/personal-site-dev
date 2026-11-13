@@ -14,7 +14,7 @@
   },
   {
     "output": "games/guess-the-price.html",
-    "title": "Guess the Price",
+    "title": "Guess the Price — Penta Projects",
     "viewport": "width=device-width, initial-scale=1, viewport-fit=cover",
     "assets": "site",
     "layout": "app",
@@ -25,10 +25,10 @@
     "header": {
       "profileMount": "selectProfileMount"
     },
-    "inlineStyles": "styles/games/guess-the-price.css",
     "source": "pages/games/guess-the-price.html",
     "styles": [
-      "/assets/css/game-theme.css"
+      "/assets/css/game-theme.css",
+      "/assets/css/guess-the-price.css"
     ]
   },
   {
@@ -66,7 +66,7 @@
   },
   {
     "output": "games/neighborhoods-quiz.html",
-    "title": "Neighborhoods Quiz",
+    "title": "Neighborhoods Quiz — Penta Projects",
     "viewport": "width=device-width, initial-scale=1, viewport-fit=cover",
     "assets": "site",
     "layout": "app",
@@ -77,10 +77,10 @@
     "header": {
       "profileMount": "selectProfileMount"
     },
-    "inlineStyles": "styles/games/neighborhoods-quiz.css",
     "styles": [
       "/assets/css/game-theme.css",
-      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css",
+      "/assets/css/neighborhoods-quiz.css"
     ],
     "scripts": [
       {
@@ -106,17 +106,14 @@
   },
   {
     "output": "profile.html",
-    "title": "Your Profile",
+    "title": "Your Profile — Penta Projects",
     "assets": "site",
     "layout": "default",
-    "bodyAttributes": {
-      "class": "profile-page"
-    },
-    "header": {
-      "variant": "profile"
-    },
-    "inlineStyles": "styles/profile.css",
-    "source": "pages/profile.html"
+    "header": {},
+    "source": "pages/profile.html",
+    "styles": [
+      "/assets/css/profile.css"
+    ]
   },
   {
     "output": "reports/election-spending/index.html",
@@ -224,13 +221,17 @@
   },
   {
     "output": "tools/hand-calculator-tools.html",
-    "title": "Prediction market tools",
+    "title": "Prediction market tools — Penta Projects",
     "viewport": "width=device-width, initial-scale=1.0",
     "assets": "site",
     "layout": "default",
     "section": "tools",
-    "inlineStyles": "styles/tools/hand-calculator-tools.css",
-    "source": "pages/tools/hand-calculator-tools.html"
+    "source": "pages/tools/hand-calculator-tools.html",
+    "description": "ROI and no-vig odds calculators for prediction markets.",
+    "header": {},
+    "styles": [
+      "/assets/css/hand-calculator-tools.css"
+    ]
   },
   {
     "output": "tools/index.html",
@@ -263,8 +264,8 @@
         },
         {
           "href": "/tools/hand-calculator-tools.html",
-          "title": "Hand Calculator Tools",
-          "description": "Prediction market calculator"
+          "title": "Prediction Market Tools",
+          "description": "ROI and no-vig odds calculators"
         }
       ]
     },

@@ -1,0 +1,38 @@
+/* Prediction market calculator: metric grid and tooltips. Controls come from components.css. */
+.calc-tabs { margin-bottom: var(--space-5); }
+.calc-card { padding: var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--field); }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-5); }
+.calc-card .field-label { margin-bottom: 6px; }
+.calc-card .segmented { margin-bottom: var(--space-2); }
+.section-label { margin: var(--space-4) 0 var(--space-2); color: var(--muted); font-size: var(--text-2xs); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+.metrics-3 { grid-template-columns: repeat(3, 1fr); }
+.metric { padding: var(--space-3) 14px; border-radius: var(--radius-md); background: var(--surface); }
+.metric-label { margin-bottom: 4px; color: var(--muted); font-size: var(--text-xs); }
+.metric-label[data-tooltip] { position: relative; display: inline-block; border-bottom: 1px dashed var(--muted); cursor: help; }
+.metric-label[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: 10;
+  width: max-content;
+  max-width: 220px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: var(--text-2xs);
+  line-height: 1.4;
+  white-space: pre-line;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.metric-value { font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
+.metric-value .pct { color: var(--muted); font-size: var(--text-sm); }
+.error { display: none; margin-top: var(--space-3); padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface); color: var(--bad); font-size: var(--text-sm); }
+.view { display: none; }
+.view.active { display: block; }
+@media (max-width: 560px) {
+  .grid-2, .metrics-3 { grid-template-columns: 1fr; }
+}

@@ -126,7 +126,7 @@ export async function buildSite({ check = false } = {}) {
     let header = '';
     if (page.header) {
       const variant = page.header.variant || 'header';
-      if (!['header', 'hub', 'profile'].includes(variant)) throw new Error(`Unknown header: ${variant}`);
+      if (!['header', 'hub'].includes(variant)) throw new Error(`Unknown header: ${variant}`);
       header = render(templates[variant === 'header' ? 'header' : `${variant}-header`], {
         ...shared,
         class: page.header.class ? ` ${escapeHtml(page.header.class)}` : '',

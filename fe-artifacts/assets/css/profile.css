@@ -1,0 +1,45 @@
+/* Profile page: person block, records/log tables and bio form. Shell, tabs and controls come from components.css. */
+.profile-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.profile-card { padding: 28px var(--space-5) 36px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--paper); box-shadow: var(--shadow-card); }
+.profile-card a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); }
+.profile-card a:hover { border-bottom-color: var(--ink); }
+.person { display: flex; align-items: center; gap: var(--space-4); margin-bottom: 26px; }
+.avatar { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: var(--radius-pill); object-fit: cover; color: var(--paper); font: 500 var(--text-xl) var(--font-mono); }
+.who { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.who .uname { color: var(--ink); font: 400 26px var(--font-display); letter-spacing: .01em; }
+.who .meta { color: var(--muted); font-size: var(--text-xs); }
+.bio-public { margin: -8px 0 26px; color: var(--ink-dim); font-size: var(--text-sm); line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+.tabs { margin-bottom: var(--space-5); }
+.sections { display: flex; flex-direction: column; gap: 36px; }
+.sec-label { margin-bottom: var(--space-2); color: var(--muted-strong); font-size: var(--text-2xs); font-weight: 500; letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+.grid { width: 100%; border-collapse: collapse; }
+.grid th { padding: var(--space-2) var(--space-3); color: var(--muted-strong); font-size: var(--text-2xs); font-weight: 500; letter-spacing: .1em; text-align: left; text-transform: uppercase; }
+.grid th.num, .grid td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.grid td { border-top: 1px solid var(--line); }
+.rec td { padding: var(--space-4) var(--space-3); font-size: var(--text-md); }
+.rec .game { color: var(--ink); font-weight: 500; }
+.rec .attempts { color: var(--ink-dim); }
+.rec .best, .rec .avg { color: var(--good); font-weight: 500; }
+.rec td.act { text-align: right; }
+.act-pill { padding: 6px 14px; border: 1px solid var(--line-strong); border-radius: var(--radius-pill); background: transparent; color: var(--muted); font-size: var(--text-2xs); font-weight: 500; letter-spacing: .1em; text-transform: uppercase; }
+button.act-pill { transition: color .2s, border-color .2s; }
+button.act-pill:hover { border-color: var(--ink); color: var(--ink); }
+.log td { padding: 14px var(--space-3); font-size: var(--text-sm); }
+.log .game, .log .score { color: var(--ink); }
+.log .score { font-weight: 500; }
+.log .mode, .log .date { color: var(--muted); }
+.pager { display: flex; align-items: center; gap: 14px; margin-top: var(--space-4); }
+.pager .info { color: var(--muted); font-size: var(--text-xs); }
+.pager .button { min-height: 36px; padding: 6px 14px; font-size: var(--text-xs); }
+.form { display: flex; flex-direction: column; gap: 20px; max-width: 520px; }
+.form .row { display: flex; flex-direction: column; gap: 7px; }
+.form textarea { min-height: 78px; }
+.hint { color: var(--muted-strong); font-size: var(--text-xs); }
+.actions { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.note { color: var(--muted); font-size: var(--text-xs); }
+.note.ok { color: var(--good); }
+.note.err { color: var(--bad); }
+.msg { padding: 32px 8px; color: var(--muted); text-align: center; }
+.msg h2 { margin: 0 0 8px; color: var(--ink); font-size: 26px; }
+.msg p { margin: 0 0 20px; }
+@media (max-width: 560px) { .profile-card { padding: var(--space-5) var(--space-4) 28px; } }

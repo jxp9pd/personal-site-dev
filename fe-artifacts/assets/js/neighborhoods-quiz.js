@@ -156,7 +156,7 @@ function boot(quiz) {
 
   function setMode(m) {
     mode = m;
-    document.querySelectorAll('#modeTabs button').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+    document.querySelectorAll('#modeTabs button').forEach(b => { b.classList.toggle('active', b.dataset.mode === m); b.setAttribute('aria-pressed', String(b.dataset.mode === m)); });
     updateLbBtn();
     startRound();
   }
