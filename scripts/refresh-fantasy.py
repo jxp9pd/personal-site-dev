@@ -17,24 +17,22 @@ from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'services' / 'vestaboard'))
-from board import cloud_tls_context, environment_value
+from board import cloud_tls_context
 from fantasy import SleeperSource, SourceError, league_settings, saved_dashboard
 from fantasy_store import FantasyStore, StorageUnavailable
 from fantasy_weeks import ConcurrentRefresh, FantasyWeekStore
+from supabase_rest import SupabaseClient
 
 FIELDS = ('season', 'week', 'slot', 'league_id', 'league_url', 'username', 'label', 'league_name',
           'your_roster_id', 'your_team', 'your_points', 'opponent_roster_id', 'opponent_team',
           'opponent_points', 'starters', 'win_chance')
 
 
-def credentials(env_file=None):
+def credentials(env_file=None, opener=urlopen):
     """Use existing server settings, or fetch a CLI key in memory without logging it."""
-    url = environment_value('SUPABASE_URL', env_file)
-    key = environment_value('SUPABASE_SERVICE_ROLE_KEY', env_file)
-    if url or key:
-        if not url or not key:
-            raise ValueError('Configure both Supabase environment settings together.')
-        return url, key
+    client = SupabaseClient.from_environment(env_file, opener)
+    if client:
+        return client
     ref_file = ROOT / 'supabase' / '.temp' / 'project-ref'
     ref = ref_file.read_text().strip() if ref_file.exists() else ''
     cli = shutil.which('supabase')
@@ -51,7 +49,7 @@ def credentials(env_file=None):
             raise ValueError()
     except (ValueError, KeyError, TypeError, StopIteration):
         raise ValueError('Could not obtain a Supabase service key. Check supabase login and the linked project.') from None
-    return 'https://' + ref + '.supabase.co', key
+    return SupabaseClient('https://' + ref + '.supabase.co', key, opener)
 
 
 def csv_rows(snapshot):
@@ -174,8 +172,8 @@ def main(argv=None):
     if args.season and not re.fullmatch(r'[0-9]{4}', args.season):
         parser.error('--season must contain four digits.')
     opener = partial(urlopen, context=cloud_tls_context())
-    url, key = credentials(args.env_file)
-    store = FantasyWeekStore(url, key, opener)
+    client = credentials(args.env_file, opener)
+    store = FantasyWeekStore(client)
     if args.restore_backup:
         with args.restore_backup.open(encoding='utf-8') as handle:
             backup = json.load(handle)
@@ -199,7 +197,7 @@ def main(argv=None):
     before = store.load(season, week)
     if args.verify_rebuild and before is None:
         raise ValueError('No archived data exists for this week. Run a regular refresh first, then verify the rebuild.')
-    settings = before or FantasyStore(url, key, opener).load()
+    settings = before or FantasyStore(client).load()
     if settings is None:
         raise ValueError('Save the dashboard’s league settings before refreshing a week.')
     output = args.output_dir or ROOT / 'data' / 'fantasy-runs' / (season + '-week-' + str(week).zfill(2)) / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')

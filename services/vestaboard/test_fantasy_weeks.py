@@ -10,6 +10,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from fantasy import DEFAULT_LEAGUES, SourceError, league_settings
 from fantasy_weeks import ConcurrentRefresh, FantasyWeekStore
+from supabase_rest import SupabaseClient
 from test_helpers import Response, matchup
 
 path = Path(__file__).resolve().parents[2] / 'scripts' / 'refresh-fantasy.py'
@@ -50,7 +51,7 @@ class WeeklyDatabase:
 class WeeklyRefreshTest(unittest.TestCase):
     def setUp(self):
         self.database = WeeklyDatabase()
-        self.store = FantasyWeekStore('https://example.supabase.co', 'secret', self.database)
+        self.store = FantasyWeekStore(SupabaseClient('https://example.supabase.co', 'secret', self.database))
         self.source = Mock()
         self.source.matchup.side_effect = lambda config, state: dict(matchup(), week=state['week'], season=state['season'])
         self.leagues = league_settings(DEFAULT_LEAGUES)

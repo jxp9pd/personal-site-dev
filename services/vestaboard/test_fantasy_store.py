@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlsplit
 from apps import BoardController
 from fantasy import DEFAULT_LEAGUES, Fantasy, SourceError, league_settings
 from fantasy_store import FantasyStore, StorageUnavailable
+from supabase_rest import SupabaseClient
 from test_helpers import AppTestCase, Response, background_task, matchup
 
 
@@ -43,7 +44,7 @@ class StoreTransportTest(unittest.TestCase):
     def test_credentials_timeouts_initialization_and_version_guard(self):
         database = Database()
         upstream = Mock(side_effect=database)
-        store = FantasyStore('https://example.supabase.co', 'sb_secret_test', upstream)
+        store = FantasyStore(SupabaseClient('https://example.supabase.co', 'sb_secret_test', upstream))
         original = store.save_settings(league_settings(DEFAULT_LEAGUES), initialize=True)
         self.assertEqual(store.load(), original)
         changed = [dict(league, username='another') for league in DEFAULT_LEAGUES]
@@ -63,7 +64,7 @@ class StoreTransportTest(unittest.TestCase):
         failures = [OSError('secret'), HTTPError('https://example.supabase.co', 401, 'secret', {}, io.BytesIO(b'secret'))]
         for failure in failures:
             opener = Mock(side_effect=failure)
-            store = FantasyStore('https://example.supabase.co', 'eyJsecret', opener)
+            store = FantasyStore(SupabaseClient('https://example.supabase.co', 'eyJsecret', opener))
             with self.assertRaises(StorageUnavailable) as error:
                 store.load()
             self.assertNotIn('secret', str(error.exception))
@@ -71,25 +72,25 @@ class StoreTransportTest(unittest.TestCase):
             self.assertEqual(opener.call_args.args[0].get_header('Authorization'), 'Bearer eyJsecret')
         for raw in (b'not JSON', b'{}', b'[null]', b'[{}, {}]', b' ' * 256_001):
             with self.subTest(raw=raw[:12]):
-                store = FantasyStore('https://example.supabase.co', 'secret', Mock(return_value=Response(raw)))
+                store = FantasyStore(SupabaseClient('https://example.supabase.co', 'secret', Mock(return_value=Response(raw))))
                 with self.assertRaises(StorageUnavailable):
                     store.load()
 
     def test_environment_is_optional_but_never_partially_configured(self):
         with patch.dict(os.environ, {}, clear=True):
-            self.assertIsNone(FantasyStore.from_environment())
+            self.assertIsNone(SupabaseClient.from_environment())
             with patch.dict(os.environ, {'SUPABASE_URL': 'https://example.supabase.co'}):
                 with self.assertRaises(ValueError):
-                    FantasyStore.from_environment()
+                    SupabaseClient.from_environment()
                 with patch.dict(os.environ, {'SUPABASE_SERVICE_ROLE_KEY': 'secret'}):
-                    self.assertIsInstance(FantasyStore.from_environment(), FantasyStore)
+                    self.assertIsInstance(SupabaseClient.from_environment(), SupabaseClient)
 
 
 class PersistenceTest(AppTestCase):
     def setUp(self):
         super().setUp()
         self.database = Database()
-        self.store = FantasyStore('https://example.supabase.co', 'secret', self.database)
+        self.store = FantasyStore(SupabaseClient('https://example.supabase.co', 'secret', self.database))
         self.app = self.new_app()
 
     def new_app(self):
@@ -121,12 +122,12 @@ class PersistenceTest(AppTestCase):
         self.store.save_settings(league_settings(DEFAULT_LEAGUES))
         original = deepcopy(self.database.row)
         self.source.state.reset_mock()
-        self.store.opener = Mock(side_effect=OSError('offline'))
+        self.store.client.opener = Mock(side_effect=OSError('offline'))
         self.app.tick()
         self.assertFalse(self.app.status()['storage']['ready'])
         self.assertEqual(self.app.command({'action': 'preview', 'leagues': DEFAULT_LEAGUES})[0], 503)
         self.source.state.assert_not_called()
-        self.store.opener = self.database
+        self.store.client.opener = self.database
         self.database.row['matchups'] = [{'you': {'points': 'broken'}}, None]
         self.now = 15
         self.app.tick()
@@ -144,12 +145,12 @@ class PersistenceTest(AppTestCase):
         def timeout_after_commit(request, **kwargs):
             self.database(request, **kwargs)
             raise OSError('connection lost after commit')
-        self.store.opener = timeout_after_commit
+        self.store.client.opener = timeout_after_commit
         self.assertEqual(self.app.command({'action': 'start', 'leagues': changed})[0], 503)
         self.assertEqual(self.app.status()['leagues'], before)
         self.assertIsNone(self.app.controller.owner)
         self.gateway.send.assert_not_called()
-        self.store.opener = self.database
+        self.store.client.opener = self.database
         self.now = 15
         self.app.tick()
         self.assertEqual(self.app.status()['leagues'][0]['username'], 'another')
@@ -159,15 +160,15 @@ class PersistenceTest(AppTestCase):
     def test_score_save_retries_and_stop_remains_available_during_outage(self):
         self.app.tick()
         self.app.command({'action': 'start', 'leagues': DEFAULT_LEAGUES})
-        self.store.opener = Mock(side_effect=OSError('offline'))
+        self.store.client.opener = Mock(side_effect=OSError('offline'))
         self.app.tick()
         self.assertIn('could not be saved', self.app.status()['storage']['error'])
         self.assertEqual(self.app.status()['leagues'][0]['matchup']['you']['points'], 123.45)
         attempts = self.gateway.send.call_count
         self.app.tick()
-        self.assertEqual(self.store.opener.call_count, 1)
+        self.assertEqual(self.store.client.opener.call_count, 1)
         self.assertEqual(self.app.command({'action': 'stop'})[0], 200)
-        self.store.opener = self.database
+        self.store.client.opener = self.database
         self.now = 15
         self.app.tick()
         self.assertEqual(self.database.row['matchups'][0]['you']['points'], 123.45)
@@ -183,7 +184,7 @@ class PersistenceTest(AppTestCase):
                 if not release.wait(2):
                     raise AssertionError('Snapshot was not released')
             return self.database(request, **kwargs)
-        self.store.opener = delay_patch
+        self.store.client.opener = delay_patch
         self.now = 60
         self.app.status()
         self.app._refresh()
