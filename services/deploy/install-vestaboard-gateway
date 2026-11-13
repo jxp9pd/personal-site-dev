@@ -1,0 +1,9 @@
+#!/bin/bash
+# Root-owned entry point the deploy user may run through sudo (no arguments).
+set -euo pipefail
+repo=/var/www/personal-site-dev
+rev=$(git -c safe.directory="$repo" -C "$repo" rev-parse HEAD)
+bash "$repo/services/vestaboard/install.sh"
+install -d -m 755 /var/lib/vestaboard-note
+printf '%s\n' "$rev" > /var/lib/vestaboard-note/installed-rev
+echo "gateway installed ${rev:0:7}"

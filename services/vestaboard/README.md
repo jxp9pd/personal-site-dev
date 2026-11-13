@@ -366,15 +366,23 @@ uses decorative previews only; it never calls the gateway.
 
 ## Production install / update
 
-GitHub Actions publishes `fe-artifacts/` on pushes to `main`. Gateway changes
-also require running this on the Hetzner VM after deploying the repository:
+Pushes to `main` trigger the Deploy workflow, which runs the `deploy` user's
+forced SSH command, `services/deploy/deploy-site.sh`. It resets the server
+checkout to `origin/main`. If anything under `services/vestaboard/` other than
+tests or this README changed since the last successful install, it then runs
+`install.sh` through a root-owned wrapper that `deploy` may call with sudo.
+Those deploys restart the gateway, which ends any running Pomodoro or tracking
+session. A failed install fails the workflow and is retried on the next deploy.
+Install or update the hook itself once, as root:
 
 ```sh
-sudo bash /var/www/personal-site-dev/services/vestaboard/install.sh
+sudo bash /var/www/personal-site-dev/scripts/install-deploy-hook.sh
 ```
 
-The script installs into `/opt/vestaboard-note`, updates systemd/nginx, validates
-nginx, and restarts the gateway. It preserves both private environment files and saves
+To reinstall the gateway by hand, run
+`sudo /usr/local/sbin/install-vestaboard-gateway`. The script installs into `/opt/vestaboard-note`, updates systemd/nginx, validates
+nginx, and restarts the gateway. It removes modules deleted from the repository,
+preserves both private environment files, and saves
 the original nginx config at `/etc/nginx/site.conf.before-vestaboard` on first
 install. Missing credentials leave sending disabled.
 
