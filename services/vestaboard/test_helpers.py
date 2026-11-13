@@ -60,7 +60,7 @@ def matchup(points=123.45, starters=None):
     return {'week': 5, 'season': '2026', 'leagueName': 'League',
             'you': {'rosterId': 1, 'name': 'Your team', 'points': points},
             'opponent': {'rosterId': 2, 'name': 'Their team', 'points': 119.4},
-            'starters': starters or ['receiver', 'runner'], 'winChance': None}
+            'starters': starters or ['receiver', 'runner']}
 
 
 def play(play_id='one', timestamp=1001, yards=30, kind='PassCompleted', td=False, player_id='receiver'):

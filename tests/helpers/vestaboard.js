@@ -44,13 +44,13 @@ export const fantasyState = (overrides = {}) => ({
   leagues: [
     { url: 'https://sleeper.com/leagues/1399168246661296128', username: 'pentakalos', label: 'TD', error: null,
       matchup: { leagueName: 'Show Me Your TDs', you: { name: 'Bite me', points: 123.45 },
-        opponent: { name: 'Opponent one', points: 119.4 }, starters: ['1'], winChance: null } },
+        opponent: { name: 'Opponent one', points: 119.4 }, starters: ['1'] } },
     { url: 'https://sleeper.com/leagues/1389707496347697152', username: 'pentakalos', label: 'SH', error: null,
       matchup: { leagueName: 'Shmeed League', you: { name: 'Ladd & the Lads', points: 98.6 },
-        opponent: { name: 'Opponent two', points: 101.2 }, starters: ['2'], winChance: null } },
+        opponent: { name: 'Opponent two', points: 101.2 }, starters: ['2'] } },
   ],
   characters: layoutMessage('TD 123 - 119\nSH 99 - 101').characters,
-  source: { lastCheckedAt: '2026-10-09T03:00:00+00:00', playError: null, winChanceAvailable: false },
+  source: { lastCheckedAt: '2026-10-09T03:00:00+00:00', playError: null },
   alert: null, queuedAlerts: 0, alertSecondsRemaining: null, delivery: { status: 'idle' }, ...overrides,
 });
 

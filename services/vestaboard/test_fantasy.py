@@ -136,7 +136,7 @@ class SourceTest(unittest.TestCase):
         self.assertEqual(result['you']['points'], 123.45)
         self.assertEqual(result['opponent']['name'], 'Opponent')
         self.assertEqual(result['starters'], ['receiver'])
-        self.assertIsNone(result['winChance'])
+        self.assertNotIn('winChance', result)
         self.data['v1/league/123/matchups/5'][0]['custom_points'] = 0
         self.assertEqual(self.source.matchup(self.config, STATE)['you']['points'], 0)
 

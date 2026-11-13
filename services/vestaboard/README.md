@@ -16,9 +16,9 @@ Fantasy settings/matchups; there are no npm production dependencies.
 ## Shared behavior
 
 - **UI commands take precedence.** Sending a note, using a Pomodoro control,
-  tracking an NFL game, or starting Fantasy silently stops every other app and
+  tracking an NFL or NBA game, or starting Fantasy silently stops every other app and
   cancels its queued displays. Displaced apps stay stopped until restarted.
-- Previews, status reads, invalid commands, and NFL/Fantasy Stop do not take
+- Previews, status reads, invalid commands, and Sports/Fantasy Stop do not take
   ownership. Notes rejected for validation, missing credentials, or rate limits
   also leave ownership unchanged. An ambiguous note failure stops other apps
   because the note may have reached the board.
@@ -64,18 +64,23 @@ between status polls.
   that phase. Explicit Stop writes “TIMER STOPPED”; completion writes “ALL DONE.”
   Another app taking ownership stops the timer silently.
 
-### NFL scores
+### Sports scores (NFL and NBA)
 
 Select a game to preview it, then **Track game** to start or switch tracking.
 Upcoming and live games are trackable; finished games remain previewable.
-ESPN's public feed supplies the current week, which rolls over automatically.
+Choose NFL or NBA on the page; each league is its own app, so tracking one
+stops the other. ESPN's public scoreboard supplies the current NFL week or NBA
+day, which rolls over automatically.
+
+- NBA lists only games broadcast nationally on Prime Video or Peacock. NBA
+  frames have no possession tile.
 
 - Away team appears left, home team right, with scores and an orange possession
   tile. Missing possession stays blank; quarter and clock are omitted.
   Upcoming games show `--` scores and Pacific kickoff time. The website picker
   uses the visitor's local time zone. Halftime/delays/suspensions show a status.
 - Polls every three minutes and writes only changed frames. A selected game
-  that leaves the week's feed is fetched by its Eastern game-day date.
+  that leaves the current feed is fetched by its Eastern game-day date.
 - Final, canceled, and postponed games queue their last display and end
   tracking. **Stop tracking** cancels pending writes and leaves the board alone.
 - Feed failures retain the last data, show a warning, and retry after 30 seconds.
@@ -257,7 +262,7 @@ npm run preview:gateway
 This runs `VESTABOARD_API_TOKEN='' python3 services/vestaboard/server.py --preview fe-artifacts --port 8000`.
 
 Open [the hub](http://127.0.0.1:8000/tools/vestaboard/) or any app's usual
-`/tools/*.html` path. Note and Fantasy previews and NFL browsing work without
+`/tools/*.html` path. Note and Fantasy previews and sports browsing work without
 a token; starting background sessions requires one. Sports previews use real
 feeds. The server serves only `fe-artifacts/`.
 
@@ -312,11 +317,11 @@ an object such as `{"action":"stop"}`.
 | `status` | Gateway configuration and cooldown | — |
 | `messages` | — | `{"characters":[[…],[…],[…]],"message":"Original text"}` |
 | `pomodoro` | Session, preview, delivery | `{"action":"start","focusMinutes":25,"breakMinutes":5}`; or `pause`, `resume`, `stop` |
-| `nfl` | Games, selection, previews, source/delivery status | `{"action":"track","gameId":"…"}`; or `stop` |
+| `nfl`, `nba` | Games, selection, previews, source/delivery status | `{"action":"track","gameId":"…"}`; or `stop` |
 | `fantasy` | Leagues, matchups, preview, alerts, source/delivery status | `{"action":"start","leagues":[…]}`; or `preview` with leagues, or `stop` |
 
-Each Fantasy league object contains `url`, `username`, and `label`. NFL IDs must
-come from the current game list. Clients cannot supply scores, fetch destinations,
+Each Fantasy league object contains `url`, `username`, and `label`. Game IDs must
+come from the league's current game list. Clients cannot supply scores, fetch destinations,
 or credentials. App commands schedule asynchronous work; poll status for source
 and delivery results. Status reads use cached data and may request a background
 sports refresh without writing to the board.
@@ -344,16 +349,19 @@ To add a background app:
    `self._attempt(revision, key, characters)` outside the app state lock.
    Never call `gateway.send` directly from a feature.
 5. Add the app to the `apps` table in `server.main()`; `install.sh` copies
-   every non-test module. Add its page
-   to `fe-artifacts/tools/vestaboard/index.html` and link back to the hub.
+   every non-test module. Register its page
+   in `site/pages.json`, add a card to `site/pages/tools/vestaboard/index.html`,
+   link back to the hub, and run `npm run build:site`. Never edit generated
+   HTML under `fe-artifacts/` directly.
 
 Acquire the controller lock before app state locks; never call the controller
 while holding an app state lock. Keep sports I/O outside the controller lock.
 This lets new apps inherit precedence without pairwise stop logic.
 
 Frontend helpers in `fe-artifacts/assets/js/` share gateway requests
-(`vestaboard-api.js`), tile rendering (`vestaboard-preview.js`), and text layout
-(`vestaboard-layout.js`). Page controllers own their forms and feedback. The hub
+(`vestaboard-api.js`), polling and command reconciliation
+(`vestaboard-session.js`), page feedback and frame checks (`vestaboard-page.js`),
+tile rendering (`vestaboard-preview.js`), and text layout (`vestaboard-layout.js`). Page controllers own their forms and feedback. The hub
 uses decorative previews only; it never calls the gateway.
 
 ## Production install / update

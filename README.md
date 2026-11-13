@@ -40,9 +40,9 @@ Open <http://127.0.0.1:8000/>. After changing templates, theme data, CSS, or Jav
 
 ## Shared behavior
 
-`vestaboard-session.js` owns polling, connection and busy state, stale-response protection, and reconciliation after commands for Pomodoro, NFL, and Fantasy. Each app keeps its validation, rendering, and command payloads. Failed commands are reconciled with a status read and are never automatically repeated.
+`vestaboard-session.js` owns polling, connection and busy state, stale-response protection, and reconciliation after commands for Pomodoro, Sports, and Fantasy. Each app keeps its validation, rendering, and command payloads. Failed commands are reconciled with a status read and are never automatically repeated.
 
-The board API client, message layout, and preview renderer are separate shared modules. The note composer retains its own send/cooldown lifecycle.
+The board API client, message layout, preview renderer, and page helpers (`vestaboard-page.js`) are separate shared modules. The note composer retains its own send/cooldown lifecycle.
 
 ## Publishing
 
