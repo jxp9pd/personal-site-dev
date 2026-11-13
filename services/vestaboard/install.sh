@@ -3,6 +3,11 @@
 set -euo pipefail
 cd -- "$(dirname -- "$0")"
 install -d -m 755 /opt/vestaboard-note
+shopt -s nullglob
+# Drop modules deleted from the repository so stale code cannot be imported.
+for installed in /opt/vestaboard-note/*.py; do
+    [[ -f ${installed##*/} ]] || rm -f -- "$installed"
+done
 for module in *.py; do
     [[ $module == test_* ]] || install -m 644 "$module" /opt/vestaboard-note/
 done
