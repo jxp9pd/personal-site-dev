@@ -173,7 +173,7 @@ export async function buildSite({ check = false } = {}) {
   if (unmanaged.length) throw new Error(`HTML pages missing from site/pages.json: ${unmanaged.join(', ')}`);
   if (stale.length) throw new Error(`Generated pages are stale: ${stale.join(', ')}. Run npm run build:site.`);
   console.log(`${check ? 'Verified' : 'Built'} ${pages.length} static pages.`);
-  await checkStyles();
+  await checkStyles({ strict: true });
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

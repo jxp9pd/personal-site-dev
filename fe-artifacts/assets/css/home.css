@@ -14,3 +14,5 @@
   color: var(--ink);
 }
 .blurb .dim { color: var(--muted); }
+.hero-inner { width: 100%; max-width: var(--width-default); }
+.home-links { margin-top: var(--space-7); }

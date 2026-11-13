@@ -47,9 +47,27 @@ Every page except the Vestaboard hub loads the `site` bundle, in this order:
 | Tokens | `assets/tokens.css` (generated from `site/theme.json`) | Colors, fonts, spacing, radii, type sizes, widths, shadows |
 | Base | `assets/base.css` | Reset, document, headings, links, form inheritance, focus ring, `.reveal` |
 | Layout | `assets/layout.css` | `<main class="page">` sized by the page's `layout` |
-| Components | `assets/components.css` | Site header, `.btn`, back link, page title, entry list |
+| Components | `assets/components.css` | Site header, `.page-header`, `.back-link`, `.btn` (nav pill), `.button` (+ `-primary`, `-lg`, `-quiet`), `.segmented`, `.field-label`, `.input`, `.choice`, `.status`, listing entries |
 
-Each page in `site/pages.json` sets `layout` to `narrow` (440px), `default` (860px), `wide` (1200px), or `app` (full-bleed), and lists only its own CSS in `styles`. Page CSS should use tokens and tune components through their custom properties instead of redefining them. `npm run check:styles` lists hard-coded colors, page-level `html`/`body`/`*`/`:root` rules, inline page styles, non-shared bundles, and off-pattern titles; `build:site` prints the count. A page that intentionally keeps its own look sets `styleException` with a reason.
+Each page in `site/pages.json` sets `layout` to `narrow` (368px), `default` (740px), `wide` (1200px), or `app` (full-bleed), and lists only its own CSS in `styles`. Page CSS should use tokens and tune components through their custom properties instead of redefining them. `npm run check:styles` lists hard-coded colors, page-level `html`/`body`/`*`/`:root` rules, inline page styles, non-shared bundles, and off-pattern titles; `build:site` and `check:site` fail if any are found. A page that intentionally keeps its own look sets `styleException` with a reason.
+
+
+### Adding a page
+
+1. Write the body in `site/pages/<section>/<name>.html`. Start it with `{{header}}`, then:
+   ```html
+   <main class="page">
+     <div class="page-header">
+       <a class="back-link" href="/tools">…Tools</a>
+       <h1>Page <em>title</em></h1>
+     </div>
+     …
+   </main>
+   ```
+2. Add an entry to `site/pages.json` with `output`, `source`, `title` ending in ` — Penta Projects`, `description`, `assets: "site"`, `layout`, `section`, and `header: {}`. Add it to its section's `listing` to show it on the index.
+3. Build controls from the shared classes: `button button-primary` for the main action, `button` for secondary ones, `segmented` with `aria-pressed`/`aria-selected` buttons for toggles and tabs, `field-label` + `input` for fields, and `status` for messages.
+4. Only if the page needs something unique (a board, map, chart), add `fe-artifacts/assets/css/<name>.css` and list it in `styles`. Use tokens (`var(--accent-ink)`, `var(--space-4)`, `var(--radius-md)`, …); add new colors to `site/theme.json` instead of writing them inline.
+5. Run `npm run build:site`, then preview from `fe-artifacts/`.
 
 ## Shared behavior
 
