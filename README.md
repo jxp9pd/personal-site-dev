@@ -11,7 +11,7 @@ The site is served from `fe-artifacts/`. A small Node build renders shared HTML 
 | Page content | `site/pages/` |
 | Shared document, headers, navigation links, listing entries | `site/templates/` |
 | Page styles embedded in generated HTML | `site/styles/` |
-| Colors, fonts, theme variants, board tile colors | `site/theme.json` |
+| Colors, fonts, spacing/radius/type scales, theme variants, board tile colors | `site/theme.json` |
 | Shared and application styles | `fe-artifacts/assets/`, plus report-specific CSS |
 | Application behavior | `fe-artifacts/assets/js/` |
 
@@ -37,6 +37,19 @@ python3 -m http.server 8000 --bind 127.0.0.1 --directory fe-artifacts
 ```
 
 Open <http://127.0.0.1:8000/>. After changing templates, theme data, CSS, or JavaScript, run `npm run build:site` and reload the browser. The build updates asset hashes so shared changes reach returning visitors.
+
+## Styling
+
+Every page except the Vestaboard hub loads the `site` bundle, in this order:
+
+| Layer | File | Owns |
+| --- | --- | --- |
+| Tokens | `assets/tokens.css` (generated from `site/theme.json`) | Colors, fonts, spacing, radii, type sizes, widths, shadows |
+| Base | `assets/base.css` | Reset, document, headings, links, form inheritance, focus ring, `.reveal` |
+| Layout | `assets/layout.css` | `<main class="page">` sized by the page's `layout` |
+| Components | `assets/components.css` | Site header, `.btn`, back link, page title, entry list |
+
+Each page in `site/pages.json` sets `layout` to `narrow` (440px), `default` (860px), `wide` (1200px), or `app` (full-bleed), and lists only its own CSS in `styles`. Page CSS should use tokens and tune components through their custom properties instead of redefining them. `npm run check:styles` lists hard-coded colors, page-level `html`/`body`/`*`/`:root` rules, inline page styles, non-shared bundles, and off-pattern titles; `build:site` prints the count. A page that intentionally keeps its own look sets `styleException` with a reason.
 
 ## Shared behavior
 

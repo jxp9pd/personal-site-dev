@@ -25,23 +25,9 @@
       "fonts": "site",
       "styles": [
         "/assets/tokens.css",
-        "/assets/site-components.css",
-        "/assets/site.css"
-      ]
-    },
-    "game": {
-      "fonts": "site",
-      "styles": [
-        "/assets/tokens.css",
-        "/assets/site-components.css",
-        "/assets/css/game-theme.css"
-      ]
-    },
-    "profile": {
-      "fonts": "site",
-      "styles": [
-        "/assets/tokens.css",
-        "/assets/site-components.css"
+        "/assets/base.css",
+        "/assets/layout.css",
+        "/assets/components.css"
       ]
     },
     "hub": {
@@ -49,19 +35,6 @@
       "styles": [
         "/assets/tokens.css",
         "/assets/css/board-tile-colors.css"
-      ]
-    },
-    "calculator": {
-      "styles": []
-    },
-    "board": {
-      "fonts": "site",
-      "styles": [
-        "/assets/tokens.css",
-        "/assets/site-components.css",
-        "/assets/site.css",
-        "/assets/css/board-tile-colors.css",
-        "/assets/css/vestaboard.css"
       ]
     }
   }
