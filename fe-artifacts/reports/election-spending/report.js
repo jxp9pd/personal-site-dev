@@ -1,3 +1,4 @@
+const token=name=>getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const electionData=[
   {
     "cycle": 2000,
@@ -297,9 +298,9 @@ function render(){
  const labels=rows.map(r=>r.cycle+' '+(r.cycle_type==='Presidential'?'P':'M'));
  const shapes=rows.map((r,i)=>r.cycle_type==='Presidential'?{type:'rect',xref:'x',yref:'paper',x0:i-.47,x1:i+.47,y0:0,y1:1,fillcolor:'#f5f3eb',line:{width:0},layer:'below'}:null).filter(Boolean);
  const ytitle=basis==='real'?'Billions of 2024 dollars':'Billions of reported dollars';
- const makeAxis=max=>({title:{text:ytitle,font:{size:12}},range:[0,max],tickprefix:'$',ticksuffix:'B',gridcolor:'#e8e5db',zerolinecolor:'#b9b5a9',fixedrange:true});
+ const makeAxis=max=>({title:{text:ytitle,font:{size:12}},range:[0,max],tickprefix:'$',ticksuffix:'B',gridcolor:token('--line'),zerolinecolor:token('--line-strong'),fixedrange:true});
  const xaxis={type:'category',categoryorder:'array',categoryarray:labels,tickvals:labels,ticktext:labels.map(l=>l.replace(' ','<br>')),tickfont:{size:12},fixedrange:true};
- const traces=[['democrats_usd','Democrats','#2870b8'],['republicans_usd','Republicans','#d35b59']].map(([key,name,color])=>({
+ const traces=[['democrats_usd','Democrats',token('--party-dem')],['republicans_usd','Republicans',token('--party-rep')]].map(([key,name,color])=>({
   type:'bar',name,x:labels,y:rows.map(r=>b(r[key]*scale(r))),marker:{color},text:rows.map(r=>b(r[key]*scale(r)).toFixed(2)),textposition:'outside',textfont:{size:12,color},cliponaxis:false,
   customdata:rows.map(r=>[`${r.cycle-1}–${r.cycle} · ${r.cycle_type}`,money(r[key]),money(r[key]*scale(r))]),
   hovertemplate:'<b>'+name+'</b><br>%{customdata[0]}<br>Reported: %{customdata[1]}'+(basis==='real'?'<br>Approx. 2024 dollars: %{customdata[2]}':'')+'<extra></extra>'

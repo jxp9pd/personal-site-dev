@@ -1,9 +1,9 @@
-:root {
+.atlas-body {
   --atlas-ink: var(--ink);
   --atlas-paper: var(--paper-2);
   --atlas-muted: var(--muted);
   --atlas-line: var(--line);
-  --atlas-accent: #8c3f25;
+  --atlas-accent: var(--accent-ink);
 }
 
 .atlas-body {
@@ -68,8 +68,8 @@
   overflow: hidden;
   border: 1px solid var(--atlas-line);
   border-radius: 12px;
-  background: #ddd8ce;
-  box-shadow: 0 12px 35px rgba(54, 45, 35, 0.12);
+  background: var(--map-land);
+  box-shadow: var(--shadow-card);
 }
 
 .atlas-map {
@@ -85,12 +85,12 @@
   width: min(430px, calc(100% - 32px));
   padding: 16px 18px;
   transform: translateX(-50%);
-  border: 1px solid rgba(39, 35, 31, 0.16);
+  border: 1px solid var(--line-strong);
   border-radius: 12px;
-  background: rgba(255, 252, 245, 0.94);
+  background: var(--panel-glass);
   color: var(--atlas-ink);
   text-align: center;
-  box-shadow: 0 10px 30px rgba(39, 35, 31, 0.12);
+  box-shadow: var(--shadow-card);
 }
 
 .atlas-state p {
@@ -120,10 +120,10 @@
   gap: 22px;
   align-items: center;
   padding: 10px 14px;
-  border: 1px solid rgba(39, 35, 31, 0.16);
+  border: 1px solid var(--line-strong);
   border-radius: 12px;
-  background: rgba(255, 252, 245, 0.94);
-  box-shadow: 0 8px 24px rgba(39, 35, 31, 0.13);
+  background: var(--panel-glass);
+  box-shadow: var(--shadow-card);
   backdrop-filter: blur(8px);
 }
 
@@ -160,12 +160,12 @@
   position: absolute;
   z-index: 2;
   padding: 10px 12px;
-  border: 1px solid rgba(39, 35, 31, 0.16);
+  border: 1px solid var(--line-strong);
   border-radius: 10px;
-  background: rgba(255, 252, 245, 0.94);
+  background: var(--panel-glass);
   color: var(--atlas-ink);
   font: 0.68rem/1.35 var(--font-mono);
-  box-shadow: 0 8px 24px rgba(39, 35, 31, 0.12);
+  box-shadow: var(--shadow-card);
   backdrop-filter: blur(8px);
 }
 
@@ -211,7 +211,7 @@
   margin: 0;
   padding: 7px 0;
   border: 0;
-  border-top: 1px solid rgba(39, 35, 31, 0.12);
+  border-top: 1px solid var(--line);
 }
 
 .atlas-layer-control legend {
@@ -294,17 +294,17 @@
   width: 14px;
   height: 10px;
   flex: 0 0 auto;
-  border: 1px solid #4f746c;
+  border: 1px solid var(--map-zone);
 }
 
 .atlas-key--neighborhood {
-  background: rgba(79, 116, 108, 0.28);
+  background: color-mix(in srgb, var(--map-zone) 28%, transparent);
 }
 
 .atlas-key--landmark {
   border-color: var(--atlas-accent);
   border-radius: 50%;
-  background: rgba(184, 92, 56, 0.55);
+  background: color-mix(in srgb, var(--map-landmark) 55%, transparent);
 }
 
 .atlas-hover-details {

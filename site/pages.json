@@ -14,7 +14,7 @@
   },
   {
     "output": "games/guess-the-price.html",
-    "title": "Guess the Price",
+    "title": "Guess the Price — Penta Projects",
     "viewport": "width=device-width, initial-scale=1, viewport-fit=cover",
     "assets": "site",
     "layout": "app",
@@ -25,10 +25,10 @@
     "header": {
       "profileMount": "selectProfileMount"
     },
-    "inlineStyles": "styles/games/guess-the-price.css",
     "source": "pages/games/guess-the-price.html",
     "styles": [
-      "/assets/css/game-theme.css"
+      "/assets/css/game-theme.css",
+      "/assets/css/guess-the-price.css"
     ]
   },
   {
@@ -66,7 +66,7 @@
   },
   {
     "output": "games/neighborhoods-quiz.html",
-    "title": "Neighborhoods Quiz",
+    "title": "Neighborhoods Quiz — Penta Projects",
     "viewport": "width=device-width, initial-scale=1, viewport-fit=cover",
     "assets": "site",
     "layout": "app",
@@ -77,10 +77,10 @@
     "header": {
       "profileMount": "selectProfileMount"
     },
-    "inlineStyles": "styles/games/neighborhoods-quiz.css",
     "styles": [
       "/assets/css/game-theme.css",
-      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css",
+      "/assets/css/neighborhoods-quiz.css"
     ],
     "scripts": [
       {
