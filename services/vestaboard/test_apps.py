@@ -1,5 +1,6 @@
 """Ownership, cancellation, and races use fake board and sports sources."""
 import threading
+import time
 import unittest
 
 from apps import BoardApp
@@ -32,6 +33,32 @@ class LifecycleTest(AppTestCase):
                     app.close()
                 self.assertFalse(app.worker.is_alive())
                 self.gateway.send.assert_called_once()
+
+    def test_close_returns_during_a_blocked_feed_and_nothing_sends_after_close(self):
+        for app, feed, changed in ((self.nfl, self.fetch, [game(away_score='28')]),
+                                   (self.fantasy, self.source.matchup, matchup(150))):
+            with self.subTest(app=type(app).__name__):
+                self.assertEqual(self.start_app(app)[0], 200)
+                app.tick()
+                self.gateway.send.reset_mock()
+                entered, release = threading.Event(), threading.Event()
+                def blocked(*args, changed=changed, **kwargs):
+                    entered.set()
+                    release.wait(5)
+                    return changed
+                feed.side_effect = blocked
+                self.now += 300
+                self.wall = 1000 + self.now
+                app.join_seconds = 0.2
+                app.start_worker()
+                self.assertTrue(entered.wait(2))
+                started = time.monotonic()
+                app.close()
+                self.assertLess(time.monotonic() - started, 2)
+                release.set()
+                app.worker.join(2)
+                self.assertFalse(app.worker.is_alive())
+                self.gateway.send.assert_not_called()
 
     def test_rate_limits_defer_and_uncertain_failures_wait_for_a_changed_frame(self):
         for app in self.apps:
@@ -67,6 +94,41 @@ class LifecycleTest(AppTestCase):
                 self.assertEqual(len(self.frames), 3)
                 self.assertNotEqual(self.frames[-1], previous)
                 self.assertEqual(app.status()['delivery']['status'], 'accepted')
+
+
+    def test_delivery_outcomes_leave_the_same_state_in_every_app(self):
+        pending, accepted = {'status': 'pending'}, {'status': 'accepted'}
+        unconfirmed = {'status': 'error', 'error': 'Delivery unconfirmed.'}
+        scenarios = (
+            # name, retryAfter, send result (None: revision changes mid-send), sends, attempted, delivery
+            ('cooldown', 15, (200, {'accepted': True}), 0, False, pending),
+            ('rate limit', 0, (429, {'retryAfter': 15}), 1, False, pending),
+            ('uncertain', 0, (504, {'error': 'Delivery unconfirmed.'}), 1, True, unconfirmed),
+            ('stale revision', 0, None, 1, False, pending),
+            ('accepted', 0, (200, {'accepted': True}), 1, True, accepted),
+        )
+        for name, retry, result, sends, attempted, delivery in scenarios:
+            for index, label in enumerate(('pomodoro', 'nfl', 'nba', 'fantasy')):
+                self.setUp()
+                app = self.apps[index]
+                with self.subTest(scenario=name, app=label):
+                    self.assertEqual(self.start_app(app)[0], 200)
+                    before = app.last_attempt
+                    self.gateway.status.return_value = {'retryAfter': retry}
+                    if result is None:
+                        def stale(frame, app=app):
+                            app.revision += 1
+                            return 200, {'accepted': True}
+                        self.gateway.send.side_effect = stale
+                    else:
+                        self.gateway.send.return_value = result
+                    app.tick()
+                    self.assertEqual(self.gateway.send.call_count, sends)
+                    self.assertEqual(app.last_attempt != before, attempted)
+                    self.assertEqual(app.status()['delivery'], delivery)
+                    if attempted:
+                        app.tick()  # An attempted frame is never retried.
+                        self.assertEqual(self.gateway.send.call_count, sends)
 
 
 class OwnershipTest(AppTestCase):

@@ -1,7 +1,6 @@
 """One shared Pomodoro, driven by a server clock rather than an open browser."""
 import math
 import random
-import threading
 import time
 
 from board import BLANK, GREEN, VIOLET, WHITE, text_row
@@ -33,14 +32,12 @@ def board_frame(state, phase, remaining, duration, focus_message):
 
 
 class Pomodoro(BoardApp):
+    name = 'pomodoro'
+
     def __init__(self, controller, clock=time.monotonic, choose=random.choice):
         super().__init__(controller)
         self.clock = clock
         self.choose = choose
-        self.lock = threading.Lock()
-        self.wake = threading.Event()
-        self.shutdown = threading.Event()
-        self.worker = None
         self.state = 'idle'
         self.phase = 'focus'
         self.focus_minutes = 25
@@ -49,9 +46,6 @@ class Pomodoro(BoardApp):
         self.deadline = 0
         self.frozen_remaining = 0
         self.update_anchor_remaining = 0
-        self.revision = 0
-        self.last_attempt = None
-        self.delivery = {'status': 'idle'}
 
     def _advance(self, now):
         if self.state != 'running' or now < self.deadline:
@@ -85,7 +79,7 @@ class Pomodoro(BoardApp):
         characters = board_frame(self.state, self.phase, display_remaining, duration, self.focus_message)
         key = (self.revision, tuple(code for row in characters for code in row))
         delivery = self.delivery if key == self.last_attempt or self.state == 'idle' else {'status': 'pending'}
-        return {'configured': bool(self.gateway.token), 'state': self.state, 'phase': self.phase,
+        return {'configured': self.configured, 'state': self.state, 'phase': self.phase,
                 'focusMinutes': self.focus_minutes, 'breakMinutes': self.break_minutes,
                 'focusMessage': self.focus_message, 'remainingSeconds': remaining,
                 'characters': characters, 'delivery': dict(delivery)}, key
@@ -112,8 +106,8 @@ class Pomodoro(BoardApp):
             focus, rest = body.get('focusMinutes'), body.get('breakMinutes')
             if any(type(value) is not int or not 1 <= value <= 180 for value in (focus, rest)):
                 return 400, {'error': 'Focus and break must each be a whole number from 1 to 180 minutes.'}
-            if not self.gateway.token:
-                return 503, {'error': 'The board is not connected yet. Please try again later.'}
+            if error := self.require_board():
+                return error
         with self.lock:
             now = self.clock()
             self._advance(now)
@@ -145,30 +139,4 @@ class Pomodoro(BoardApp):
             snapshot, key = self._snapshot(self.clock())
             if self.state == 'idle' or key == self.last_attempt:
                 return
-        if self.gateway.status()['retryAfter']:
-            return
-        status, result = self.deliver(key[0], snapshot['characters'])
-        with self.lock:
-            if key[0] != self.revision or status == 429:
-                # Definitely rejected: keep only the latest frame pending.
-                return
-            self.last_attempt = key
-            self.delivery = ({'status': 'accepted'} if status == 200 else
-                             {'status': 'error', 'error': result.get('error', 'Board update failed.')})
-            # An ambiguous timeout is never retried for this frame. The next
-            # scheduled update or explicit control may send a new, current frame.
-
-    def start_worker(self):
-        def run():
-            while not self.shutdown.is_set():
-                self.wake.clear()
-                self.tick()
-                self.wake.wait(0.5)
-        self.worker = threading.Thread(target=run, name='pomodoro', daemon=True)
-        self.worker.start()
-
-    def close(self):
-        self.shutdown.set()
-        self.wake.set()
-        if self.worker:
-            self.worker.join(timeout=12)
+        self._attempt(key[0], key, snapshot['characters'])

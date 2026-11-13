@@ -2,7 +2,6 @@
 from datetime import datetime, timezone
 import json
 import re
-import threading
 import time
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -38,8 +37,9 @@ NBA_TEAM_COLORS = {
     'UTAH': (68, 67), 'WSH': (63, 67),
 }
 LEAGUES = {
-    'nfl': {'path': 'football/nfl', 'colors': NFL_TEAM_COLORS},
-    'nba': {'path': 'basketball/nba', 'colors': NBA_TEAM_COLORS},
+    'nfl': {'path': 'football/nfl', 'colors': NFL_TEAM_COLORS, 'streaming_only': False},
+    # Only NBA games broadcast nationally on Prime Video or Peacock.
+    'nba': {'path': 'basketball/nba', 'colors': NBA_TEAM_COLORS, 'streaming_only': True},
 }
 STREAMING_NETWORKS = {'prime video': 'Prime Video', 'amazon prime video': 'Prime Video',
                       'peacock': 'Peacock'}
@@ -138,8 +138,8 @@ def normalize_game(event, league='nfl'):
 
 
 class ESPNSource:
-    league = 'nfl'
-    def __init__(self, opener=urlopen):
+    def __init__(self, league, opener=urlopen):
+        self.league = league
         self.opener = opener
 
     def games(self, date=None):
@@ -156,29 +156,24 @@ class ESPNSource:
             data = json.loads(raw)
         if not isinstance(data, dict) or not isinstance(data.get('events'), list):
             raise ValueError('Invalid scoreboard data.')
+        streaming_only = LEAGUES[self.league]['streaming_only']
         return [normalize_game(event, self.league) for event in data['events']
-                if self.league != 'nba' or streaming_broadcasts(event['competitions'][0])]
+                if not streaming_only or streaming_broadcasts(event['competitions'][0])]
 
 
 class Sports(BoardApp):
-    league = 'nfl'
     passive_actions = frozenset({'stop'})
 
-    def __init__(self, controller, fetch_games, clock=time.monotonic, wall_clock=time.time):
+    def __init__(self, controller, league, fetch_games, clock=time.monotonic, wall_clock=time.time):
         super().__init__(controller)
+        self.league = self.name = league
         self.fetch_games = fetch_games
         self.clock, self.wall_clock = clock, wall_clock
-        self.lock = threading.Lock()
-        self.wake, self.shutdown = threading.Event(), threading.Event()
-        self.worker = None
         self.games = []
         self.game = None
         self.state = 'idle'
-        self.revision = 0
         self.characters = [text_row(self.league.upper() + ' SCORES'), text_row('PICK A GAME'), [BLANK] * 15]
         self.pending = False
-        self.last_attempt = None
-        self.delivery = {'status': 'idle'}
         self.last_delivery = {'status': 'idle'}
         self.refresh_requested = False
         self.next_refresh = 0
@@ -189,7 +184,7 @@ class Sports(BoardApp):
         games = list(self.games)
         games.sort(key=lambda game: (0 if game['state'] in ('live', 'halftime') else
                                     2 if game['terminal'] else 1, game['startsAt']))
-        return {'configured': bool(self.gateway.token), 'league': self.league, 'state': self.state,
+        return {'configured': self.configured, 'league': self.league, 'state': self.state,
                 'games': games, 'game': self.game, 'characters': self.characters,
                 'pollIntervalSeconds': POLL_SECONDS,
                 'source': {'lastCheckedAt': self.last_checked, 'error': self.source_error},
@@ -211,14 +206,17 @@ class Sports(BoardApp):
         if game['terminal']:
             self.state = 'completed'
 
+    def _stop(self):
+        self.state, self.pending = 'stopped', False
+        self.revision += 1
+        self.delivery = {'status': 'idle'}
+        self.refresh_requested = False
+
     def deactivate(self):
         with self.lock:
             if self.state == 'idle':
                 return
-            self.state, self.pending = 'stopped', False
-            self.revision += 1
-            self.delivery = {'status': 'idle'}
-            self.refresh_requested = False
+            self._stop()
         self.wake.set()
 
     def _command(self, body):
@@ -228,15 +226,13 @@ class Sports(BoardApp):
             if body['action'] == 'stop':
                 if self.state != 'tracking':
                     return 409, {'error': 'Tracking has already ended. Refresh its status.'}
-                self.state, self.pending = 'stopped', False
-                self.revision += 1
-                self.delivery = {'status': 'idle'}
+                self._stop()
             else:
                 event_id = body.get('gameId')
                 if not isinstance(event_id, str) or not re.fullmatch(r'[0-9]{1,20}', event_id):
                     return 400, {'error': 'Choose a game from the list.'}
-                if not self.gateway.token:
-                    return 503, {'error': 'The board is not connected yet. Please try again later.'}
+                if error := self.require_board():
+                    return error
                 game = next((game for game in self.games if game['id'] == event_id), None)
                 if not game or game['terminal']:
                     return 409, {'error': 'That game is unavailable or has ended. Choose another game.'}
@@ -290,41 +286,13 @@ class Sports(BoardApp):
         with self.lock:
             if not self.pending or self.state not in ('tracking', 'completed'):
                 return
-        if self.gateway.status()['retryAfter']:
-            return
-        with self.lock:
-            if not self.pending or self.state not in ('tracking', 'completed'):
-                return
-            revision = self.revision
-            characters = self.characters
-            key = (revision, tuple(code for row in characters for code in row))
-        status, result = self.deliver(revision, characters)
-        with self.lock:
-            if revision != self.revision or status == 429:
-                return
-            self.pending = False
-            self.last_attempt = key
-            self.delivery = ({'status': 'accepted'} if status == 200 else
-                             {'status': 'error', 'error': result.get('error', 'Board update failed.')})
-            self.last_delivery = dict(self.delivery)
-            # An ambiguous send is not retried for the same frame. A score or
-            # possession change, or an explicit Track command, can send a new one.
+            revision, characters = self.revision, self.characters
+        self._attempt(revision, (revision, tuple(code for row in characters for code in row)), characters)
+
+    def _attempted(self, key):
+        self.pending = False
+        self.last_delivery = dict(self.delivery)
 
     def tick(self):
         self._refresh()
         self._deliver()
-
-    def start_worker(self):
-        def run():
-            while not self.shutdown.is_set():
-                self.wake.clear()
-                self.tick()
-                self.wake.wait(0.5)
-        self.worker = threading.Thread(target=run, name=self.league, daemon=True)
-        self.worker.start()
-
-    def close(self):
-        self.shutdown.set()
-        self.wake.set()
-        if self.worker:
-            self.worker.join(timeout=28)

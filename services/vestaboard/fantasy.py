@@ -5,7 +5,6 @@ from decimal import Decimal, ROUND_HALF_UP
 import json
 import math
 import re
-import threading
 import time
 import unicodedata
 from urllib.error import HTTPError
@@ -18,6 +17,7 @@ from apps import BoardApp
 from fantasy_store import StorageUnavailable
 
 POLL_SECONDS = 15
+STORAGE_RETRY_SECONDS = 15
 ALERT_SECONDS = 30
 # Standard half-PPR weights in hundredths of a point keep the >= 3 cutoff exact.
 HALF_PPR_SCORING = {
@@ -278,19 +278,17 @@ def play_alert(play, starters, player_lookup):
 
 
 class Fantasy(BoardApp):
+    name = 'fantasy'
     passive_actions = frozenset({'preview', 'stop'})
 
     def __init__(self, controller, source, clock=time.monotonic, wall_clock=time.time, store=None):
         super().__init__(controller)
         self.source = source
         self.clock, self.wall_clock = clock, wall_clock
-        self.lock = threading.Lock()
-        self.wake, self.shutdown = threading.Event(), threading.Event()
-        self.worker = None
         self.configs = league_settings(DEFAULT_LEAGUES)
         self.matchups = [None, None]
         self.errors = [None, None]
-        self.state, self.revision = 'idle', 0
+        self.state = 'idle'
         self.week, self.season = None, None
         self.next_refresh, self.refresh_requested = 0, False
         self.last_checked, self.play_error = None, None
@@ -298,8 +296,7 @@ class Fantasy(BoardApp):
         self.seen, self.queue = set(), deque()
         self.alert, self.alert_until = None, None
         self.characters = IDLE_FRAME
-        self.display_key, self.last_attempt = None, None
-        self.delivery = {'status': 'idle'}
+        self.display_key = None
         self.store, self.storage_ready = store, store is None
         self.storage_error = 'Loading saved leagues…' if store else None
         self.config_version, self.pending_snapshot = None, None
@@ -311,7 +308,7 @@ class Fantasy(BoardApp):
                 return True
             if self.clock() < self.next_storage_attempt:
                 return False
-            self.next_storage_attempt = self.clock() + POLL_SECONDS
+            self.next_storage_attempt = self.clock() + STORAGE_RETRY_SECONDS
         try:
             record = self.store.load()
             if record is None:
@@ -336,7 +333,7 @@ class Fantasy(BoardApp):
             if not self.store or not self.storage_ready or not self.pending_snapshot or self.clock() < self.next_storage_attempt:
                 return
             version, snapshot = self.config_version, self.pending_snapshot
-            self.next_storage_attempt = self.clock() + POLL_SECONDS
+            self.next_storage_attempt = self.clock() + STORAGE_RETRY_SECONDS
         try:
             saved = self.store.save_matchups(version, snapshot)
         except StorageUnavailable:
@@ -366,7 +363,7 @@ class Fantasy(BoardApp):
             self.delivery = {'status': 'pending'}
 
     def _snapshot(self):
-        return {'configured': bool(self.gateway.token), 'state': self.state,
+        return {'configured': self.configured, 'state': self.state,
                 'leagues': [dict(config, matchup=matchup, error=error)
                             for config, matchup, error in zip(self.configs, self.matchups, self.errors)],
                 'week': self.week, 'season': self.season, 'characters': self.characters,
@@ -386,17 +383,20 @@ class Fantasy(BoardApp):
                 self.wake.set()
             return self._snapshot()
 
+    def _stop(self):
+        self.state = 'stopped'
+        self.revision += 1
+        self.alert, self.alert_until = None, None
+        self.queue.clear()
+        self.delivery = {'status': 'idle'}
+        self.refresh_requested = False
+        self._prepare_display()
+
     def deactivate(self):
         with self.lock:
             if self.state == 'idle':
                 return
-            self.state = 'stopped'
-            self.revision += 1
-            self.alert, self.alert_until = None, None
-            self.queue.clear()
-            self.delivery = {'status': 'idle'}
-            self.refresh_requested = False
-            self._prepare_display()
+            self._stop()
         self.wake.set()
 
     def _command(self, body):
@@ -408,11 +408,13 @@ class Fantasy(BoardApp):
                 configs = league_settings(body.get('leagues'))
             except ValueError as error:
                 return 400, {'error': str(error)}
-            if action == 'start' and not self.gateway.token:
-                return 503, {'error': 'The board is not connected yet. Preview your matchups instead.'}
+            if action == 'start' and (error := self.require_board('Preview your matchups instead.')):
+                return error
             # Controller serializes commands; database I/O stays outside the app
             # lock so status reads and Stop do not wait on a background save.
             with self.lock:
+                # Fail fast so a save is never attempted while tracking; the
+                # check after the save is the guard against a concurrent start.
                 if self.state == 'tracking':
                     return 409, {'error': 'Stop tracking before changing the leagues.'}
                 if not self.storage_ready:
@@ -427,18 +429,14 @@ class Fantasy(BoardApp):
                         # before accepting another change; never overwrite it.
                         self.storage_ready = False
                         self.storage_error = 'Could not confirm the league save. Reloading saved settings shortly.'
-                        self.next_storage_attempt = self.clock() + POLL_SECONDS
+                        self.next_storage_attempt = self.clock() + STORAGE_RETRY_SECONDS
                     self.wake.set()
                     return 503, {'error': 'Could not confirm the league save. Tracking was not started. Try again shortly.'}
         with self.lock:
             if action == 'stop':
                 if self.state != 'tracking':
                     return 409, {'error': 'Tracking has already stopped.'}
-                self.state = 'stopped'
-                self.revision += 1
-                self.alert, self.alert_until = None, None
-                self.queue.clear()
-                self.delivery = {'status': 'idle'}
+                self._stop()
             else:
                 if self.state == 'tracking':
                     return 409, {'error': 'Stop tracking before changing the leagues.'}
@@ -539,23 +537,14 @@ class Fantasy(BoardApp):
             self._prepare_display()
             if self.display_key == self.last_attempt or all(m is None for m in self.matchups):
                 return
-        if self.gateway.status()['retryAfter']:
-            return
-        with self.lock:
-            if self.state != 'tracking':
-                return
             revision, key, characters = self.revision, self.display_key, self.characters
-        status, result = self.deliver(revision, characters)
-        with self.lock:
-            if revision != self.revision or status == 429:
-                return
-            self.last_attempt = key
-            self.delivery = ({'status': 'accepted'} if status == 200 else
-                             {'status': 'error', 'error': result.get('error', 'Board update failed.')})
-            # Hold each alert from its delivery attempt, rather than from feed
-            # arrival. An ambiguous timeout may have delivered: do not repeat it.
-            if self.alert and self.display_key == key:
-                self.alert_until = self.clock() + ALERT_SECONDS
+        self._attempt(revision, key, characters)
+
+    def _attempted(self, key):
+        # Hold each alert from its delivery attempt, rather than from feed
+        # arrival. An ambiguous timeout may have delivered: do not repeat it.
+        if self.alert and self.display_key == key:
+            self.alert_until = self.clock() + ALERT_SECONDS
 
     def tick(self):
         if not self._load_saved():
@@ -564,18 +553,3 @@ class Fantasy(BoardApp):
         self._refresh()
         self._deliver()
         self._save_snapshot()
-
-    def start_worker(self):
-        def run():
-            while not self.shutdown.is_set():
-                self.wake.clear()
-                self.tick()
-                self.wake.wait(.5)
-        self.worker = threading.Thread(target=run, name='fantasy', daemon=True)
-        self.worker.start()
-
-    def close(self):
-        self.shutdown.set()
-        self.wake.set()
-        if self.worker:
-            self.worker.join(timeout=2)

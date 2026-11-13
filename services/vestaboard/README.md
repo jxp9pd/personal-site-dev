@@ -330,7 +330,7 @@ sports refresh without writing to the board.
 | `history.py` | Private Note submission records and delivery outcomes |
 | `fantasy_store.py` | Private saved Fantasy settings and matchup snapshots |
 | `server.py` | HTTP routes and shared-controller wiring |
-| `pomodoro.py`, `nfl.py`, `fantasy.py` | App state, scheduling, feeds, rendering |
+| `pomodoro.py`, `sports.py`, `fantasy.py` | App state, scheduling, feeds, rendering |
 
 To add a background app:
 
@@ -340,10 +340,11 @@ To add a background app:
 3. Implement silent `deactivate()`: stop activity, increment the revision, and
    clear queued displays. Also increment the revision when commands replace or
    cancel work.
-4. Capture the revision with each display and call
-   `self.deliver(revision, characters)` outside the app state lock. Never call
-   `gateway.send` directly from a feature.
-5. Wire the app in `server.py` and copy its module in `install.sh`. Add its page
+4. Implement `tick()`. Capture the revision with each display and call
+   `self._attempt(revision, key, characters)` outside the app state lock.
+   Never call `gateway.send` directly from a feature.
+5. Add the app to the `apps` table in `server.main()`; `install.sh` copies
+   every non-test module. Add its page
    to `fe-artifacts/tools/vestaboard/index.html` and link back to the hub.
 
 Acquire the controller lock before app state locks; never call the controller

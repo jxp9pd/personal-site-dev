@@ -22,5 +22,9 @@ jobs:
         run: npm run check:site
       - name: Run tests
         run: npm test
+      - name: Lint Python
+        run: |
+          python3 -m pip install --quiet pyflakes==3.2.0
+          python3 -m pyflakes services/vestaboard scripts/*.py
       - name: Test Vestaboard gateway
         run: python3 -m unittest discover -s services/vestaboard -p 'test_*.py'
