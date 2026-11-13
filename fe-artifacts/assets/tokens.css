@@ -65,8 +65,8 @@
   --text-title: clamp(2.6rem, 6vw, 3.6rem);
   --tracking-caps: .14em;
   --gutter: clamp(20px, 5vw, 64px);
-  --width-narrow: 440px;
-  --width-default: 860px;
+  --width-narrow: 368px;
+  --width-default: 740px;
   --width-wide: 1200px;
   --board-red: #cf5146;
   --board-orange: #e89344;
@@ -76,6 +76,15 @@
   --board-violet: #8c73ae;
   --board-white: #eeeee3;
   --board-black: #151515;
+  --board-frame: #171918;
+  --board-frame-line: #323633;
+  --board-frame-shadow: 0 18px 28px -18px rgba(20,19,15,.5), inset 0 1px 1px rgba(255,255,255,.12);
+  --tile-top: #2b2e2b;
+  --tile-bottom: #252825;
+  --tile-ink: #f7f5e8;
+  --tile-seam: rgba(17,17,17,.6);
+  --card-red: #b13e34;
+  --accent-tint: rgba(34,184,255,.08);
 }
 
 :root[data-theme="board-hub"] {

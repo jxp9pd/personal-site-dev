@@ -63,7 +63,7 @@ function renderPicker() {
       for (const game of group.games) {
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'game-bubble';
+        button.className = 'choice game-bubble';
         button.dataset.gameId = game.id;
         const hasScore = game.away.score !== null && game.home.score !== null;
         button.setAttribute('aria-label', `${game.away.name} at ${game.home.name}. ${gameStatus(game)}.${hasScore ? ` ${game.away.score} to ${game.home.score}.` : ''}${game.broadcasts?.length ? ` On ${game.broadcasts.join(' or ')}.` : ''}`);

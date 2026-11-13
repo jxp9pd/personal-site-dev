@@ -1,10 +1,10 @@
 {{header}}
-  <main class="challenge-page">
-    <h1>Challenge 24</h1>
+  <main class="page challenge-page">
+    <div class="page-header"><h1>Challenge 24</h1></div>
 
     <section id="start-menu" class="start-menu" aria-label="Game setup">
       <form id="start-form" novalidate>
-        <div class="mode-switch" role="group" aria-label="Game mode">
+        <div class="segmented segmented-block mode-switch" role="group" aria-label="Game mode">
           <button id="mode-free" type="button" aria-pressed="false">Free Play</button>
           <button id="mode-time" type="button" aria-pressed="true">Time to K</button>
         </div>
@@ -18,7 +18,7 @@
                 <span id="solves-help" class="setting-tooltip" role="tooltip" hidden>Reach this many correct solves. Score: solve time + penalties.</span>
               </span>
             </div>
-            <div class="puzzle-stepper">
+            <div class="input puzzle-stepper">
               <button id="decrease-count" type="button" aria-label="Fewer solves">−</button>
               <input id="puzzle-count" type="number" min="1" step="1" value="5" aria-label="Target correct solves" aria-describedby="solves-help setup-error" />
               <button id="increase-count" type="button" aria-label="More solves">+</button>
@@ -32,7 +32,7 @@
                 <span id="limit-help" class="setting-tooltip" role="tooltip" hidden><span id="time-rule-limit">60s</span> per card. Reveal or timeout costs the full limit.</span>
               </span>
             </div>
-            <div class="puzzle-stepper">
+            <div class="input puzzle-stepper">
               <button id="decrease-limit" type="button" aria-label="15 seconds less">−</button>
               <input id="card-limit" type="number" min="1" step="1" value="60" aria-describedby="limit-help setup-error" />
               <button id="increase-limit" type="button" aria-label="15 seconds more">+</button>
@@ -41,7 +41,7 @@
         </div>
         <fieldset class="difficulty-setting">
           <legend>Difficulty</legend>
-          <div class="difficulty-options">
+          <div class="segmented segmented-block difficulty-options">
             <button id="difficulty-1" type="button" data-level="1" aria-pressed="false">1</button>
             <button id="difficulty-2" type="button" data-level="2" aria-pressed="false">2</button>
             <button id="difficulty-3" type="button" data-level="3" aria-pressed="false">3</button>
@@ -53,13 +53,13 @@
           Show card difficulty
         </label>
         <p id="setup-error" class="setup-error" role="alert" hidden></p>
-        <button id="start-game" class="game-button primary-action start-game" type="submit" disabled>Solve 5 puzzles</button>
+        <button id="start-game" class="button button-primary start-game" type="submit" disabled>Solve 5 puzzles</button>
       </form>
     </section>
 
     <section id="play-screen" hidden aria-label="Current game">
       <div class="play-heading">
-        <button id="back-to-menu" type="button" class="text-button"><span aria-hidden="true">←</span> Menu</button>
+        <button id="back-to-menu" type="button" class="button button-quiet text-button"><span aria-hidden="true">←</span> Menu</button>
         <span id="mode-label">Free Play</span>
       </div>
     <svg id="challenge-card" class="challenge-card" viewBox="0 0 400 400" role="img" aria-label="Challenge 24 card">
@@ -87,14 +87,14 @@
     </div>
     <form id="answer-form" class="answer-form" novalidate>
       <div class="answer-field">
-        <input id="answer" name="answer" type="text" placeholder="Your answer" aria-label="Your answer" aria-describedby="card-description answer-hint feedback" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" maxlength="160" disabled />
+        <input id="answer" class="input" name="answer" type="text" placeholder="Your answer" aria-label="Your answer" aria-describedby="card-description answer-hint feedback" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" maxlength="160" disabled />
         <span aria-hidden="true">= 24</span>
       </div>
       <p id="feedback" class="answer-feedback" role="status" aria-live="polite" aria-atomic="true"></p>
       <div class="answer-actions">
-        <button id="submit-answer" class="game-button primary-action" type="submit" disabled>Submit</button>
-        <button id="show-answer" class="game-button" type="button" disabled>Show Answer</button>
-        <button id="next-card" class="game-button primary-action next-card" type="button" hidden>Next Card <span aria-hidden="true">→</span></button>
+        <button id="submit-answer" class="button button-primary" type="submit" disabled>Submit</button>
+        <button id="show-answer" class="button" type="button" disabled>Show Answer</button>
+        <button id="next-card" class="button button-primary next-card" type="button" hidden>Next Card <span aria-hidden="true">→</span></button>
       </div>
     </form>
 
@@ -103,7 +103,7 @@
       <div><dt>Correct</dt><dd id="correct-count">0</dd></div>
       <div><dt id="time-stat-label">Avg. time</dt><dd id="average-time">—</dd><dd id="total-time" hidden>0:00.0</dd></div>
     </dl>
-    <button id="reset-session" class="reset-session" type="button">Reset session</button>
+    <button id="reset-session" class="button button-quiet reset-session" type="button">Reset session</button>
     </section>
 
     <section id="results-screen" class="results-screen" hidden aria-label="Run results">
@@ -112,8 +112,8 @@
       <p id="final-score" class="final-score">0:00.0</p>
       <p id="result-correct" class="result-correct">0 / 5 correct</p>
       <div class="answer-actions">
-        <button id="play-again" class="game-button primary-action" type="button">Play again</button>
-        <button id="results-menu" class="game-button" type="button">Menu</button>
+        <button id="play-again" class="button button-primary" type="button">Play again</button>
+        <button id="results-menu" class="button" type="button">Menu</button>
       </div>
     </section>
     <noscript><p>Enable JavaScript to play.</p></noscript>
