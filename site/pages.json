@@ -106,17 +106,14 @@
   },
   {
     "output": "profile.html",
-    "title": "Your Profile",
+    "title": "Your Profile — Penta Projects",
     "assets": "site",
     "layout": "default",
-    "bodyAttributes": {
-      "class": "profile-page"
-    },
-    "header": {
-      "variant": "profile"
-    },
-    "inlineStyles": "styles/profile.css",
-    "source": "pages/profile.html"
+    "header": {},
+    "source": "pages/profile.html",
+    "styles": [
+      "/assets/css/profile.css"
+    ]
   },
   {
     "output": "reports/election-spending/index.html",
