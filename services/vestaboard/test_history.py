@@ -11,6 +11,7 @@ import unittest
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
+from board import DEFINITE_REJECTIONS
 from history import HistoryUnavailable, MessageHistory, sender_ip
 from supabase_rest import SupabaseClient
 from test_helpers import Response, message
@@ -60,7 +61,8 @@ class HistoryTest(unittest.TestCase):
         self.assertTrue(record['submitted_at'].endswith('+00:00'))
         self.assertEqual(record['outcome'], 'unknown')
         self.assertEqual(requests[0].method, 'POST')
-        for status, outcome in [(200, 'accepted'), (429, 'rejected'), (503, 'rejected'),
+        # History and note ownership share one rejection list (see test_apps).
+        for status, outcome in [(200, 'accepted'), *((code, 'rejected') for code in DEFINITE_REJECTIONS),
                                 (502, 'unknown'), (504, 'unknown')]:
             with self.subTest(status=status):
                 history.finish(record_id, status)

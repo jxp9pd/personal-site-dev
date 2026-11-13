@@ -4,6 +4,7 @@ import time
 import unittest
 
 from apps import BoardApp
+from board import DEFINITE_REJECTIONS
 from fantasy import DEFAULT_LEAGUES
 from test_helpers import AppTestCase, STATE, background_task, game, nba_game, matchup, message, play
 
@@ -223,8 +224,9 @@ class OwnershipTest(AppTestCase):
                 self.gateway.send.assert_not_called()
 
     def test_rejected_notes_keep_ownership_but_uncertain_delivery_cancels_tracking(self):
+        self.assertEqual(DEFINITE_REJECTIONS, (400, 429, 503))
         self.start(self.nfl)
-        for status in (400, 429, 503):
+        for status in DEFINITE_REJECTIONS:
             with self.subTest(status=status):
                 self.gateway.send.return_value = (status, {'error': 'Rejected.'})
                 self.assertEqual(self.controller.send_note(message())[0], status)

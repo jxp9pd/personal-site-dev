@@ -25,7 +25,7 @@ from supabase_rest import SupabaseClient
 
 FIELDS = ('season', 'week', 'slot', 'league_id', 'league_url', 'username', 'label', 'league_name',
           'your_roster_id', 'your_team', 'your_points', 'opponent_roster_id', 'opponent_team',
-          'opponent_points', 'starters', 'win_chance')
+          'opponent_points', 'starters')
 
 
 def credentials(env_file=None, opener=urlopen):
@@ -65,8 +65,7 @@ def csv_rows(snapshot):
                   you['rosterId'], you['name'], format(Decimal(str(you['points'])).normalize(), 'f'),
                   opponent['rosterId'] if opponent else '', opponent['name'] if opponent else '',
                   format(Decimal(str(opponent['points'])).normalize(), 'f') if opponent else '',
-                  json.dumps(matchup['starters'], ensure_ascii=False, separators=(',', ':')),
-                  '' if matchup.get('winChance') is None else matchup['winChance'])
+                  json.dumps(matchup['starters'], ensure_ascii=False, separators=(',', ':')))
         rows.append(dict(zip(FIELDS, map(str, values))))
     return rows
 

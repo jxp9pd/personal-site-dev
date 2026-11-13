@@ -92,8 +92,7 @@ def saved_dashboard(record):
         if (not isinstance(matchup, dict) or matchup.get('week') != week or matchup.get('season') != season
                 or not isinstance(matchup.get('leagueName'), str) or 'opponent' not in matchup
                 or not isinstance(matchup.get('starters'), list)
-                or not all(isinstance(player, str) for player in matchup['starters'])
-                or matchup.get('winChance') is not None):
+                or not all(isinstance(player, str) for player in matchup['starters'])):
             raise ValueError('Invalid saved matchup.')
         for side in ('you', 'opponent'):
             team = matchup.get(side)
@@ -124,13 +123,8 @@ def score_frame(configs, matchups, week):
             line = (f"{config['label']} {rounded_score(matchup['you']['points'])} - "
                     f"{rounded_score(matchup['opponent']['points'])}")
         rows.append(text_row(line))
-    chances = [m.get('winChance') if m else None for m in matchups]
-    # Public matchups do not contain Sleeper win percentages. Never infer them
-    # from points, projections, or a home-grown probability model.
-    label = ''
-    if any(chance is not None for chance in chances):
-        label = 'WIN ' + ' / '.join('--' if x is None else str(round(x)) + '%' for x in chances)
-    rows.append(text_row(label))
+    # Sleeper's public API has no win probabilities; never infer them.
+    rows.append(text_row(''))
     return rows
 
 
@@ -218,7 +212,7 @@ class SleeperSource:
                 'week': state['week'], 'season': state['season'],
                 'you': self._team(yours, roster, user_map),
                 'opponent': self._team(rivals[0], roster_map[rivals[0]['roster_id']], user_map) if rivals else None,
-                'starters': [p for p in starters if p != '0'], 'winChance': None}
+                'starters': [p for p in starters if p != '0']}
 
     def plays(self, state):
         query = urlencode({'season_type': state['season_type'], 'season': state['season'],
@@ -371,8 +365,8 @@ class Fantasy(BoardApp):
                 'alertSecondsRemaining': (max(0, math.ceil(self.alert_until - self.clock()))
                                           if self.alert_until is not None else None),
                 'source': {'lastCheckedAt': self.last_checked, 'playError': self.play_error,
-                           'refreshing': self.refresh_requested, 'pollSeconds': POLL_SECONDS,
-                           'winChanceAvailable': False}, 'delivery': dict(self.delivery),
+                           'refreshing': self.refresh_requested, 'pollSeconds': POLL_SECONDS},
+                'delivery': dict(self.delivery),
                 'storage': {'enabled': self.store is not None, 'ready': self.storage_ready,
                             'error': self.storage_error}}
 
