@@ -1,0 +1,18 @@
+.range-intro { margin: var(--space-4) 0 0; color: var(--muted); font-size: var(--text-sm); line-height: 1.6; }
+
+.range-form { display: grid; grid-template-columns: 1fr 1.3fr; align-items: end; gap: var(--space-3); }
+.range-form .input { margin-top: var(--space-2); min-height: 52px; font-size: 1rem; }
+
+.shot-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); margin: var(--space-5) 0; padding: 0; list-style: none; }
+.shot-list li { padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+.shot-index { display: block; margin-bottom: var(--space-2); color: var(--muted); font-size: var(--text-2xs); }
+.shot-distance { font-size: var(--text-xl); font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.shot-unit { margin-left: var(--space-1); color: var(--muted); font-size: var(--text-2xs); font-weight: 400; }
+
+.range-method { margin-top: var(--space-6); color: var(--muted); font-size: var(--text-xs); line-height: 1.8; }
+.range-method summary { display: list-item; padding: var(--space-3) 0; cursor: pointer; }
+.range-method p { margin: var(--space-3) 0; }
+.range-method table { width: 100%; margin-top: var(--space-4); text-align: left; }
+.range-method caption { margin-bottom: var(--space-2); text-align: left; }
+.range-method th, .range-method td { padding: var(--space-1) 0; border-bottom: 1px solid var(--line); }
+.range-method th:last-child, .range-method td:last-child { text-align: right; }
