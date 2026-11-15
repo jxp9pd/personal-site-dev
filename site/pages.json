@@ -220,6 +220,19 @@
     "source": "pages/tools/fantasy.html"
   },
   {
+    "output": "tools/range-practice.html",
+    "title": "Range practice — Penta Projects",
+    "description": "Random golf practice distances weighted for a 21–25 handicap, from 50 to 250 yards.",
+    "assets": "site",
+    "layout": "narrow",
+    "section": "tools",
+    "header": {},
+    "styles": [
+      "/assets/css/range-practice.css"
+    ],
+    "source": "pages/tools/range-practice.html"
+  },
+  {
     "output": "tools/hand-calculator-tools.html",
     "title": "Prediction market tools — Penta Projects",
     "viewport": "width=device-width, initial-scale=1.0",
@@ -247,6 +260,11 @@
       "class": "page tools-page",
       "title": "Tools",
       "entries": [
+        {
+          "href": "/tools/range-practice.html",
+          "title": "Range Practice",
+          "description": "A random mix of golf shots, 50 yards and up"
+        },
         {
           "href": "/tools/vestaboard/",
           "title": "Vestaboard",
