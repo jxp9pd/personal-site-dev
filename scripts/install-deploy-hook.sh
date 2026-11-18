@@ -11,5 +11,8 @@ visudo -cf "$sudoers"
 install -m 755 install-vestaboard-gateway /usr/local/sbin/install-vestaboard-gateway
 install -m 440 "$sudoers" /etc/sudoers.d/vestaboard-gateway-deploy
 install -m 755 deploy-site.sh /usr/local/bin/deploy-site.sh
+install -m 644 nginx-page-cache.conf /etc/nginx/conf.d/page-cache.conf
+nginx -t
+systemctl reload nginx
 visudo -c >/dev/null
 sudo -l -U deploy | tail -n 1

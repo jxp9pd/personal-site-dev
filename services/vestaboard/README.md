@@ -373,7 +373,9 @@ tests or this README changed since the last successful install, it then runs
 `install.sh` through a root-owned wrapper that `deploy` may call with sudo.
 Those deploys restart the gateway, which ends any running Pomodoro or tracking
 session. A failed install fails the workflow and is retried on the next deploy.
-Install or update the hook itself once, as root:
+The same installer adds `/etc/nginx/conf.d/page-cache.conf`, which sends
+`Cache-Control: no-cache` with HTML pages so browsers never reuse a page that
+links to assets a deploy removed. Install or update the hook itself once, as root:
 
 ```sh
 sudo bash /var/www/personal-site-dev/scripts/install-deploy-hook.sh
