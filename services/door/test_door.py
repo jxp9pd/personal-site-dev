@@ -199,7 +199,13 @@ class SeamLockTest(unittest.TestCase):
             if isinstance(reply, Exception):
                 raise reply
             return Reply(json.dumps(reply).encode())
-        return SeamLock('seam_key', 'device-1', opener=opener, sleep=lambda seconds: None, timeout=3)
+        now = [0.0]
+
+        def slow_opener(request, timeout):
+            now[0] += 1
+            return opener(request, timeout)
+        return SeamLock('seam_key', 'device-1', opener=slow_opener, sleep=lambda seconds: now.__setitem__(0, now[0] + seconds),
+                        clock=lambda: now[0], timeout=5)
 
     def test_unlock_polls_the_action_attempt_until_success(self):
         lock = self.lock([{'action_attempt': {'action_attempt_id': 'a1', 'status': 'pending'}},
@@ -215,7 +221,8 @@ class SeamLockTest(unittest.TestCase):
             self.lock([failed]).lock()
         pending = {'action_attempt': {'action_attempt_id': 'a1', 'status': 'pending'}}
         with self.assertRaisesRegex(LockError, 'not confirmed'):
-            self.lock([pending] * 4).lock()
+            self.lock([pending] * 3).lock()
+        self.assertEqual(len(self.requests), 3)
         with self.assertRaisesRegex(LockError, 'reach'):
             self.lock([OSError()]).unlock()
 
