@@ -70,14 +70,13 @@ class HttpTest(AppTestCase):
         self.history.finish.assert_called_once_with('record-id', 200)
         self.assertEqual(self.forwarded, [{'characters': message()}])
 
-    def test_history_failure_does_not_send_or_stop_an_active_app(self):
-        self.start_app(self.timer)
+    def test_history_failure_logs_a_warning_and_still_sends(self):
         self.history.begin.side_effect = HistoryUnavailable()
-        status, _, raw = self.request(json.dumps({'characters': message(), 'message': 'A'}).encode())
-        self.assertEqual(status, 503)
-        self.assertIn('not sent', json.loads(raw)['error'])
-        self.assertEqual(self.forwarded, [])
-        self.assertEqual(self.timer.status()['state'], 'running')
+        with self.assertLogs(level='WARNING') as logs:
+            status, _, _ = self.request(json.dumps({'characters': message(), 'message': 'A'}).encode())
+        self.assertEqual(status, 200)
+        self.assertIn('history is unavailable', logs.output[0])
+        self.assertEqual(self.forwarded, [{'characters': message()}])
         self.history.finish.assert_not_called()
 
     def test_invalid_original_message_is_rejected_before_recording_or_sending(self):
