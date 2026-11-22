@@ -4,13 +4,12 @@
 // it never reaches server logs or Referer headers.
 import { Profiles } from './profiles.js';
 import { getSession } from './dataClient.js';
+import { formatPacific, fromPacificInput, toPacificInput } from './door-time.js';
 
 const $ = id => document.getElementById(id);
 const guestToken = new URLSearchParams(location.hash.slice(1)).get('pass');
 const stateText = { locked: 'Locked', unlocked: 'Unlocked', unknown: 'State unknown' };
-const when = value => new Date(value).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
-const pad = n => String(n).padStart(2, '0');
-const localInput = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const when = formatPacific;
 
 class DoorError extends Error {
   constructor(message, status = 0, data = {}) { super(message); this.status = status; this.data = data; }
@@ -134,22 +133,8 @@ function renderOwner(data) {
   setButtons(true);
   if (data.driver === 'mock') feedback('lock-feedback', 'Using the test lock: no real door is connected.');
   if (data.storeError) feedback('pass-feedback', data.storeError, true);
-  renderList('passes', 'passes-empty', data.passes, pass => {
-    const status = document.createElement('span');
-    status.className = 'pass-status';
-    status.dataset.status = pass.status;
-    status.textContent = pass.status;
-    const trailing = [status];
-    if (pass.status === 'active' || pass.status === 'scheduled') {
-      const revoke = document.createElement('button');
-      revoke.type = 'button';
-      revoke.className = 'button';
-      revoke.textContent = 'Revoke';
-      revoke.addEventListener('click', () => revokePass(pass, revoke));
-      trailing.push(revoke);
-    }
-    return item(pass.label, `${when(pass.startsAt)} – ${when(pass.endsAt)}`, trailing);
-  });
+  renderList('passes', 'passes-empty', data.passes, pass => grantItem(pass, button => revokePass(pass, button)));
+  renderList('codes', 'codes-empty', data.codes, code => grantItem(code, () => revokeCode(code)));
   renderList('events', 'events-empty', data.events, event => {
     const outcome = document.createElement('span');
     outcome.className = 'event-outcome door-item-meta';
@@ -158,6 +143,61 @@ function renderOwner(data) {
     const who = event.actor === 'owner' ? 'You' : event.label || 'Guest';
     return item(`${who} ${event.action === 'lock' ? 'locked' : 'unlocked'}`, when(event.at), [outcome]);
   });
+}
+
+// A guest link or keypad code: label, window, status and a Revoke button while it can still be used.
+function grantItem(grant, onRevoke) {
+  const status = document.createElement('span');
+  status.className = 'pass-status';
+  status.dataset.status = grant.status;
+  status.textContent = grant.status;
+  const trailing = [status];
+  if (grant.status === 'active' || grant.status === 'scheduled') {
+    const revoke = document.createElement('button');
+    revoke.type = 'button';
+    revoke.className = 'button';
+    revoke.textContent = 'Revoke';
+    revoke.addEventListener('click', () => onRevoke(revoke));
+    trailing.push(revoke);
+  }
+  return item(grant.label, `${when(grant.startsAt)} – ${when(grant.endsAt)}`, trailing);
+}
+
+function readWindow(startId, endId) {
+  const startsAt = fromPacificInput($(startId).value), endsAt = fromPacificInput($(endId).value);
+  if (!startsAt || !endsAt) throw new DoorError('Pick a start and end time.');
+  return { startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() };
+}
+
+async function createCode(event) {
+  event.preventDefault();
+  const button = $('create-code');
+  button.disabled = true;
+  $('new-code').hidden = true;
+  try {
+    const data = await owner({ action: 'create_code', label: $('code-label').value, ...readWindow('code-start', 'code-end') });
+    $('new-code-message').value = `Your door code is ${data.pin}. It works ${when(data.code.startsAt)} – ${when(data.code.endsAt)}.`;
+    $('new-code').hidden = false;
+    $('copy-code').textContent = 'Copy';
+    feedback('code-feedback', `Created a code for ${data.code.label}.`);
+    $('code-label').value = '';
+    await refreshOwner();
+  } catch (error) {
+    feedback('code-feedback', error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function revokeCode(code) {
+  if (!confirm(`Revoke the keypad code for ${code.label}?`)) return;
+  try {
+    const data = await owner({ action: 'revoke_code', id: code.id });
+    feedback('code-feedback', data.warning || `Revoked the code for ${code.label}.`, Boolean(data.warning));
+  } catch (error) {
+    feedback('code-feedback', error.message, true);
+  }
+  await refreshOwner();
 }
 
 async function ownerAction(action) {
@@ -192,12 +232,10 @@ async function createPass(event) {
   button.disabled = true;
   $('new-pass').hidden = true;
   try {
-    const startsAt = new Date($('pass-start').value), endsAt = new Date($('pass-end').value);
-    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) throw new DoorError('Pick a start and end time.');
-    const data = await owner({ action: 'create_pass', label: $('pass-label').value,
-      startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() });
+    const data = await owner({ action: 'create_pass', label: $('pass-label').value, ...readWindow('pass-start', 'pass-end') });
     $('new-pass-link').value = `${location.origin}${location.pathname}#pass=${data.token}`;
     $('new-pass').hidden = false;
+    $('copy-link').textContent = 'Copy';
     feedback('pass-feedback', `Created a pass for ${data.pass.label}.`);
     $('pass-label').value = '';
     await refreshOwner();
@@ -208,12 +246,12 @@ async function createPass(event) {
   }
 }
 
-async function copyLink() {
+async function copyField(fieldId, button) {
   try {
-    await navigator.clipboard.writeText($('new-pass-link').value);
-    $('copy-link').textContent = 'Copied';
+    await navigator.clipboard.writeText($(fieldId).value);
+    button.textContent = 'Copied';
   } catch {
-    $('new-pass-link').select();
+    $(fieldId).select();
   }
 }
 
@@ -227,12 +265,15 @@ if (guestToken) {
 } else {
   const now = new Date();
   now.setSeconds(0, 0);
-  $('pass-start').value = localInput(now);
-  $('pass-end').value = localInput(new Date(now.getTime() + 24 * 3600 * 1000));
+  const tomorrow = new Date(now.getTime() + 24 * 3600 * 1000);
+  $('pass-start').value = $('code-start').value = toPacificInput(now);
+  $('pass-end').value = $('code-end').value = toPacificInput(tomorrow);
   $('lock').addEventListener('click', () => ownerAction('lock'));
   $('unlock').addEventListener('click', () => ownerAction('unlock'));
   $('pass-form').addEventListener('submit', createPass);
-  $('copy-link').addEventListener('click', copyLink);
+  $('code-form').addEventListener('submit', createCode);
+  $('copy-link').addEventListener('click', () => copyField('new-pass-link', $('copy-link')));
+  $('copy-code').addEventListener('click', () => copyField('new-code-message', $('copy-code')));
   $('login').addEventListener('click', () => Profiles.promptLogin());
   Profiles.init({ headerMount: null, onAuthChange: () => refreshOwner() })
     .catch(error => console.error('Profiles init failed', error));

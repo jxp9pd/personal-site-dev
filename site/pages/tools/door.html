@@ -20,17 +20,44 @@
     </section>
 
     <div id="owner" hidden>
+      <form id="code-form" class="door-panel reveal d3" aria-labelledby="code-title">
+        <h2 id="code-title">New keypad code</h2>
+        <div class="pass-fields">
+          <label class="pass-field pass-field-wide"><span class="field-label">Guest name</span>
+            <input id="code-label" class="input" name="label" maxlength="60" required autocomplete="off" placeholder="e.g. Dog sitter"></label>
+          <label class="pass-field"><span class="field-label">Starts (Pacific)</span>
+            <input id="code-start" class="input" name="startsAt" type="datetime-local" required></label>
+          <label class="pass-field"><span class="field-label">Ends (Pacific)</span>
+            <input id="code-end" class="input" name="endsAt" type="datetime-local" required></label>
+        </div>
+        <button type="submit" id="create-code" class="button button-primary">Create code</button>
+        <p id="code-feedback" class="status" role="status" aria-live="polite"></p>
+        <div id="new-code" class="new-pass" hidden>
+          <label class="field-label" for="new-code-message">Send this to your guest. The code is shown only once and can take a few minutes to reach the lock.</label>
+          <div class="new-pass-row">
+            <input id="new-code-message" class="input" readonly>
+            <button type="button" id="copy-code" class="button">Copy</button>
+          </div>
+        </div>
+      </form>
+
+      <section class="door-panel reveal d3" aria-labelledby="codes-title">
+        <h2 id="codes-title">Keypad codes</h2>
+        <ul id="codes" class="door-list"></ul>
+        <p id="codes-empty" class="status">No keypad codes yet.</p>
+      </section>
+
       <form id="pass-form" class="door-panel reveal d3" aria-labelledby="pass-title">
-        <h2 id="pass-title">New guest pass</h2>
+        <h2 id="pass-title">New guest link</h2>
         <div class="pass-fields">
           <label class="pass-field pass-field-wide"><span class="field-label">Guest name</span>
             <input id="pass-label" class="input" name="label" maxlength="60" required autocomplete="off" placeholder="e.g. Dog sitter"></label>
-          <label class="pass-field"><span class="field-label">Starts</span>
+          <label class="pass-field"><span class="field-label">Starts (Pacific)</span>
             <input id="pass-start" class="input" name="startsAt" type="datetime-local" required></label>
-          <label class="pass-field"><span class="field-label">Ends</span>
+          <label class="pass-field"><span class="field-label">Ends (Pacific)</span>
             <input id="pass-end" class="input" name="endsAt" type="datetime-local" required></label>
         </div>
-        <button type="submit" id="create-pass" class="button button-primary">Create pass</button>
+        <button type="submit" id="create-pass" class="button button-primary">Create link</button>
         <p id="pass-feedback" class="status" role="status" aria-live="polite"></p>
         <div id="new-pass" class="new-pass" hidden>
           <label class="field-label" for="new-pass-link">Send this link to your guest. It is shown only once.</label>
@@ -42,9 +69,9 @@
       </form>
 
       <section class="door-panel reveal d3" aria-labelledby="passes-title">
-        <h2 id="passes-title">Guest passes</h2>
+        <h2 id="passes-title">Guest links</h2>
         <ul id="passes" class="door-list"></ul>
-        <p id="passes-empty" class="status">No guest passes yet.</p>
+        <p id="passes-empty" class="status">No guest links yet.</p>
       </section>
 
       <section class="door-panel reveal d3" aria-labelledby="events-title">
