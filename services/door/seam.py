@@ -1,11 +1,22 @@
 """Seam (seam.co) lock driver: one device in one Seam workspace."""
 import json
 import time
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from locks import LockError
 
 API = 'https://connect.getseam.com'
+
+
+def rejection(error):
+    """Seam's own error message (never includes credentials), or a generic one."""
+    try:
+        message = json.loads(error.read(16 * 1024))['error']['message']
+    except (OSError, ValueError, KeyError, TypeError):
+        message = None
+    return f'The lock service rejected the request: {message}' if isinstance(message, str) else \
+        'The lock service rejected the request.'
 
 
 class SeamLock:
@@ -24,6 +35,8 @@ class SeamLock:
         try:
             with self.opener(request, timeout=5) as response:
                 return json.loads(response.read(256 * 1024))
+        except HTTPError as error:
+            raise LockError(rejection(error)) from None
         except (OSError, ValueError):
             raise LockError('Could not reach the lock service.') from None
 
@@ -44,6 +57,17 @@ class SeamLock:
         if attempt.get('status') == 'pending':
             raise LockError('The lock has not confirmed yet. Check its state before trying again.')
         raise LockError((attempt.get('error') or {}).get('message') or 'The lock rejected the command.')
+
+    def create_code(self, name, starts_at, ends_at, code):
+        created = self._call('/access_codes/create', {
+            'device_id': self.device_id, 'name': name, 'code': code,
+            'starts_at': starts_at, 'ends_at': ends_at}).get('access_code') or {}
+        if not created.get('access_code_id'):
+            raise LockError('The lock service did not create the code.')
+        return created['access_code_id']
+
+    def delete_code(self, code_id):
+        self._call('/access_codes/delete', {'access_code_id': code_id})
 
     def lock(self):
         self._act('/locks/lock_door')
