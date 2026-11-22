@@ -166,7 +166,7 @@ function grantItem(grant, onRevoke) {
 
 function readWindow(startId, endId) {
   const startsAt = fromPacificInput($(startId).value), endsAt = fromPacificInput($(endId).value);
-  if (!startsAt || !endsAt) throw new DoorError('Pick a start and end time.');
+  if (!startsAt || !endsAt) throw new DoorError('Pick a start and end time that exist in Pacific time.');
   return { startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() };
 }
 

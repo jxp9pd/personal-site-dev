@@ -6,6 +6,9 @@ describe('door Pacific time helpers', () => {
     expect(fromPacificInput('2026-11-22T15:00').toISOString()).toBe('2026-11-22T23:00:00.000Z');
     expect(fromPacificInput('2026-07-04T09:30').toISOString()).toBe('2026-07-04T16:30:00.000Z');
     expect(fromPacificInput('2026-11-22')).toBeNull();
+    expect(fromPacificInput('2027-03-14T02:30')).toBeNull();
+    expect(fromPacificInput('2027-03-14T03:00').toISOString()).toBe('2027-03-14T10:00:00.000Z');
+    expect(fromPacificInput('2026-11-01T01:30').toISOString()).toBe('2026-11-01T08:30:00.000Z');
   });
 
   it('round-trips instants to Pacific inputs', () => {

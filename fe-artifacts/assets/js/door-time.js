@@ -12,13 +12,15 @@ function offset(ms) {
   return Date.UTC(+p.year, p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - Math.floor(ms / 1000) * 1000;
 }
 
-// "2026-11-22T15:00" read as Pacific wall-clock time -> Date, or null if malformed.
+// "2026-11-22T15:00" read as Pacific wall-clock time -> Date, or null if malformed or skipped by
+// the spring-forward clock change. Repeated fall-back times resolve to their first occurrence.
 export function fromPacificInput(value) {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value || '');
   if (!match) return null;
   const wall = Date.UTC(+match[1], match[2] - 1, +match[3], +match[4], +match[5]);
   const first = wall - offset(wall);
-  return new Date(wall - offset(first));
+  const date = new Date(wall - offset(first));
+  return toPacificInput(date) === value ? date : null;
 }
 
 // Date -> "YYYY-MM-DDTHH:mm" in Pacific time, for <input type="datetime-local">.
