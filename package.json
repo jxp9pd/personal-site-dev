@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:gateway": "python3 -m unittest discover -s services/vestaboard -p 'test_*.py'",
     "preview:gateway": "VESTABOARD_API_TOKEN='' python3 services/vestaboard/server.py --preview fe-artifacts --port 8000",
-    "lint:py": "python3 -m pyflakes services/vestaboard scripts/*.py",
+    "preview:door": "DOOR_LOCK_DRIVER=mock python3 services/door/server.py --preview fe-artifacts --dev-owner",
+    "lint:py": "python3 -m pyflakes services/vestaboard services/door scripts/*.py",
     "test:atlas-db": "supabase start -x edge-runtime,gotrue,imgproxy,kong,logflare,mailpit,postgres-meta,postgrest,realtime,storage-api,studio,supavisor,vector && supabase db reset --local --no-seed && supabase test db --local tests/database/atlas.test.sql",
     "upload-quizzes": "node scripts/upload-quizzes.mjs",
     "upload-packs": "node scripts/upload-packs.mjs"
