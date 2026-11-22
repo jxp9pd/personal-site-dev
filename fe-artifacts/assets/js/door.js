@@ -72,6 +72,8 @@ function renderList(listId, emptyId, rows, render) {
 
 // Guest -----------------------------------------------------------------------
 
+let guestPass = null;
+
 async function guest(action = 'status') {
   setButtons(false);
   if (action !== 'status') feedback('lock-feedback', action === 'lock' ? 'Locking…' : 'Unlocking…');
@@ -81,12 +83,13 @@ async function guest(action = 'status') {
     if (action !== 'status') feedback('lock-feedback', action === 'lock' ? 'Locked.' : 'Unlocked.');
   } catch (error) {
     if (error.data.pass) renderGuest(error.data);
-    else $('pass-summary').hidden = true;
+    else setButtons(guestPass?.status === 'active');
     feedback('lock-feedback', error.message, true);
   }
 }
 
 function renderGuest({ pass, lockState }) {
+  guestPass = pass;
   $('pass-summary').hidden = false;
   $('pass-summary').textContent = `Pass for ${pass.label} · ${when(pass.startsAt)} – ${when(pass.endsAt)}`;
   if (lockState) showLockState(lockState);
