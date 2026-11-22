@@ -145,7 +145,7 @@ class Door:
                          if key in ('label', 'startsAt', 'endsAt', 'status')},
                 'driver': self.lock.name}
         if action == 'status':
-            return 200, {**info, 'lockState': self._lock_state()}
+            return 200, {**info, **({'lockState': self._lock_state()} if info['pass']['status'] == 'active' else {})}
         if info['pass']['status'] != 'active':
             self._record('guest', action, 'denied', ip, record)
             return 403, {**info, 'error': {

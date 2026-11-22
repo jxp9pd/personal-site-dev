@@ -64,6 +64,7 @@ class DoorTest(unittest.TestCase):
         token = self.create(start=timedelta(hours=1))['token']
         status, body = self.guest(token, 'unlock')
         self.assertEqual((status, body['pass']['status']), (403, 'scheduled'))
+        self.assertNotIn('lockState', self.guest(token)[1])
         self.assertEqual(self.lock.state(), 'locked')
         self.now += timedelta(hours=2)
         status, body = self.guest(token, 'unlock')
