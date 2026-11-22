@@ -1,84 +1,62 @@
 {{header}}
   <main class="page door-page">
-    <div class="page-header reveal d1">
+    <div class="page-header">
       <a class="back-link" href="/tools/"><svg class="back-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" /></svg> Tools</a>
-      <h1>Front <em>door</em></h1>
+      <h1>Door</h1>
       <p id="pass-summary" class="door-subtitle" hidden></p>
     </div>
 
-    <section class="door-panel reveal d2" aria-labelledby="lock-title">
-      <div class="door-panel-heading">
-        <h2 id="lock-title">Lock</h2>
-        <span id="lock-state" class="lock-state" data-state="unknown">Checking…</span>
-      </div>
+    <section class="door-panel door-lock" aria-label="Lock">
+      <p id="lock-state" class="lock-state" data-state="unknown" role="status">Checking…</p>
       <div class="door-actions">
         <button type="button" id="lock" class="button button-lg" disabled>Lock</button>
-        <button type="button" id="unlock" class="button button-primary button-lg" disabled>Unlock</button>
+        <button type="button" id="unlock" class="button button-lg" disabled>Unlock</button>
       </div>
       <p id="lock-feedback" class="status" role="status" aria-live="polite"></p>
-      <button type="button" id="login" class="button" hidden>Log in</button>
+      <button type="button" id="login" class="button button-primary" hidden>Log in</button>
     </section>
 
     <div id="owner" hidden>
-      <form id="code-form" class="door-panel reveal d3" aria-labelledby="code-title">
-        <h2 id="code-title">New keypad code</h2>
-        <div class="pass-fields">
-          <label class="pass-field pass-field-wide"><span class="field-label">Guest name</span>
-            <input id="code-label" class="input" name="label" maxlength="60" required autocomplete="off" placeholder="e.g. Dog sitter"></label>
-          <label class="pass-field"><span class="field-label">Starts (Pacific)</span>
-            <input id="code-start" class="input" name="startsAt" type="datetime-local" required></label>
-          <label class="pass-field"><span class="field-label">Ends (Pacific)</span>
-            <input id="code-end" class="input" name="endsAt" type="datetime-local" required></label>
+      <form id="grant-form" class="door-panel" aria-labelledby="grant-title">
+        <h2 id="grant-title">Give access</h2>
+        <div class="segmented grant-kind" role="group" aria-label="Access type">
+          <button type="button" data-kind="code" aria-pressed="true">Keypad code</button>
+          <button type="button" data-kind="link" aria-pressed="false">Link</button>
         </div>
-        <button type="submit" id="create-code" class="button button-primary">Create code</button>
-        <p id="code-feedback" class="status" role="status" aria-live="polite"></p>
-        <div id="new-code" class="new-pass" hidden>
-          <label class="field-label" for="new-code-message">Send this to your guest. The code is shown only once and can take a few minutes to reach the lock.</label>
-          <div class="new-pass-row">
-            <input id="new-code-message" class="input" readonly>
-            <button type="button" id="copy-code" class="button">Copy</button>
+        <div class="grant-fields">
+          <label class="grant-field grant-field-wide"><span class="field-label">Name</span>
+            <input id="grant-label" class="input" name="label" maxlength="60" required autocomplete="off"></label>
+          <label class="grant-field"><span class="field-label">From (PT)</span>
+            <input id="grant-start" class="input" name="startsAt" type="datetime-local" required></label>
+          <label class="grant-field"><span class="field-label">Until (PT)</span>
+            <input id="grant-end" class="input" name="endsAt" type="datetime-local" required></label>
+        </div>
+        <button type="submit" id="create-grant" class="button button-primary">Create</button>
+        <p id="grant-feedback" class="status" role="status" aria-live="polite"></p>
+        <div id="new-grant" class="new-grant" hidden>
+          <textarea id="new-grant-message" class="input" rows="3" readonly aria-label="Message for your guest"></textarea>
+          <div class="new-grant-row">
+            <button type="button" id="copy-grant" class="button">Copy</button>
+            <span class="door-item-meta">Shown once.</span>
           </div>
         </div>
       </form>
 
-      <section class="door-panel reveal d3" aria-labelledby="codes-title">
-        <h2 id="codes-title">Keypad codes</h2>
-        <ul id="codes" class="door-list"></ul>
-        <p id="codes-empty" class="status">No keypad codes yet.</p>
+      <section class="door-panel" aria-labelledby="grants-title">
+        <h2 id="grants-title">Access</h2>
+        <ul id="grants" class="door-list"></ul>
+        <p id="grants-empty" class="status">No one has access.</p>
+        <details id="past" class="door-more" hidden>
+          <summary>Past</summary>
+          <ul id="past-grants" class="door-list"></ul>
+        </details>
       </section>
 
-      <form id="pass-form" class="door-panel reveal d3" aria-labelledby="pass-title">
-        <h2 id="pass-title">New guest link</h2>
-        <div class="pass-fields">
-          <label class="pass-field pass-field-wide"><span class="field-label">Guest name</span>
-            <input id="pass-label" class="input" name="label" maxlength="60" required autocomplete="off" placeholder="e.g. Dog sitter"></label>
-          <label class="pass-field"><span class="field-label">Starts (Pacific)</span>
-            <input id="pass-start" class="input" name="startsAt" type="datetime-local" required></label>
-          <label class="pass-field"><span class="field-label">Ends (Pacific)</span>
-            <input id="pass-end" class="input" name="endsAt" type="datetime-local" required></label>
-        </div>
-        <button type="submit" id="create-pass" class="button button-primary">Create link</button>
-        <p id="pass-feedback" class="status" role="status" aria-live="polite"></p>
-        <div id="new-pass" class="new-pass" hidden>
-          <label class="field-label" for="new-pass-link">Send this link to your guest. It is shown only once.</label>
-          <div class="new-pass-row">
-            <input id="new-pass-link" class="input" readonly>
-            <button type="button" id="copy-link" class="button">Copy</button>
-          </div>
-        </div>
-      </form>
-
-      <section class="door-panel reveal d3" aria-labelledby="passes-title">
-        <h2 id="passes-title">Guest links</h2>
-        <ul id="passes" class="door-list"></ul>
-        <p id="passes-empty" class="status">No guest links yet.</p>
-      </section>
-
-      <section class="door-panel reveal d3" aria-labelledby="events-title">
-        <h2 id="events-title">Recent activity</h2>
+      <details class="door-panel door-more">
+        <summary>Activity</summary>
         <ul id="events" class="door-list"></ul>
         <p id="events-empty" class="status">No activity yet.</p>
-      </section>
+      </details>
     </div>
     <noscript><p>Enable JavaScript to use the door.</p></noscript>
   </main>

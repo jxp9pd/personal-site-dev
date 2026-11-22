@@ -1,29 +1,35 @@
-/* Apartment door: owner controls, guest passes and the guest link view. */
+/* Apartment door: lock controls, guest access and the guest link view. */
 .door-subtitle { margin: var(--space-3) 0 0; color: var(--muted); }
-.door-panel { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
-.door-panel h2 { margin: 0 0 16px; font-size: var(--text-md); }
-.door-panel-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
-.lock-state { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: var(--text-sm); }
-.lock-state::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.door-panel { margin-top: var(--space-6); padding-top: var(--space-5); border-top: 1px solid var(--line); }
+.door-panel h2 { margin: 0 0 var(--space-4); font-size: var(--text-md); }
+.lock-state { display: flex; align-items: center; gap: var(--space-3); margin: 0 0 var(--space-4); font-size: var(--text-xl); font-weight: 600; color: var(--muted); }
+.lock-state::before { content: ''; width: 12px; height: 12px; border-radius: 50%; background: currentColor; }
 .lock-state[data-state="locked"] { color: var(--good); }
 .lock-state[data-state="unlocked"] { color: var(--bad); }
-.door-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-#login { margin-top: 16px; }
-.pass-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
-.pass-field { display: grid; gap: 6px; }
-.pass-field-wide { grid-column: 1 / -1; }
-.new-pass { margin-top: 18px; display: grid; gap: 8px; }
-.new-pass-row { display: flex; gap: 10px; }
-.new-pass-row .input { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-xs); }
+.door-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+#login { margin-top: var(--space-4); }
+.grant-kind { margin-bottom: var(--space-4); }
+.grant-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-4); }
+.grant-field { display: grid; gap: var(--space-2); }
+.grant-field-wide { grid-column: 1 / -1; }
+.new-grant { margin-top: var(--space-4); display: grid; gap: var(--space-2); }
+.new-grant textarea { resize: none; font-family: var(--font-mono); font-size: var(--text-xs); }
+.new-grant-row { display: flex; align-items: center; gap: var(--space-3); }
 .door-list { margin: 0; padding: 0; list-style: none; }
-.door-list li { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.door-list li { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); padding: var(--space-3) 0; border-bottom: 1px solid var(--line); }
 .door-list li:last-child { border-bottom: 0; }
+.door-item-text { min-width: 0; }
 .door-item-title { font-weight: 600; }
 .door-item-meta { color: var(--muted); font-size: var(--text-xs); }
-.pass-status { color: var(--muted); font-size: var(--text-xs); text-transform: capitalize; }
-.pass-status[data-status="active"] { color: var(--good); }
-.event-outcome[data-outcome="failed"], .event-outcome[data-outcome="denied"] { color: var(--bad); }
+.door-item-end { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; }
+.grant-tag { color: var(--muted); font-size: var(--text-2xs); text-transform: uppercase; letter-spacing: var(--tracking-caps); }
+.grant-status[data-status="scheduled"] { color: var(--muted); }
+.grant-status[data-status="active"] { color: var(--good); }
+.door-item-meta[data-outcome="failed"], .door-item-meta[data-outcome="denied"] { color: var(--bad); }
+.door-more > summary { cursor: pointer; font-size: var(--text-md); }
+.door-more[open] > summary { margin-bottom: var(--space-3); }
+#past { margin-top: var(--space-4); }
+#past > summary { font-size: var(--text-sm); color: var(--muted); }
 @media (max-width: 560px) {
-  .pass-fields { grid-template-columns: 1fr; }
-  .door-list li { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .grant-fields { grid-template-columns: 1fr; }
 }
