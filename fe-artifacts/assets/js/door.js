@@ -152,11 +152,12 @@ function grantItem(grant, onRevoke) {
   status.dataset.status = grant.status;
   status.textContent = grant.status;
   const trailing = [status];
-  if (grant.status === 'active' || grant.status === 'scheduled') {
+  const retry = grant.status === 'revoked' && grant.removedFromLock === false;
+  if (grant.status === 'active' || grant.status === 'scheduled' || retry) {
     const revoke = document.createElement('button');
     revoke.type = 'button';
     revoke.className = 'button';
-    revoke.textContent = 'Revoke';
+    revoke.textContent = retry ? 'Retry removal' : 'Revoke';
     revoke.addEventListener('click', () => onRevoke(revoke));
     trailing.push(revoke);
   }
@@ -190,7 +191,7 @@ async function createCode(event) {
 }
 
 async function revokeCode(code) {
-  if (!confirm(`Revoke the keypad code for ${code.label}?`)) return;
+  if (code.status !== 'revoked' && !confirm(`Revoke the keypad code for ${code.label}?`)) return;
   try {
     const data = await owner({ action: 'revoke_code', id: code.id });
     feedback('code-feedback', data.warning || `Revoked the code for ${code.label}.`, Boolean(data.warning));

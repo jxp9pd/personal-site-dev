@@ -36,7 +36,9 @@ class SeamLock:
             with self.opener(request, timeout=5) as response:
                 return json.loads(response.read(256 * 1024))
         except HTTPError as error:
-            raise LockError(rejection(error)) from None
+            failure = LockError(rejection(error))
+            failure.status = error.code
+            raise failure from None
         except (OSError, ValueError):
             raise LockError('Could not reach the lock service.') from None
 
@@ -67,7 +69,11 @@ class SeamLock:
         return created['access_code_id']
 
     def delete_code(self, code_id):
-        self._call('/access_codes/delete', {'access_code_id': code_id})
+        try:
+            self._call('/access_codes/delete', {'access_code_id': code_id})
+        except LockError as failure:
+            if getattr(failure, 'status', None) != 404:
+                raise
 
     def lock(self):
         self._act('/locks/lock_door')

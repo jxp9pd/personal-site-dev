@@ -23,7 +23,7 @@ class BrokenLock(MockLock):
 class DownStore(MemoryStore):
     def __getattribute__(self, name):
         if name in ('create_pass', 'list_passes', 'find_pass', 'revoke_pass', 'record_event', 'list_events',
-                    'create_code', 'list_codes', 'revoke_code'):
+                    'create_code', 'list_codes', 'get_code', 'update_code'):
             def fail(*args):
                 raise StoreUnavailable()
             return fail
@@ -213,7 +213,8 @@ class KeypadCodeTest(unittest.TestCase):
         code_id = self.create()[1]['code']['id']
         self.assertEqual(self.door.owner_command({'action': 'revoke_code', 'id': code_id}, None), (200, {'revoked': code_id}))
         self.assertEqual(self.lock.codes, {})
-        self.assertEqual(self.door.owner_status()['codes'][0]['status'], 'revoked')
+        [listed] = self.door.owner_status()['codes']
+        self.assertEqual((listed['status'], listed['removedFromLock']), ('revoked', True))
 
     def test_validates_the_window_and_reports_lock_failures(self):
         self.assertEqual(self.create(endsAt=(self.now + timedelta(days=31)).isoformat())[0], 400)
@@ -231,12 +232,30 @@ class KeypadCodeTest(unittest.TestCase):
         self.assertEqual(self.create()[0], 503)
         self.assertEqual(self.lock.codes, {})
 
-    def test_revoke_warns_when_the_lock_keeps_the_code(self):
+    def test_revoke_warns_when_the_lock_keeps_the_code_and_a_retry_removes_it(self):
         code_id = self.create()[1]['code']['id']
+        delete = self.lock.delete_code
         self.lock.delete_code = lambda code_id: (_ for _ in ()).throw(LockError())
         status, body = self.door.owner_command({'action': 'revoke_code', 'id': code_id}, None)
         self.assertEqual((status, body['revoked']), (200, code_id))
-        self.assertIn('expires on schedule', body['warning'])
+        self.assertIn('Retry removal', body['warning'])
+        self.assertEqual(len(self.lock.codes), 1)
+        self.assertFalse(self.door.owner_status()['codes'][0]['removedFromLock'])
+        self.lock.delete_code = delete
+        self.assertEqual(self.door.owner_command({'action': 'revoke_code', 'id': code_id}, None), (200, {'revoked': code_id}))
+        self.assertEqual(self.lock.codes, {})
+
+    def test_revoke_retries_after_the_store_times_out_mid_revocation(self):
+        code_id = self.create()[1]['code']['id']
+        update = self.store.update_code
+        def commit_then_time_out(code_id, fields):
+            update(code_id, fields)
+            raise StoreUnavailable()
+        self.store.update_code = commit_then_time_out
+        self.assertEqual(self.door.owner_command({'action': 'revoke_code', 'id': code_id}, None)[0], 503)
+        self.store.update_code = update
+        self.assertEqual(self.door.owner_command({'action': 'revoke_code', 'id': code_id}, None), (200, {'revoked': code_id}))
+        self.assertEqual(self.lock.codes, {})
 
 
 class SeamLockTest(unittest.TestCase):
@@ -289,6 +308,11 @@ class SeamLockTest(unittest.TestCase):
             (['access_codes', 'create'], {'device_id': 'device-1', 'name': 'Sam', 'code': '123456',
                                           'starts_at': '2026-11-22T18:00:00+00:00', 'ends_at': '2026-11-23T18:00:00+00:00'}),
             (['access_codes', 'delete'], {'access_code_id': 'c1'})])
+
+    def test_deleting_a_code_seam_no_longer_has_succeeds(self):
+        missing = HTTPError('https://connect.getseam.com', 404, 'Not Found', {},
+                            io.BytesIO(b'{"error": {"message": "Access code not found"}}'))
+        self.lock([missing]).delete_code('c1')
 
     def test_seam_rejections_surface_seams_message(self):
         rejected = HTTPError('https://connect.getseam.com', 400, 'Bad Request', {},

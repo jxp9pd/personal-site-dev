@@ -9,8 +9,12 @@ create table public.door_access_codes (
   ends_at timestamptz not null,
   created_at timestamptz not null default now(),
   revoked_at timestamptz,
+  removed_at timestamptz,
   check (ends_at > starts_at and ends_at - starts_at <= interval '30 days')
 );
+
+comment on column public.door_access_codes.removed_at is
+  'When the lock confirmed deleting the code; null after revocation means removal must be retried.';
 
 comment on column public.door_access_codes.lock_code_id is
   'Seam access_code_id (or the mock lock''s id). The PIN is shown to the owner once and never stored here.';

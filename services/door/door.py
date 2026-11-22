@@ -39,7 +39,8 @@ def public_pass(record, now):
 def public_code(record, now):
     return {'id': record['id'], 'label': record['label'], 'startsAt': record['starts_at'],
             'endsAt': record['ends_at'], 'createdAt': record.get('created_at'),
-            'revokedAt': record.get('revoked_at'), 'status': pass_status(record, now)}
+            'revokedAt': record.get('revoked_at'), 'status': pass_status(record, now),
+            'removedFromLock': bool(record.get('removed_at'))}
 
 
 def public_event(event):
@@ -134,7 +135,7 @@ class Door:
             return 502, {'error': str(failure) or 'The lock did not accept the code.'}
         now = self.clock()
         record = {'id': str(uuid4()), 'label': label, 'lock_code_id': lock_code_id, 'starts_at': iso(starts),
-                  'ends_at': iso(ends), 'created_at': iso(now), 'revoked_at': None}
+                  'ends_at': iso(ends), 'created_at': iso(now), 'revoked_at': None, 'removed_at': None}
         try:
             self.store.create_code(record)
         except StoreUnavailable:
@@ -150,17 +151,23 @@ class Door:
             code_id = str(UUID(body.get('id')))
         except (AttributeError, TypeError, ValueError):
             return 400, {'error': 'Unknown code.'}
+        # Idempotent: a retry after a timeout or lock failure resumes until the lock confirms removal.
         try:
-            record = self.store.revoke_code(code_id, self.clock())
+            record = self.store.get_code(code_id)
+            if record is None:
+                return 400, {'error': 'Unknown code.'}
+            if record.get('removed_at'):
+                return 200, {'revoked': code_id}
+            if not record.get('revoked_at'):
+                self.store.update_code(code_id, {'revoked_at': iso(self.clock())})
+            try:
+                self.lock.delete_code(record['lock_code_id'])
+            except LockError:
+                return 200, {'revoked': code_id, 'warning': 'Revoked here, but the lock did not confirm removing the '
+                             'code. Press Retry removal, or remove it in the lock app.'}
+            self.store.update_code(code_id, {'removed_at': iso(self.clock())})
         except StoreUnavailable:
             return 503, {'error': STORE_ERROR}
-        if record is None:
-            return 200, {'revoked': code_id}
-        try:
-            self.lock.delete_code(record['lock_code_id'])
-        except LockError:
-            return 200, {'revoked': code_id, 'warning': 'Revoked here, but the lock did not confirm removing the '
-                         'code. It still expires on schedule; remove it in the lock app to be sure.'}
         return 200, {'revoked': code_id}
 
     def _create_pass(self, body):
