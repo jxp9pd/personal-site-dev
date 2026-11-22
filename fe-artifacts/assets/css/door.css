@@ -1,0 +1,29 @@
+/* Apartment door: owner controls, guest passes and the guest link view. */
+.door-subtitle { margin: var(--space-3) 0 0; color: var(--muted); }
+.door-panel { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
+.door-panel h2 { margin: 0 0 16px; font-size: var(--text-md); }
+.door-panel-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.lock-state { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: var(--text-sm); }
+.lock-state::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.lock-state[data-state="locked"] { color: var(--good); }
+.lock-state[data-state="unlocked"] { color: var(--bad); }
+.door-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+#login { margin-top: 16px; }
+.pass-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+.pass-field { display: grid; gap: 6px; }
+.pass-field-wide { grid-column: 1 / -1; }
+.new-pass { margin-top: 18px; display: grid; gap: 8px; }
+.new-pass-row { display: flex; gap: 10px; }
+.new-pass-row .input { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-xs); }
+.door-list { margin: 0; padding: 0; list-style: none; }
+.door-list li { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.door-list li:last-child { border-bottom: 0; }
+.door-item-title { font-weight: 600; }
+.door-item-meta { color: var(--muted); font-size: var(--text-xs); }
+.pass-status { color: var(--muted); font-size: var(--text-xs); text-transform: capitalize; }
+.pass-status[data-status="active"] { color: var(--good); }
+.event-outcome[data-outcome="failed"], .event-outcome[data-outcome="denied"] { color: var(--bad); }
+@media (max-width: 560px) {
+  .pass-fields { grid-template-columns: 1fr; }
+  .door-list li { align-items: flex-start; flex-direction: column; gap: 8px; }
+}

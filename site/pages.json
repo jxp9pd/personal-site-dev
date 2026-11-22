@@ -382,6 +382,25 @@
     "source": "pages/tools/vestaboard/index.html"
   },
   {
+    "output": "tools/door.html",
+    "title": "Front door — Penta Projects",
+    "description": "Lock, unlock and share temporary access to John's front door.",
+    "assets": "site",
+    "layout": "narrow",
+    "section": "tools",
+    "header": {},
+    "styles": [
+      "/assets/css/door.css"
+    ],
+    "scripts": [
+      {
+        "type": "module",
+        "src": "/assets/js/door.js"
+      }
+    ],
+    "source": "pages/tools/door.html"
+  },
+  {
     "output": "tools/vestaboard.html",
     "title": "Leave a note — Penta Projects",
     "description": "Send a little note from the internet to John's Vestaboard Note.",
