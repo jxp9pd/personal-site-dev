@@ -22,7 +22,8 @@ class BrokenLock(MockLock):
 
 class DownStore(MemoryStore):
     def __getattribute__(self, name):
-        if name in ('create_pass', 'list_passes', 'find_pass', 'revoke_pass', 'record_event', 'list_events'):
+        if name in ('create_pass', 'list_passes', 'find_pass', 'revoke_pass', 'record_event', 'list_events',
+                    'create_code', 'list_codes', 'get_code', 'update_code'):
             def fail(*args):
                 raise StoreUnavailable()
             return fail
@@ -184,6 +185,79 @@ if __name__ == '__main__':
     unittest.main()
 
 
+class KeypadCodeTest(unittest.TestCase):
+    def setUp(self):
+        self.now = datetime(2026, 11, 22, 18, 0, tzinfo=timezone.utc)
+        self.lock, self.store = MockLock(), MemoryStore()
+        self.door = Door(self.lock, self.store, lambda: self.now)
+
+    def create(self, **overrides):
+        body = {'action': 'create_code', 'label': 'Dog sitter', 'startsAt': self.now.isoformat(),
+                'endsAt': (self.now + timedelta(days=2)).isoformat(), **overrides}
+        return self.door.owner_command(body, None)
+
+    def test_creates_a_six_digit_code_on_the_lock_without_storing_the_pin(self):
+        status, body = self.create()
+        self.assertEqual(status, 200, body)
+        self.assertRegex(body['pin'], r'^[0-9]{6}$')
+        [(lock_code_id, on_lock)] = self.lock.codes.items()
+        self.assertEqual((on_lock['code'], on_lock['name'], on_lock['starts_at']),
+                         (body['pin'], 'Dog sitter', '2026-11-22T18:00:00+00:00'))
+        self.assertEqual(self.store.codes[0]['lock_code_id'], lock_code_id)
+        self.assertNotIn(body['pin'], json.dumps(self.store.codes))
+        [listed] = self.door.owner_status()['codes']
+        self.assertEqual((listed['label'], listed['status']), ('Dog sitter', 'active'))
+        self.assertNotIn('lock_code_id', listed)
+
+    def test_revoking_removes_the_code_from_the_lock(self):
+        code_id = self.create()[1]['code']['id']
+        self.assertEqual(self.door.owner_command({'action': 'revoke_code', 'id': code_id}, None), (200, {'revoked': code_id}))
+        self.assertEqual(self.lock.codes, {})
+        [listed] = self.door.owner_status()['codes']
+        self.assertEqual((listed['status'], listed['removedFromLock']), ('revoked', True))
+
+    def test_validates_the_window_and_reports_lock_failures(self):
+        self.assertEqual(self.create(endsAt=(self.now + timedelta(days=31)).isoformat())[0], 400)
+        self.assertEqual(self.create(label=' ')[0], 400)
+
+        class NoKeypad(MockLock):
+            def create_code(self, *args):
+                raise LockError('The lock service rejected the request: Device has no keypad.')
+        self.door.lock = NoKeypad()
+        self.assertEqual(self.create(), (502, {'error': 'The lock service rejected the request: Device has no keypad.'}))
+        self.assertEqual(self.store.codes, [])
+
+    def test_store_outage_removes_the_new_code_from_the_lock(self):
+        self.door.store = DownStore()
+        self.assertEqual(self.create()[0], 503)
+        self.assertEqual(self.lock.codes, {})
+
+    def test_revoke_warns_when_the_lock_keeps_the_code_and_a_retry_removes_it(self):
+        code_id = self.create()[1]['code']['id']
+        delete = self.lock.delete_code
+        self.lock.delete_code = lambda code_id: (_ for _ in ()).throw(LockError())
+        status, body = self.door.owner_command({'action': 'revoke_code', 'id': code_id}, None)
+        self.assertEqual((status, body['revoked']), (200, code_id))
+        self.assertIn('Retry removal', body['warning'])
+        self.assertEqual(len(self.lock.codes), 1)
+        self.assertFalse(self.door.owner_status()['codes'][0]['removedFromLock'])
+        self.lock.delete_code = delete
+        self.assertEqual(self.door.owner_command({'action': 'revoke_code', 'id': code_id}, None), (200, {'revoked': code_id}))
+        self.assertEqual(self.lock.codes, {})
+
+    def test_revoke_retries_after_the_store_times_out_mid_revocation(self):
+        code_id = self.create()[1]['code']['id']
+        update = self.store.update_code
+        def commit_then_time_out(code_id, fields):
+            update(code_id, fields)
+            raise StoreUnavailable()
+        self.store.update_code = commit_then_time_out
+        self.assertEqual(self.door.owner_command({'action': 'revoke_code', 'id': code_id}, None)[0], 503)
+        self.store.update_code = update
+        self.assertEqual(self.door.owner_command({'action': 'revoke_code', 'id': code_id}, None), (200, {'revoked': code_id}))
+        self.assertEqual(self.lock.codes, {})
+
+
 class SeamLockTest(unittest.TestCase):
     def lock(self, responses):
         from seam import SeamLock
@@ -225,6 +299,26 @@ class SeamLockTest(unittest.TestCase):
         self.assertEqual(len(self.requests), 3)
         with self.assertRaisesRegex(LockError, 'reach'):
             self.lock([OSError()]).unlock()
+
+    def test_access_codes_use_the_seam_endpoints(self):
+        lock = self.lock([{'access_code': {'access_code_id': 'c1', 'code': '123456'}}, {}])
+        self.assertEqual(lock.create_code('Sam', '2026-11-22T18:00:00+00:00', '2026-11-23T18:00:00+00:00', '123456'), 'c1')
+        lock.delete_code('c1')
+        self.assertEqual([(url.rsplit('/', 2)[-2:], body) for url, body, _ in self.requests], [
+            (['access_codes', 'create'], {'device_id': 'device-1', 'name': 'Sam', 'code': '123456',
+                                          'starts_at': '2026-11-22T18:00:00+00:00', 'ends_at': '2026-11-23T18:00:00+00:00'}),
+            (['access_codes', 'delete'], {'access_code_id': 'c1'})])
+
+    def test_deleting_a_code_seam_no_longer_has_succeeds(self):
+        missing = HTTPError('https://connect.getseam.com', 404, 'Not Found', {},
+                            io.BytesIO(b'{"error": {"message": "Access code not found"}}'))
+        self.lock([missing]).delete_code('c1')
+
+    def test_seam_rejections_surface_seams_message(self):
+        rejected = HTTPError('https://connect.getseam.com', 400, 'Bad Request', {},
+                             io.BytesIO(b'{"error": {"message": "Device has no keypad."}}'))
+        with self.assertRaisesRegex(LockError, 'rejected the request: Device has no keypad'):
+            self.lock([rejected]).create_code('Sam', 'a', 'b', '123456')
 
     def test_state_reads_the_device_locked_property(self):
         self.assertEqual(self.lock([{'device': {'properties': {'locked': True}}}]).state(), 'locked')
