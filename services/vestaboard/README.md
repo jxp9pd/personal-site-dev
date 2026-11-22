@@ -282,6 +282,8 @@ sender IP, and delivery outcome. Legacy clients that send only a grid have no
 original text. Outcomes distinguish cloud acceptance, definite rejection, and
 unknown delivery. Valid requests rejected by the gateway's cooldown are recorded
 too; requests blocked by nginx never reach history storage.
+If Supabase is unavailable, the gateway logs a warning and sends the note
+without a history record; history never blocks delivery.
 
 1. Apply `supabase/migrations/0009_vestaboard_messages.sql` to the site's Supabase
    project. Row-level security and explicit grants restrict access to the server's

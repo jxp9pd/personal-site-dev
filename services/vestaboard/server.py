@@ -3,6 +3,7 @@
 import argparse
 from functools import partial
 import json
+import logging
 from pathlib import Path
 import socket
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -103,7 +104,7 @@ def handler_for(controller, origins, preview_dir=None, history=None, apps=None):
                     record_id = history.begin(original_message, characters,
                                               sender_ip(self.client_address[0], self.headers.get('X-Real-IP')))
                 except HistoryUnavailable:
-                    return self.reply(503, {'error': 'Message history is temporarily unavailable. Your note was not sent; try again shortly.'})
+                    logging.warning('Message history is unavailable; sending the note without a history record.')
             status, result = controller.send_note(characters)
             if record_id:
                 history.finish(record_id, status)
