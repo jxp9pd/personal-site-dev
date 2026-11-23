@@ -1,6 +1,7 @@
 """Lock drivers. Each exposes `name`, `state()`, `lock()`, `unlock()`, and keypad codes:
-`list_codes()`, `create_code(name, starts_at, ends_at, code)` -> code id, `delete_code(code_id)`,
-plus `list_events()`. Codes are dicts with id, name, code, starts_at and ends_at (ISO strings);
+`list_codes()`, `create_code(name, starts_at, ends_at, code)` -> the new code, `delete_code(code_id)`,
+plus `list_events()`. Codes are dicts with id, name, code, starts_at and ends_at (ISO strings), and
+optional `setting` (not on the keypad yet) and `failed` flags;
 events are dicts with at, action ('lock' or 'unlock') and code_id (or None)."""
 from datetime import datetime, timezone
 import threading
@@ -43,7 +44,7 @@ class MockLock:
         code_id = str(uuid4())
         with self._guard:
             self.codes[code_id] = {'name': name, 'code': code, 'starts_at': starts_at, 'ends_at': ends_at}
-        return code_id
+        return {'id': code_id, **self.codes[code_id]}
 
     def delete_code(self, code_id):
         with self._guard:

@@ -100,7 +100,8 @@ function codeItem(code) {
   const status = document.createElement('span');
   status.className = 'code-status door-item-meta';
   status.dataset.status = code.status;
-  status.textContent = code.status === 'active' ? 'Active' : 'Upcoming';
+  status.textContent = { active: 'Active', scheduled: 'Upcoming', setting: 'Setting up',
+    failed: 'Not on lock', expired: 'Expired' }[code.status];
   const revoke = document.createElement('button');
   revoke.type = 'button';
   revoke.className = 'button';
@@ -136,6 +137,9 @@ async function createCode(event) {
       startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() });
     $('new-code-message').value = `Your door code is ${code.pin}. It works ${when(code.startsAt)} – ${when(code.endsAt)}.`;
     $('new-code').hidden = false;
+    if (code.status === 'setting' || code.status === 'failed') {
+      feedback('code-feedback', 'The lock has not confirmed this code yet. Send it once the list shows it as Active or Upcoming.', true);
+    }
     $('copy-code').textContent = 'Copy';
     $('code-label').value = '';
     await refresh();

@@ -19,6 +19,13 @@ def rejection(error):
         'The lock service rejected the request.'
 
 
+def code_record(code):
+    """Seam access code -> lock-driver code. `setting` means Seam has not confirmed it is on the keypad yet."""
+    return {'id': code['access_code_id'], 'name': code.get('name') or 'Guest', 'code': code.get('code'),
+            'starts_at': code.get('starts_at'), 'ends_at': code.get('ends_at'),
+            'setting': code.get('status') == 'setting', 'failed': bool(code.get('errors'))}
+
+
 class SeamLock:
     name = 'seam'
 
@@ -62,9 +69,8 @@ class SeamLock:
 
     def list_codes(self):
         codes = self._call('/access_codes/list', {'device_id': self.device_id}).get('access_codes') or []
-        return [{'id': code['access_code_id'], 'name': code.get('name') or 'Guest', 'code': code.get('code'),
-                 'starts_at': code.get('starts_at'), 'ends_at': code.get('ends_at')}
-                for code in codes if code.get('access_code_id') and code.get('starts_at') and code.get('ends_at')]
+        return [code_record(code) for code in codes
+                if code.get('access_code_id') and code.get('starts_at') and code.get('ends_at')]
 
     def list_events(self):
         events = self._call('/events/list', {'device_id': self.device_id, 'limit': 50,
@@ -75,11 +81,16 @@ class SeamLock:
 
     def create_code(self, name, starts_at, ends_at, code):
         created = self._call('/access_codes/create', {
-            'device_id': self.device_id, 'name': name, 'code': code,
-            'starts_at': starts_at, 'ends_at': ends_at}).get('access_code') or {}
+            'device_id': self.device_id,
+            'name': name,
+            'code': code,
+            'starts_at': starts_at,
+            'ends_at': ends_at,
+        }).get('access_code') or {}
         if not created.get('access_code_id'):
             raise LockError('The lock service did not create the code.')
-        return created['access_code_id']
+        return code_record({'name': name, 'code': code, 'starts_at': starts_at, 'ends_at': ends_at,
+                            'status': 'setting', **created})
 
     def delete_code(self, code_id):
         try:

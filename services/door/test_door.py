@@ -83,6 +83,21 @@ class DoorTest(unittest.TestCase):
         self.assertEqual((status, body['error'], body['lockState']), (502, 'Lock is offline.', 'locked'))
         self.assertEqual(door.owner_command({'action': 'revoke_code', 'id': 'c1'})[0], 502)
 
+    def test_status_reflects_what_the_lock_reports(self):
+        class ReportingLock(MockLock):
+            def list_codes(self):
+                start, end = '2026-11-22T17:00:00+00:00', '2026-11-23T17:00:00+00:00'
+                return [{'id': 'a', 'name': 'A', 'starts_at': start, 'ends_at': end, 'setting': True},
+                        {'id': 'b', 'name': 'B', 'starts_at': start, 'ends_at': end, 'failed': True},
+                        {'id': 'c', 'name': 'C', 'starts_at': '2026-11-21T00:00:00+00:00', 'ends_at': start}]
+
+            def list_events(self):
+                raise LockError('down')
+        body = Door(ReportingLock(), lambda: self.now).owner_status()
+        self.assertEqual([code['status'] for code in body['codes']], ['expired', 'setting', 'failed'])
+        self.assertIsNone(body['events'])
+        self.assertNotIn('error', body)
+
     def test_lock_service_outage_still_shows_the_lock(self):
         class DownLock(MockLock):
             def list_codes(self):
@@ -191,7 +206,8 @@ class SeamLockTest(unittest.TestCase):
 
     def test_access_codes_use_the_seam_endpoints(self):
         lock = self.lock([{'access_code': {'access_code_id': 'c1', 'code': '123456'}}, {}])
-        self.assertEqual(lock.create_code('Sam', '2026-11-22T18:00:00+00:00', '2026-11-23T18:00:00+00:00', '123456'), 'c1')
+        created = lock.create_code('Sam', '2026-11-22T18:00:00+00:00', '2026-11-23T18:00:00+00:00', '123456')
+        self.assertEqual((created['id'], created['code'], created['setting'], created['failed']), ('c1', '123456', True, False))
         lock.delete_code('c1')
         self.assertEqual([(url.rsplit('/', 2)[-2:], body) for url, body, _ in self.requests], [
             (['access_codes', 'create'], {'device_id': 'device-1', 'name': 'Sam', 'code': '123456',
@@ -216,8 +232,8 @@ class SeamLockTest(unittest.TestCase):
                               {'access_code_id': 'c2', 'name': 'Ongoing', 'code': '999999'}]},
             {'events': [{'event_type': 'lock.unlocked', 'occurred_at': '2026-11-22T19:00:00Z', 'access_code_id': 'c1'},
                         {'event_type': 'lock.locked', 'occurred_at': '2026-11-22T18:30:00Z'}]}])
-        self.assertEqual(lock.list_codes(), [{'id': 'c1', 'name': 'Sam', 'code': '123456',
-                                              'starts_at': '2026-11-22T18:00:00Z', 'ends_at': '2026-11-23T18:00:00Z'}])
+        self.assertEqual(lock.list_codes(), [{'id': 'c1', 'name': 'Sam', 'code': '123456', 'starts_at': '2026-11-22T18:00:00Z',
+                                              'ends_at': '2026-11-23T18:00:00Z', 'setting': False, 'failed': False}])
         self.assertEqual(lock.list_events(), [{'at': '2026-11-22T19:00:00Z', 'action': 'unlock', 'code_id': 'c1'},
                                               {'at': '2026-11-22T18:30:00Z', 'action': 'lock', 'code_id': None}])
         self.assertEqual([(url.rsplit('/', 2)[-2:], body) for url, body, _ in self.requests], [

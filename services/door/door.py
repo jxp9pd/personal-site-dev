@@ -22,9 +22,19 @@ def parse_time(value):
     return moment.astimezone(timezone.utc)
 
 
+def code_status(code, now):
+    if code.get('failed'):
+        return 'failed'
+    if now >= parse_time(code['ends_at']):
+        return 'expired'
+    if code.get('setting'):
+        return 'setting'
+    return 'scheduled' if now < parse_time(code['starts_at']) else 'active'
+
+
 def public_code(code, now):
     return {'id': code['id'], 'label': code['name'], 'pin': code.get('code'), 'startsAt': code['starts_at'],
-            'endsAt': code['ends_at'], 'status': 'scheduled' if now < parse_time(code['starts_at']) else 'active'}
+            'endsAt': code['ends_at'], 'status': code_status(code, now)}
 
 
 class Door:
@@ -40,14 +50,18 @@ class Door:
     def owner_status(self):
         now = self.clock()
         body = {'lockState': self._lock_state()}
+        names = {}
         try:
-            codes = [code for code in self.lock.list_codes() if parse_time(code['ends_at']) > now]
+            codes = self.lock.list_codes()
             names = {code['id']: code['name'] for code in codes}
             body['codes'] = sorted((public_code(code, now) for code in codes), key=lambda code: code['startsAt'])
+        except (LockError, KeyError, TypeError, ValueError):
+            body.update(codes=None, error='Could not load codes from the lock service.')
+        try:
             body['events'] = [{'at': event['at'], 'action': event['action'], 'label': names.get(event['code_id'])}
                               for event in self.lock.list_events()]
         except (LockError, KeyError, TypeError, ValueError):
-            body.update(codes=None, events=None, error='Could not load codes from the lock service.')
+            body['events'] = None
         return body
 
     def owner_command(self, body):
@@ -82,9 +96,8 @@ class Door:
         if starts > now + MAX_LEAD:
             return 400, {'error': 'A code must start within a year.'}
         pin = ''.join(secrets.choice('0123456789') for _ in range(CODE_DIGITS))
-        code = {'name': label.strip(), 'code': pin, 'starts_at': iso(starts), 'ends_at': iso(ends)}
         try:
-            code['id'] = self.lock.create_code(code['name'], code['starts_at'], code['ends_at'], pin)
+            code = self.lock.create_code(label.strip(), iso(starts), iso(ends), pin)
         except LockError as failure:
             return 502, {'error': str(failure) or 'The lock did not accept the code.'}
         return 200, {'code': public_code(code, now)}
