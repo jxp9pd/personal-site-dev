@@ -1,32 +1,27 @@
-// Apartment door page. With `#pass=<token>` it is a guest's pass; otherwise it
-// is the owner's console. The server decides who may do what: the owner by
-// Supabase session, a guest by the pass secret, which stays in the URL hash so
-// it never reaches server logs or Referer headers.
+// Apartment door console. Only the owner's Supabase session can use it; guests get keypad codes.
 import { Profiles } from './profiles.js';
 import { getSession } from './dataClient.js';
-import { formatPacific, fromPacificInput, toPacificInput } from './door-time.js';
+import { formatPacific as when, fromPacificInput, toPacificInput } from './door-time.js';
 
 const $ = id => document.getElementById(id);
-const guestToken = new URLSearchParams(location.hash.slice(1)).get('pass');
 const stateText = { locked: 'Locked', unlocked: 'Unlocked', unknown: 'State unknown' };
-const when = formatPacific;
 
 class DoorError extends Error {
   constructor(message, status = 0, data = {}) { super(message); this.status = status; this.data = data; }
 }
 
-async function api(path, body, accessToken) {
-  const headers = {};
-  if (body) headers['Content-Type'] = 'application/json';
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+async function owner(body) {
+  const session = await getSession().catch(() => null);
+  if (!session?.access_token) throw new DoorError('Log in as the owner to manage the door.', 401);
   let response;
   try {
-    response = await fetch(`/api/door/${path}`, {
-      method: body ? 'POST' : 'GET', headers, cache: 'no-store',
-      body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(25000),
+    response = await fetch('/api/door/owner', {
+      method: body ? 'POST' : 'GET', cache: 'no-store', signal: AbortSignal.timeout(25000),
+      headers: { Authorization: `Bearer ${session.access_token}`, ...(body && { 'Content-Type': 'application/json' }) },
+      body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new DoorError(body && body.action !== 'status'
+    throw new DoorError(body
       ? 'Connection interrupted. Check the lock state before trying again.'
       : 'The door service is unavailable. Try again in a moment.');
   }
@@ -53,7 +48,7 @@ function setButtons(enabled) {
   $('lock').disabled = $('unlock').disabled = !enabled;
 }
 
-function item(title, meta, trailing) {
+function item(title, meta, trailing = []) {
   const li = document.createElement('li');
   const text = document.createElement('div');
   text.className = 'door-item-text';
@@ -76,57 +71,9 @@ function renderList(listId, emptyId, rows, render) {
   $(emptyId).hidden = Boolean(rows?.length);
 }
 
-// Guest -----------------------------------------------------------------------
-
-let guestPass = null;
-
-async function guest(action = 'status') {
-  setButtons(false);
-  if (action !== 'status') {
-    feedback('lock-feedback', action === 'lock' ? 'Locking…' : 'Unlocking…');
-    $('lock-state').dataset.busy = 'true';
-  }
+async function refresh() {
   try {
-    const data = await api('guest', { token: guestToken, action });
-    renderGuest(data);
-    if (action !== 'status') feedback('lock-feedback', '');
-  } catch (error) {
-    if (error.data.pass) renderGuest(error.data);
-    else setButtons(guestPass?.status === 'active');
-    feedback('lock-feedback', error.message, true);
-  }
-  delete $('lock-state').dataset.busy;
-}
-
-function renderGuest({ pass, lockState }) {
-  guestPass = pass;
-  $('pass-summary').hidden = false;
-  $('pass-summary').textContent = `${pass.label} · ${when(pass.startsAt)} – ${when(pass.endsAt)}`;
-  if (lockState) showLockState(lockState);
-  const active = pass.status === 'active';
-  setButtons(active);
-  if (!active) feedback('lock-feedback', {
-    scheduled: `This link starts working ${when(pass.startsAt)}.`,
-    expired: 'This link has expired.',
-    revoked: 'This link was revoked.' }[pass.status] || 'This link is not active.', true);
-}
-
-// Owner -----------------------------------------------------------------------
-
-async function ownerToken() {
-  const session = await getSession().catch(() => null);
-  return session?.access_token || null;
-}
-
-async function owner(body) {
-  const token = await ownerToken();
-  if (!token) throw new DoorError('Log in as the owner to manage the door.', 401);
-  return api('owner', body, token);
-}
-
-async function refreshOwner() {
-  try {
-    renderOwner(await owner());
+    render(await owner());
   } catch (error) {
     $('owner').hidden = true;
     setButtons(false);
@@ -137,161 +84,102 @@ async function refreshOwner() {
   }
 }
 
-const isCurrent = grant => grant.status === 'active' || grant.status === 'scheduled'
-  || (grant.status === 'revoked' && grant.removedFromLock === false);
-
-function renderOwner(data) {
+function render(data) {
   $('owner').hidden = false;
   $('login').hidden = true;
   showLockState(data.lockState);
   setButtons(true);
-  if (data.storeError) feedback('grant-feedback', data.storeError, true);
-  const grants = [
-    ...(data.codes || []).map(code => ({ ...code, kind: 'code' })),
-    ...(data.passes || []).map(pass => ({ ...pass, kind: 'link' })),
-  ].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  renderList('grants', 'grants-empty', grants.filter(isCurrent), grantItem);
-  const past = grants.filter(grant => !isCurrent(grant)).reverse();
-  $('past').hidden = !past.length;
-  $('past').querySelector('summary').textContent = `Past (${past.length})`;
-  $('past-grants').replaceChildren(...past.map(grantItem));
-  renderList('events', 'events-empty', data.events, event => {
-    const who = event.actor === 'owner' ? 'You' : event.label || 'Guest';
-    const trailing = [];
-    if (event.outcome !== 'ok') {
-      const outcome = document.createElement('span');
-      outcome.className = 'door-item-meta';
-      outcome.dataset.outcome = event.outcome;
-      outcome.textContent = event.outcome === 'denied' ? 'Denied' : 'Failed';
-      trailing.push(outcome);
-    }
-    return item(`${who} ${event.action === 'lock' ? 'locked' : 'unlocked'}`, when(event.at), trailing);
-  });
+  if (data.error) feedback('code-feedback', data.error, true);
+  renderList('codes', 'codes-empty', data.codes, codeItem);
+  renderList('events', 'events-empty', data.events, event =>
+    item(event.label ? `${event.label} ${event.action}ed` : event.action === 'lock' ? 'Locked' : 'Unlocked',
+      when(event.at)));
 }
 
-// A keypad code or link: name, window, type, status, and Revoke while it can still be used.
-function grantItem(grant) {
-  const tag = document.createElement('span');
-  tag.className = 'grant-tag';
-  tag.textContent = grant.kind === 'code' ? 'Code' : 'Link';
+function codeItem(code) {
   const status = document.createElement('span');
-  status.className = 'grant-status door-item-meta';
-  status.dataset.status = grant.status;
-  status.textContent = { active: 'Active', scheduled: 'Upcoming', expired: 'Expired', revoked: 'Revoked' }[grant.status];
-  const trailing = [tag, status];
-  if (isCurrent(grant)) {
-    const revoke = document.createElement('button');
-    revoke.type = 'button';
-    revoke.className = 'button';
-    revoke.textContent = grant.status === 'revoked' ? 'Retry removal' : 'Revoke';
-    revoke.addEventListener('click', () => revokeGrant(grant, revoke));
-    trailing.push(revoke);
-  }
-  return item(grant.label, `${when(grant.startsAt)} – ${when(grant.endsAt)}`, trailing);
+  status.className = 'code-status door-item-meta';
+  status.dataset.status = code.status;
+  status.textContent = { active: 'Active', scheduled: 'Upcoming', setting: 'Setting up',
+    failed: 'Not on lock', expired: 'Expired' }[code.status];
+  const revoke = document.createElement('button');
+  revoke.type = 'button';
+  revoke.className = 'button';
+  revoke.textContent = 'Revoke';
+  revoke.addEventListener('click', () => revokeCode(code, revoke));
+  const pin = code.pin ? `${code.pin} · ` : '';
+  return item(code.label, `${pin}${when(code.startsAt)} – ${when(code.endsAt)}`, [status, revoke]);
 }
 
-async function revokeGrant(grant, button) {
-  const noun = grant.kind === 'code' ? 'keypad code' : 'link';
-  if (grant.status !== 'revoked' && !confirm(`Revoke ${grant.label}'s ${noun}?`)) return;
+async function revokeCode(code, button) {
+  if (!confirm(`Revoke ${code.label}'s code?`)) return;
   button.disabled = true;
   try {
-    const data = await owner({ action: grant.kind === 'code' ? 'revoke_code' : 'revoke_pass', id: grant.id });
-    feedback('grant-feedback', data.warning || `Revoked ${grant.label}'s ${noun}.`, Boolean(data.warning));
+    await owner({ action: 'revoke_code', id: code.id });
+    feedback('code-feedback', `Revoked ${code.label}'s code.`);
   } catch (error) {
-    feedback('grant-feedback', error.message, true);
+    feedback('code-feedback', error.message, true);
   }
-  await refreshOwner();
+  await refresh();
 }
 
-let grantKind = 'code';
-
-function chooseKind(kind) {
-  grantKind = kind;
-  for (const button of document.querySelectorAll('.grant-kind button')) {
-    button.setAttribute('aria-pressed', String(button.dataset.kind === kind));
-  }
-}
-
-async function createGrant(event) {
+async function createCode(event) {
   event.preventDefault();
-  const button = $('create-grant');
+  const button = $('create-code');
   button.disabled = true;
-  $('new-grant').hidden = true;
-  feedback('grant-feedback', '');
+  $('new-code').hidden = true;
+  feedback('code-feedback', '');
   try {
-    const startsAt = fromPacificInput(`${$('grant-start-date').value}T${$('grant-start-time').value}`);
-    const endsAt = fromPacificInput(`${$('grant-end-date').value}T${$('grant-end-time').value}`);
+    const startsAt = fromPacificInput(`${$('code-start-date').value}T${$('code-start-time').value}`);
+    const endsAt = fromPacificInput(`${$('code-end-date').value}T${$('code-end-time').value}`);
     if (!startsAt || !endsAt) throw new DoorError('Pick a start and end time that exist in Pacific time.');
-    const body = { label: $('grant-label').value, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() };
-    let message;
-    if (grantKind === 'code') {
-      const data = await owner({ action: 'create_code', ...body });
-      message = `Your door code is ${data.pin}. It works ${when(data.code.startsAt)} – ${when(data.code.endsAt)}.`;
-    } else {
-      const data = await owner({ action: 'create_pass', ...body });
-      message = `Door link, works ${when(data.pass.startsAt)} – ${when(data.pass.endsAt)}: `
-        + `${location.origin}${location.pathname}#pass=${data.token}`;
+    const { code } = await owner({ action: 'create_code', label: $('code-label').value,
+      startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() });
+    $('new-code-message').value = `Your door code is ${code.pin}. It works ${when(code.startsAt)} – ${when(code.endsAt)}.`;
+    $('new-code').hidden = false;
+    if (code.status === 'setting' || code.status === 'failed') {
+      feedback('code-feedback', 'The lock has not confirmed this code yet. Send it once the list shows it as Active or Upcoming.', true);
     }
-    $('new-grant-message').value = message;
-    $('new-grant').hidden = false;
-    $('copy-grant').textContent = 'Copy';
-    $('grant-label').value = '';
-    await refreshOwner();
+    $('copy-code').textContent = 'Copy';
+    $('code-label').value = '';
+    await refresh();
   } catch (error) {
-    feedback('grant-feedback', error.message, true);
+    feedback('code-feedback', error.message, true);
   } finally {
     button.disabled = false;
   }
 }
 
-async function ownerAction(action) {
+async function command(action) {
   setButtons(false);
   $('lock-state').dataset.busy = 'true';
   feedback('lock-feedback', action === 'lock' ? 'Locking…' : 'Unlocking…');
   try {
-    const data = await owner({ action });
-    showLockState(data.lockState);
+    showLockState((await owner({ action })).lockState);
     feedback('lock-feedback', '');
   } catch (error) {
     if (error.data.lockState) showLockState(error.data.lockState);
     feedback('lock-feedback', error.message, true);
   }
   delete $('lock-state').dataset.busy;
-  await refreshOwner();
+  await refresh();
 }
 
-async function copyField(fieldId, button) {
+const now = new Date();
+now.setSeconds(0, 0);
+[$('code-start-date').value, $('code-start-time').value] = toPacificInput(now).split('T');
+[$('code-end-date').value, $('code-end-time').value] = toPacificInput(new Date(now.getTime() + 864e5)).split('T');
+$('lock').addEventListener('click', () => command('lock'));
+$('unlock').addEventListener('click', () => command('unlock'));
+$('code-form').addEventListener('submit', createCode);
+$('copy-code').addEventListener('click', async () => {
   try {
-    await navigator.clipboard.writeText($(fieldId).value);
-    button.textContent = 'Copied';
+    await navigator.clipboard.writeText($('new-code-message').value);
+    $('copy-code').textContent = 'Copied';
   } catch {
-    $(fieldId).select();
+    $('new-code-message').select();
   }
-}
-
-// -----------------------------------------------------------------------------
-
-if (guestToken) {
-  document.title = 'Door — Penta Projects';
-  document.querySelector('.back-link').hidden = true;
-  document.querySelector('.door-page').classList.add('door-page-guest');
-  $('lock').addEventListener('click', () => guest('lock'));
-  $('unlock').addEventListener('click', () => guest('unlock'));
-  guest();
-} else {
-  const now = new Date();
-  now.setSeconds(0, 0);
-  const tomorrow = new Date(now.getTime() + 24 * 3600 * 1000);
-  [$('grant-start-date').value, $('grant-start-time').value] = toPacificInput(now).split('T');
-  [$('grant-end-date').value, $('grant-end-time').value] = toPacificInput(tomorrow).split('T');
-  $('lock').addEventListener('click', () => ownerAction('lock'));
-  $('unlock').addEventListener('click', () => ownerAction('unlock'));
-  $('grant-form').addEventListener('submit', createGrant);
-  for (const button of document.querySelectorAll('.grant-kind button')) {
-    button.addEventListener('click', () => chooseKind(button.dataset.kind));
-  }
-  $('copy-grant').addEventListener('click', () => copyField('new-grant-message', $('copy-grant')));
-  $('login').addEventListener('click', () => Profiles.promptLogin());
-  Profiles.init({ headerMount: null, onAuthChange: () => refreshOwner() })
-    .catch(error => console.error('Profiles init failed', error));
-}
+});
+$('login').addEventListener('click', () => Profiles.promptLogin());
+Profiles.init({ headerMount: null, onAuthChange: () => refresh() })
+  .catch(error => console.error('Profiles init failed', error));

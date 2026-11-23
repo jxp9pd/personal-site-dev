@@ -3,7 +3,6 @@
     <div class="page-header">
       <a class="back-link" href="/tools/"><svg class="back-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" /></svg> Tools</a>
       <h1>Door</h1>
-      <p id="pass-summary" class="door-subtitle" hidden></p>
     </div>
 
     <div class="door-grid">
@@ -25,47 +24,38 @@
     </section>
 
     <div id="owner" hidden>
-      <form id="grant-form" class="door-panel" aria-labelledby="grant-title">
-        <h2 id="grant-title">Give access</h2>
-        <div class="segmented grant-kind" role="group" aria-label="Access type">
-          <button type="button" data-kind="code" aria-pressed="true">Keypad code</button>
-          <button type="button" data-kind="link" aria-pressed="false">Link</button>
-        </div>
-        <div class="grant-fields">
-          <label class="grant-field grant-field-wide"><span class="field-label">Name</span>
-            <input id="grant-label" class="input" name="label" maxlength="60" required autocomplete="off"></label>
-          <fieldset class="grant-field grant-when"><legend class="field-label">From (PT)</legend>
-            <div class="grant-when-inputs">
-              <input id="grant-start-date" class="input" type="date" required aria-label="From date">
-              <input id="grant-start-time" class="input" type="time" required aria-label="From time">
+      <form id="code-form" class="door-panel" aria-labelledby="code-title">
+        <h2 id="code-title">New keypad code</h2>
+        <div class="code-fields">
+          <label class="code-field code-field-wide"><span class="field-label">Name</span>
+            <input id="code-label" class="input" name="label" maxlength="60" required autocomplete="off"></label>
+          <fieldset class="code-field code-when"><legend class="field-label">From (PT)</legend>
+            <div class="code-when-inputs">
+              <input id="code-start-date" class="input" type="date" required aria-label="From date">
+              <input id="code-start-time" class="input" type="time" required aria-label="From time">
             </div>
           </fieldset>
-          <fieldset class="grant-field grant-when"><legend class="field-label">Until (PT)</legend>
-            <div class="grant-when-inputs">
-              <input id="grant-end-date" class="input" type="date" required aria-label="Until date">
-              <input id="grant-end-time" class="input" type="time" required aria-label="Until time">
+          <fieldset class="code-field code-when"><legend class="field-label">Until (PT)</legend>
+            <div class="code-when-inputs">
+              <input id="code-end-date" class="input" type="date" required aria-label="Until date">
+              <input id="code-end-time" class="input" type="time" required aria-label="Until time">
             </div>
           </fieldset>
         </div>
-        <button type="submit" id="create-grant" class="button button-primary">Create</button>
-        <p id="grant-feedback" class="status" role="status" aria-live="polite"></p>
-        <div id="new-grant" class="new-grant" hidden>
-          <textarea id="new-grant-message" class="input" rows="3" readonly aria-label="Message for your guest"></textarea>
-          <div class="new-grant-row">
-            <button type="button" id="copy-grant" class="button">Copy</button>
-            <span class="door-item-meta">Shown once.</span>
+        <button type="submit" id="create-code" class="button button-primary">Create code</button>
+        <p id="code-feedback" class="status" role="status" aria-live="polite"></p>
+        <div id="new-code" class="new-code" hidden>
+          <textarea id="new-code-message" class="input" rows="2" readonly aria-label="Message for your guest"></textarea>
+          <div class="new-code-row">
+            <button type="button" id="copy-code" class="button">Copy</button>
           </div>
         </div>
       </form>
 
-      <section class="door-panel" aria-labelledby="grants-title">
-        <h2 id="grants-title">Access</h2>
-        <ul id="grants" class="door-list"></ul>
-        <p id="grants-empty" class="status">No one has access.</p>
-        <details id="past" class="door-more" hidden>
-          <summary>Past</summary>
-          <ul id="past-grants" class="door-list"></ul>
-        </details>
+      <section class="door-panel" aria-labelledby="codes-title">
+        <h2 id="codes-title">Codes</h2>
+        <ul id="codes" class="door-list"></ul>
+        <p id="codes-empty" class="status">No active codes.</p>
       </section>
 
       <details class="door-panel door-more">

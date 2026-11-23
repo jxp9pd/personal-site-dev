@@ -1,56 +1,45 @@
-"""Owner and guest commands for the apartment door."""
+"""Owner commands for the apartment door. The lock (Seam, or the mock) is the record of codes and activity."""
 from datetime import datetime, timedelta, timezone
-import hashlib
-import logging
 import re
 import secrets
-from uuid import UUID, uuid4
 
 from locks import LockError
-from store import StoreUnavailable, iso, parse_time
 
-MAX_PASS = timedelta(days=30)
+MAX_CODE = timedelta(days=30)
 MAX_LEAD = timedelta(days=365)
-TOKEN_PATTERN = re.compile(r'^[A-Za-z0-9_-]{32,128}$')
 CODE_DIGITS = 6
-STORE_ERROR = 'Guest passes are unavailable right now. Try again in a moment.'
+CODE_ID = re.compile(r'^[A-Za-z0-9_-]{1,100}$')
 
 
-def token_hash(token):
-    return hashlib.sha256(token.encode()).hexdigest()
+def iso(moment):
+    return moment.astimezone(timezone.utc).isoformat()
 
 
-def pass_status(record, now):
-    if record.get('revoked_at'):
-        return 'revoked'
-    if now < parse_time(record['starts_at']):
-        return 'scheduled'
-    if now >= parse_time(record['ends_at']):
+def parse_time(value):
+    moment = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    if moment.tzinfo is None:
+        raise ValueError('Times must include a timezone.')
+    return moment.astimezone(timezone.utc)
+
+
+def code_status(code, now):
+    if code.get('failed'):
+        return 'failed'
+    if now >= parse_time(code['ends_at']):
         return 'expired'
-    return 'active'
+    if code.get('setting'):
+        return 'setting'
+    return 'scheduled' if now < parse_time(code['starts_at']) else 'active'
 
 
-def public_pass(record, now):
-    return {'id': record['id'], 'label': record['label'], 'startsAt': record['starts_at'],
-            'endsAt': record['ends_at'], 'createdAt': record.get('created_at'),
-            'revokedAt': record.get('revoked_at'), 'status': pass_status(record, now)}
-
-
-def public_code(record, now):
-    return {'id': record['id'], 'label': record['label'], 'startsAt': record['starts_at'],
-            'endsAt': record['ends_at'], 'createdAt': record.get('created_at'),
-            'revokedAt': record.get('revoked_at'), 'status': pass_status(record, now),
-            'removedFromLock': bool(record.get('removed_at'))}
-
-
-def public_event(event):
-    return {'at': event['at'], 'actor': event['actor'], 'label': event.get('label'),
-            'action': event['action'], 'outcome': event['outcome']}
+def public_code(code, now):
+    return {'id': code['id'], 'label': code['name'], 'pin': code.get('code'), 'startsAt': code['starts_at'],
+            'endsAt': code['ends_at'], 'status': code_status(code, now)}
 
 
 class Door:
-    def __init__(self, lock, store, clock=lambda: datetime.now(timezone.utc)):
-        self.lock, self.store, self.clock = lock, store, clock
+    def __init__(self, lock, clock=lambda: datetime.now(timezone.utc)):
+        self.lock, self.clock = lock, clock
 
     def _lock_state(self):
         try:
@@ -58,168 +47,67 @@ class Door:
         except LockError:
             return 'unknown'
 
-    def _record(self, actor, action, outcome, ip, record=None):
-        try:
-            self.store.record_event({
-                'id': str(uuid4()), 'at': iso(self.clock()), 'actor': actor,
-                'pass_id': record['id'] if record else None,
-                'label': record['label'] if record else None,
-                'action': action, 'outcome': outcome, 'ip': ip,
-            })
-        except StoreUnavailable:
-            logging.error('Could not record door %s by %s (%s).', action, actor, outcome)
-
-    def _actuate(self, action, actor, ip, record=None):
-        try:
-            getattr(self.lock, action)()
-        except LockError as error:
-            self._record(actor, action, 'failed', ip, record)
-            return 502, {'error': str(error) or 'The lock did not respond.', 'lockState': self._lock_state()}
-        self._record(actor, action, 'ok', ip, record)
-        return 200, {'lockState': self._lock_state()}
-
     def owner_status(self):
         now = self.clock()
-        body = {'driver': self.lock.name, 'lockState': self._lock_state()}
+        body = {'lockState': self._lock_state()}
+        names = {}
         try:
-            body['passes'] = [public_pass(row, now) for row in self.store.list_passes()]
-            body['events'] = [public_event(row) for row in self.store.list_events()]
-            body['codes'] = [public_code(row, now) for row in self.store.list_codes()]
-        except StoreUnavailable:
-            body.update(passes=None, events=None, codes=None, storeError=STORE_ERROR)
+            codes = self.lock.list_codes()
+            names = {code['id']: code['name'] for code in codes}
+            body['codes'] = sorted((public_code(code, now) for code in codes), key=lambda code: code['startsAt'])
+        except (LockError, KeyError, TypeError, ValueError):
+            body.update(codes=None, error='Could not load codes from the lock service.')
+        try:
+            body['events'] = [{'at': event['at'], 'action': event['action'], 'label': names.get(event['code_id'])}
+                              for event in self.lock.list_events()]
+        except (LockError, KeyError, TypeError, ValueError):
+            body['events'] = None
         return body
 
-    def owner_command(self, body, ip):
+    def owner_command(self, body):
         action = body.get('action') if isinstance(body, dict) else None
         if action in ('lock', 'unlock'):
-            return self._actuate(action, 'owner', ip)
-        if action == 'create_pass':
-            return self._create_pass(body)
-        if action == 'revoke_pass':
-            return self._revoke_pass(body)
+            try:
+                getattr(self.lock, action)()
+            except LockError as error:
+                return 502, {'error': str(error) or 'The lock did not respond.', 'lockState': self._lock_state()}
+            return 200, {'lockState': self._lock_state()}
         if action == 'create_code':
             return self._create_code(body)
         if action == 'revoke_code':
             return self._revoke_code(body)
         return 400, {'error': 'Unknown action.'}
 
-    def _grant(self, body, noun):
-        """Validates a label and time window shared by links and codes: (label, starts, ends) or an error reply."""
+    def _create_code(self, body):
         label = body.get('label')
         if not isinstance(label, str) or not 1 <= len(label.strip()) <= 60:
-            return None, (400, {'error': f'Name the {noun} with 1–60 characters.'})
+            return 400, {'error': 'Name the code with 1–60 characters.'}
         try:
             starts, ends = parse_time(body.get('startsAt')), parse_time(body.get('endsAt'))
         except (AttributeError, TypeError, ValueError):
-            return None, (400, {'error': 'Start and end must be ISO times with a timezone.'})
+            return 400, {'error': 'Start and end must be ISO times with a timezone.'}
         now = self.clock()
         if ends <= starts:
-            return None, (400, {'error': f'The {noun} must end after it starts.'})
+            return 400, {'error': 'The code must end after it starts.'}
         if ends <= now:
-            return None, (400, {'error': f'The {noun} would already be expired.'})
-        if ends - starts > MAX_PASS:
-            return None, (400, {'error': f'A {noun} can last at most 30 days.'})
+            return 400, {'error': 'The code would already be expired.'}
+        if ends - starts > MAX_CODE:
+            return 400, {'error': 'A code can last at most 30 days.'}
         if starts > now + MAX_LEAD:
-            return None, (400, {'error': f'A {noun} must start within a year.'})
-        return (label.strip(), starts, ends), None
-
-    def _create_code(self, body):
-        grant, error = self._grant(body, 'code')
-        if error:
-            return error
-        label, starts, ends = grant
-        code = ''.join(secrets.choice('0123456789') for _ in range(CODE_DIGITS))
+            return 400, {'error': 'A code must start within a year.'}
+        pin = ''.join(secrets.choice('0123456789') for _ in range(CODE_DIGITS))
         try:
-            lock_code_id = self.lock.create_code(label, iso(starts), iso(ends), code)
+            code = self.lock.create_code(label.strip(), iso(starts), iso(ends), pin)
         except LockError as failure:
             return 502, {'error': str(failure) or 'The lock did not accept the code.'}
-        now = self.clock()
-        record = {'id': str(uuid4()), 'label': label, 'lock_code_id': lock_code_id, 'starts_at': iso(starts),
-                  'ends_at': iso(ends), 'created_at': iso(now), 'revoked_at': None, 'removed_at': None}
-        try:
-            self.store.create_code(record)
-        except StoreUnavailable:
-            try:
-                self.lock.delete_code(lock_code_id)
-            except LockError:
-                logging.error('Could not remove untracked keypad code %s.', lock_code_id)
-            return 503, {'error': STORE_ERROR}
-        return 200, {'code': public_code(record, now), 'pin': code}
+        return 200, {'code': public_code(code, now)}
 
     def _revoke_code(self, body):
-        try:
-            code_id = str(UUID(body.get('id')))
-        except (AttributeError, TypeError, ValueError):
+        code_id = body.get('id')
+        if not isinstance(code_id, str) or not CODE_ID.match(code_id):
             return 400, {'error': 'Unknown code.'}
-        # Idempotent: a retry after a timeout or lock failure resumes until the lock confirms removal.
         try:
-            record = self.store.get_code(code_id)
-            if record is None:
-                return 400, {'error': 'Unknown code.'}
-            if record.get('removed_at'):
-                return 200, {'revoked': code_id}
-            if not record.get('revoked_at'):
-                self.store.update_code(code_id, {'revoked_at': iso(self.clock())})
-            try:
-                self.lock.delete_code(record['lock_code_id'])
-            except LockError:
-                return 200, {'revoked': code_id, 'warning': 'Revoked here, but the lock did not confirm removing the '
-                             'code. Press Retry removal, or remove it in the lock app.'}
-            self.store.update_code(code_id, {'removed_at': iso(self.clock())})
-        except StoreUnavailable:
-            return 503, {'error': STORE_ERROR}
+            self.lock.delete_code(code_id)
+        except LockError as failure:
+            return 502, {'error': str(failure) or 'The lock did not remove the code. Try again.'}
         return 200, {'revoked': code_id}
-
-    def _create_pass(self, body):
-        grant, error = self._grant(body, 'pass')
-        if error:
-            return error
-        label, starts, ends = grant
-        now = self.clock()
-        token = secrets.token_urlsafe(32)
-        record = {'id': str(uuid4()), 'label': label, 'token_hash': token_hash(token),
-                  'starts_at': iso(starts), 'ends_at': iso(ends), 'created_at': iso(now), 'revoked_at': None}
-        try:
-            self.store.create_pass(record)
-        except StoreUnavailable:
-            return 503, {'error': STORE_ERROR}
-        return 200, {'pass': public_pass(record, now), 'token': token}
-
-    def _revoke_pass(self, body):
-        try:
-            pass_id = str(UUID(body.get('id')))
-        except (AttributeError, TypeError, ValueError):
-            return 400, {'error': 'Unknown pass.'}
-        try:
-            self.store.revoke_pass(pass_id, self.clock())
-        except StoreUnavailable:
-            return 503, {'error': STORE_ERROR}
-        return 200, {'revoked': pass_id}
-
-    def guest_command(self, body, ip):
-        token = body.get('token') if isinstance(body, dict) else None
-        action = body.get('action', 'status') if isinstance(body, dict) else None
-        if action not in ('status', 'lock', 'unlock'):
-            return 400, {'error': 'Unknown action.'}
-        if not isinstance(token, str) or not TOKEN_PATTERN.match(token):
-            return 404, {'error': 'This pass link is not valid.'}
-        try:
-            record = self.store.find_pass(token_hash(token))
-        except StoreUnavailable:
-            return 503, {'error': STORE_ERROR}
-        if record is None:
-            return 404, {'error': 'This pass link is not valid.'}
-        now = self.clock()
-        info = {'pass': {key: value for key, value in public_pass(record, now).items()
-                         if key in ('label', 'startsAt', 'endsAt', 'status')},
-                'driver': self.lock.name}
-        if action == 'status':
-            return 200, {**info, **({'lockState': self._lock_state()} if info['pass']['status'] == 'active' else {})}
-        if info['pass']['status'] != 'active':
-            self._record('guest', action, 'denied', ip, record)
-            return 403, {**info, 'error': {
-                'scheduled': 'This pass is not active yet.',
-                'expired': 'This pass has expired.',
-                'revoked': 'This pass was revoked.'}[info['pass']['status']]}
-        status, result = self._actuate(action, 'guest', ip, record)
-        return status, {**info, **result}

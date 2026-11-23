@@ -1,4 +1,5 @@
 """Seam (seam.co) lock driver: one device in one Seam workspace."""
+from datetime import datetime, timedelta, timezone
 import json
 import time
 from urllib.error import HTTPError
@@ -17,6 +18,13 @@ def rejection(error):
         message = None
     return f'The lock service rejected the request: {message}' if isinstance(message, str) else \
         'The lock service rejected the request.'
+
+
+def code_record(code):
+    """Seam access code -> lock-driver code. `setting` means Seam has not confirmed it is on the keypad yet."""
+    return {'id': code['access_code_id'], 'name': code.get('name') or 'Guest', 'code': code.get('code'),
+            'starts_at': code.get('starts_at'), 'ends_at': code.get('ends_at'),
+            'setting': code.get('status') == 'setting', 'failed': bool(code.get('errors'))}
 
 
 class SeamLock:
@@ -60,13 +68,31 @@ class SeamLock:
             raise LockError('The lock has not confirmed yet. Check its state before trying again.')
         raise LockError((attempt.get('error') or {}).get('message') or 'The lock rejected the command.')
 
+    def list_codes(self):
+        codes = self._call('/access_codes/list', {'device_id': self.device_id}).get('access_codes') or []
+        return [code_record(code) for code in codes
+                if code.get('access_code_id') and code.get('starts_at') and code.get('ends_at')]
+
+    def list_events(self):
+        since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        events = self._call('/events/list', {'device_id': self.device_id, 'since': since, 'limit': 50,
+                                             'event_types': ['lock.locked', 'lock.unlocked']}).get('events') or []
+        return [{'at': event.get('occurred_at'), 'action': event['event_type'].split('.')[1][:-2],
+                 'code_id': event.get('access_code_id')}
+                for event in events if event.get('event_type') in ('lock.locked', 'lock.unlocked')]
+
     def create_code(self, name, starts_at, ends_at, code):
         created = self._call('/access_codes/create', {
-            'device_id': self.device_id, 'name': name, 'code': code,
-            'starts_at': starts_at, 'ends_at': ends_at}).get('access_code') or {}
+            'device_id': self.device_id,
+            'name': name,
+            'code': code,
+            'starts_at': starts_at,
+            'ends_at': ends_at,
+        }).get('access_code') or {}
         if not created.get('access_code_id'):
             raise LockError('The lock service did not create the code.')
-        return created['access_code_id']
+        return code_record({'name': name, 'code': code, 'starts_at': starts_at, 'ends_at': ends_at,
+                            'status': 'setting', **created})
 
     def delete_code(self, code_id):
         try:
