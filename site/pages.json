@@ -384,7 +384,7 @@
   {
     "output": "tools/door.html",
     "title": "Door — Penta Projects",
-    "description": "Lock, unlock and share temporary access to John's front door.",
+    "description": "Lock, unlock and share expiring keypad codes for John's front door.",
     "assets": "site",
     "layout": "wide",
     "section": "tools",

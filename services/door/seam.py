@@ -60,6 +60,19 @@ class SeamLock:
             raise LockError('The lock has not confirmed yet. Check its state before trying again.')
         raise LockError((attempt.get('error') or {}).get('message') or 'The lock rejected the command.')
 
+    def list_codes(self):
+        codes = self._call('/access_codes/list', {'device_id': self.device_id}).get('access_codes') or []
+        return [{'id': code['access_code_id'], 'name': code.get('name') or 'Guest', 'code': code.get('code'),
+                 'starts_at': code.get('starts_at'), 'ends_at': code.get('ends_at')}
+                for code in codes if code.get('access_code_id') and code.get('starts_at') and code.get('ends_at')]
+
+    def list_events(self):
+        events = self._call('/events/list', {'device_id': self.device_id, 'limit': 50,
+                                             'event_types': ['lock.locked', 'lock.unlocked']}).get('events') or []
+        return [{'at': event.get('occurred_at'), 'action': event['event_type'].split('.')[1][:-2],
+                 'code_id': event.get('access_code_id')}
+                for event in events if event.get('event_type') in ('lock.locked', 'lock.unlocked')]
+
     def create_code(self, name, starts_at, ends_at, code):
         created = self._call('/access_codes/create', {
             'device_id': self.device_id, 'name': name, 'code': code,
