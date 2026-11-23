@@ -236,6 +236,8 @@ class SeamLockTest(unittest.TestCase):
                                               'ends_at': '2026-11-23T18:00:00Z', 'setting': False, 'failed': False}])
         self.assertEqual(lock.list_events(), [{'at': '2026-11-22T19:00:00Z', 'action': 'unlock', 'code_id': 'c1'},
                                               {'at': '2026-11-22T18:30:00Z', 'action': 'lock', 'code_id': None}])
+        since = self.requests[1][1].pop('since')
+        self.assertLess(datetime.now(timezone.utc) - datetime.fromisoformat(since), timedelta(days=31))
         self.assertEqual([(url.rsplit('/', 2)[-2:], body) for url, body, _ in self.requests], [
             (['access_codes', 'list'], {'device_id': 'device-1'}),
             (['events', 'list'], {'device_id': 'device-1', 'limit': 50, 'event_types': ['lock.locked', 'lock.unlocked']})])

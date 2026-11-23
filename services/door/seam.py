@@ -1,4 +1,5 @@
 """Seam (seam.co) lock driver: one device in one Seam workspace."""
+from datetime import datetime, timedelta, timezone
 import json
 import time
 from urllib.error import HTTPError
@@ -73,7 +74,8 @@ class SeamLock:
                 if code.get('access_code_id') and code.get('starts_at') and code.get('ends_at')]
 
     def list_events(self):
-        events = self._call('/events/list', {'device_id': self.device_id, 'limit': 50,
+        since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        events = self._call('/events/list', {'device_id': self.device_id, 'since': since, 'limit': 50,
                                              'event_types': ['lock.locked', 'lock.unlocked']}).get('events') or []
         return [{'at': event.get('occurred_at'), 'action': event['event_type'].split('.')[1][:-2],
                  'code_id': event.get('access_code_id')}
