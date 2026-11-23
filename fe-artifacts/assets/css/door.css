@@ -58,3 +58,4 @@
   .grant-fields { grid-template-columns: 1fr; }
   .lock-icon { width: 72px; height: 90px; }
 }
+.door-page-guest { --page-width: var(--width-narrow); }

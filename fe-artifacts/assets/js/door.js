@@ -274,6 +274,7 @@ async function copyField(fieldId, button) {
 if (guestToken) {
   document.title = 'Door — Penta Projects';
   document.querySelector('.back-link').hidden = true;
+  document.querySelector('.door-page').classList.add('door-page-guest');
   $('lock').addEventListener('click', () => guest('lock'));
   $('unlock').addEventListener('click', () => guest('unlock'));
   guest();
