@@ -44,7 +44,7 @@ function feedback(id, message, error = false) {
 function showLockState(state) {
   const lockState = $('lock-state');
   lockState.dataset.state = state in stateText ? state : 'unknown';
-  lockState.textContent = stateText[lockState.dataset.state];
+  $('lock-state-text').textContent = stateText[lockState.dataset.state];
   $('unlock').classList.toggle('button-primary', lockState.dataset.state === 'locked');
   $('lock').classList.toggle('button-primary', lockState.dataset.state === 'unlocked');
 }
@@ -82,7 +82,10 @@ let guestPass = null;
 
 async function guest(action = 'status') {
   setButtons(false);
-  if (action !== 'status') feedback('lock-feedback', action === 'lock' ? 'Locking…' : 'Unlocking…');
+  if (action !== 'status') {
+    feedback('lock-feedback', action === 'lock' ? 'Locking…' : 'Unlocking…');
+    $('lock-state').dataset.busy = 'true';
+  }
   try {
     const data = await api('guest', { token: guestToken, action });
     renderGuest(data);
@@ -92,6 +95,7 @@ async function guest(action = 'status') {
     else setButtons(guestPass?.status === 'active');
     feedback('lock-feedback', error.message, true);
   }
+  delete $('lock-state').dataset.busy;
 }
 
 function renderGuest({ pass, lockState }) {
@@ -141,7 +145,6 @@ function renderOwner(data) {
   $('login').hidden = true;
   showLockState(data.lockState);
   setButtons(true);
-  if (data.driver === 'mock') feedback('lock-feedback', 'Test lock: no real door is connected.');
   if (data.storeError) feedback('grant-feedback', data.storeError, true);
   const grants = [
     ...(data.codes || []).map(code => ({ ...code, kind: 'code' })),
@@ -216,7 +219,8 @@ async function createGrant(event) {
   $('new-grant').hidden = true;
   feedback('grant-feedback', '');
   try {
-    const startsAt = fromPacificInput($('grant-start').value), endsAt = fromPacificInput($('grant-end').value);
+    const startsAt = fromPacificInput(`${$('grant-start-date').value}T${$('grant-start-time').value}`);
+    const endsAt = fromPacificInput(`${$('grant-end-date').value}T${$('grant-end-time').value}`);
     if (!startsAt || !endsAt) throw new DoorError('Pick a start and end time that exist in Pacific time.');
     const body = { label: $('grant-label').value, startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() };
     let message;
@@ -242,6 +246,7 @@ async function createGrant(event) {
 
 async function ownerAction(action) {
   setButtons(false);
+  $('lock-state').dataset.busy = 'true';
   feedback('lock-feedback', action === 'lock' ? 'Locking…' : 'Unlocking…');
   try {
     const data = await owner({ action });
@@ -251,6 +256,7 @@ async function ownerAction(action) {
     if (error.data.lockState) showLockState(error.data.lockState);
     feedback('lock-feedback', error.message, true);
   }
+  delete $('lock-state').dataset.busy;
   await refreshOwner();
 }
 
@@ -275,8 +281,8 @@ if (guestToken) {
   const now = new Date();
   now.setSeconds(0, 0);
   const tomorrow = new Date(now.getTime() + 24 * 3600 * 1000);
-  $('grant-start').value = toPacificInput(now);
-  $('grant-end').value = toPacificInput(tomorrow);
+  [$('grant-start-date').value, $('grant-start-time').value] = toPacificInput(now).split('T');
+  [$('grant-end-date').value, $('grant-end-time').value] = toPacificInput(tomorrow).split('T');
   $('lock').addEventListener('click', () => ownerAction('lock'));
   $('unlock').addEventListener('click', () => ownerAction('unlock'));
   $('grant-form').addEventListener('submit', createGrant);

@@ -386,7 +386,7 @@
     "title": "Door — Penta Projects",
     "description": "Lock, unlock and share temporary access to John's front door.",
     "assets": "site",
-    "layout": "narrow",
+    "layout": "wide",
     "section": "tools",
     "header": {},
     "styles": [

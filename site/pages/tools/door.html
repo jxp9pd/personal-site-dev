@@ -6,8 +6,16 @@
       <p id="pass-summary" class="door-subtitle" hidden></p>
     </div>
 
+    <div class="door-grid">
     <section class="door-panel door-lock" aria-label="Lock">
-      <p id="lock-state" class="lock-state" data-state="unknown" role="status">Checking…</p>
+      <div id="lock-state" class="lock-state" data-state="unknown" role="status">
+        <svg class="lock-icon" viewBox="0 0 64 80" aria-hidden="true">
+          <path class="lock-shackle" d="M18 38V24a14 14 0 0 1 28 0v14" />
+          <rect class="lock-body" x="6" y="36" width="52" height="40" rx="9" />
+          <path class="lock-keyhole" d="M32 50v10" />
+        </svg>
+        <span id="lock-state-text" class="lock-state-text">Checking…</span>
+      </div>
       <div class="door-actions">
         <button type="button" id="lock" class="button button-lg" disabled>Lock</button>
         <button type="button" id="unlock" class="button button-lg" disabled>Unlock</button>
@@ -26,10 +34,18 @@
         <div class="grant-fields">
           <label class="grant-field grant-field-wide"><span class="field-label">Name</span>
             <input id="grant-label" class="input" name="label" maxlength="60" required autocomplete="off"></label>
-          <label class="grant-field"><span class="field-label">From (PT)</span>
-            <input id="grant-start" class="input" name="startsAt" type="datetime-local" required></label>
-          <label class="grant-field"><span class="field-label">Until (PT)</span>
-            <input id="grant-end" class="input" name="endsAt" type="datetime-local" required></label>
+          <fieldset class="grant-field grant-when"><legend class="field-label">From (PT)</legend>
+            <div class="grant-when-inputs">
+              <input id="grant-start-date" class="input" type="date" required aria-label="From date">
+              <input id="grant-start-time" class="input" type="time" required aria-label="From time">
+            </div>
+          </fieldset>
+          <fieldset class="grant-field grant-when"><legend class="field-label">Until (PT)</legend>
+            <div class="grant-when-inputs">
+              <input id="grant-end-date" class="input" type="date" required aria-label="Until date">
+              <input id="grant-end-time" class="input" type="time" required aria-label="Until time">
+            </div>
+          </fieldset>
         </div>
         <button type="submit" id="create-grant" class="button button-primary">Create</button>
         <p id="grant-feedback" class="status" role="status" aria-live="polite"></p>
@@ -57,6 +73,7 @@
         <ul id="events" class="door-list"></ul>
         <p id="events-empty" class="status">No activity yet.</p>
       </details>
+    </div>
     </div>
     <noscript><p>Enable JavaScript to use the door.</p></noscript>
   </main>
